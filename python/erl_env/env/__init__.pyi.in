@@ -1,0 +1,152 @@
+from typing import overload
+from typing import List
+from typing import Union
+from typing import Callable
+import numpy as np
+import numpy.typing as npt
+from enum import IntEnum
+from @PY_PACKAGE_NAME@.common.storage import GridMapUnsigned2D
+
+__all__ = [
+    "Successor",
+    "EnvironmentBase",
+    "Environment2D",
+    "EnvironmentSe2",
+    "DifferentialDriveControl",
+    "DdcMotionPrimitive",
+    "load_ddc_motion_primitives_from_yaml",
+]
+
+class Successor:
+    env_metric_state: npt.NDArray[np.float64]
+    env_grid_state: npt.NDArray[np.int32]
+    cost: float
+    action_id: int
+
+class EnvironmentBase:
+    def __init__(self: EnvironmentBase) -> None: ...
+    def forward_action_in_metric_space(
+        self: EnvironmentBase, current_metric_state: npt.NDArray[np.float64], action_index: int, dt: float
+    ) -> npt.NDArray[np.float64]: ...
+    def forward_action_in_grid_space(
+        self: EnvironmentBase, current_grid_state: npt.NDArray[np.int32], action_index: int, dt: float
+    ) -> npt.NDArray[np.float64]: ...
+    def get_successors_in_metric_space(
+        self: EnvironmentBase, current_metric_state: npt.NDArray[np.float64]
+    ) -> List[Successor]: ...
+    def get_successors_in_grid_space(
+        self: EnvironmentBase, current_grid_state: npt.NDArray[np.int32]
+    ) -> List[Successor]: ...
+    def is_metric_state_collided(self: EnvironmentBase, metric_state: npt.NDArray[np.float64]) -> bool: ...
+    def is_grid_state_collided(self: EnvironmentBase, grid_state: npt.NDArray[np.int32]) -> bool: ...
+    def grid_state_hashing(self: EnvironmentBase, grid_state: npt.NDArray[np.int32]) -> int: ...
+    def metric_to_grid(self: EnvironmentBase, metric_state: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]: ...
+    def grid_to_metric(self: EnvironmentBase, grid_state: npt.NDArray[np.int32]) -> npt.NDArray[np.int32]: ...
+    def action_coords_to_action_index(
+        self: EnvironmentBase, action_coords: Union[npt.NDArray[np.int32], List[int]]
+    ) -> int: ...
+    def action_index_to_action_coords(self: EnvironmentBase, action_idx: int) -> List[int]: ...
+
+class Environment2D(EnvironmentBase):
+    class Action(IntEnum):
+        kForward = (0,)
+        kBack = (1,)
+        kRight = (2,)
+        kLeft = (3,)
+        kForwardRight = (4,)
+        kForwardLeft = (5,)
+        kBackRight = (6,)
+        kBackLeft = 7
+    @overload
+    def __init__(
+        self: Environment2D,
+        allow_diagonal: bool,
+        step_size: int,
+        grid_map: GridMapUnsigned2D,
+    ) -> None: ...
+    @overload
+    def __init__(
+        self: Environment2D,
+        allow_diagonal: bool,
+        step_size: int,
+        grid_map: GridMapUnsigned2D,
+        inflate_scale: float,
+        shape_metric_vertices: npt.NDArray[np.float64],
+    ) -> None: ...
+    @staticmethod
+    def get_grid_2d_action_from_name(action_name: str) -> Action: ...
+
+class DifferentialDriveControl:
+    @overload
+    def __init__(self: DifferentialDriveControl) -> None: ...
+    @overload
+    def __init__(self: DifferentialDriveControl, linear_velocity: float, angular_velocity: float) -> None: ...
+
+    linear_v: float
+    angular_v: float
+
+class DdcMotionPrimitive:
+    @overload
+    def __init__(self: DdcMotionPrimitive) -> None: ...
+    @overload
+    def __init__(
+        self: DdcMotionPrimitive,
+        controls: List[DifferentialDriveControl],
+        durations: List[float],
+        costs: List[float],
+    ) -> None: ...
+
+    controls: List[DifferentialDriveControl]
+    durations: List[float]
+    costs: List[float]
+
+    def compute_trajectories(
+        self: DdcMotionPrimitive,
+        state: npt.NDArray[np.float64],
+        dt: float,
+        motion_model_function: Callable[
+            [npt.NDArray[np.float64], DifferentialDriveControl, float], npt.NDArray[np.float64]
+        ],
+    ) -> List[npt.NDArray[np.float64]]: ...
+    def compute_trajectory(
+        self: DdcMotionPrimitive,
+        state: npt.NDArray[np.float64],
+        control_idx: int,
+        dt: float,
+        motion_model_function: Callable[
+            [npt.NDArray[np.float64], DifferentialDriveControl, float], npt.NDArray[np.float64]
+        ],
+    ) -> npt.NDArray[np.float64]: ...
+
+def load_ddc_motion_primitives_from_yaml(filename: str) -> List[DdcMotionPrimitive]: ...
+
+class EnvironmentSe2(EnvironmentBase):
+    @overload
+    def __init__(
+        self: EnvironmentSe2,
+        collision_checker: Callable[[EnvironmentSe2, float, float], bool],
+        collision_check_dt: float,
+        motion_primitives: List[DdcMotionPrimitive],
+    ) -> None: ...
+    @overload
+    def __init__(
+        self: EnvironmentSe2,
+        collision_check_dt: float,
+        motion_primitives: List[DdcMotionPrimitive],
+        grid_map: GridMapUnsigned2D,
+        num_orientations: int,
+    ) -> None: ...
+    @overload
+    def __init__(
+        self: EnvironmentSe2,
+        collision_check_dt: float,
+        motion_primitives: List[DdcMotionPrimitive],
+        grid_map: GridMapUnsigned2D,
+        num_orientations: int,
+        inflate_scale: float,
+        shape_metric_vertices: npt.NDArray[np.float64],
+    ) -> None: ...
+    @staticmethod
+    def motion_model(
+        metric_state: npt.NDArray[np.float64], control: DifferentialDriveControl, t: float
+    ) -> npt.NDArray[np.float64]: ...

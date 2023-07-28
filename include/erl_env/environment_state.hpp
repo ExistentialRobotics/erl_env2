@@ -3,9 +3,12 @@
 #include "erl_common/eigen.hpp"
 
 namespace erl::env {
-    enum VirtualStateValue { kStart = -1, kGoal = -2 };  // used for multi-start and multi-goal search
+    enum VirtualStateValue { kStart = -2, kGoal = -1 };  // used for multi-start and multi-goal search
 
     struct EnvironmentState {
+        static_assert(sizeof(void *) == sizeof(uint64_t), "not a 64-bit system.");
+
+        uint64_t id = u_int64_t(this);
         Eigen::VectorXd metric = {};
         Eigen::VectorXi grid = {};
 

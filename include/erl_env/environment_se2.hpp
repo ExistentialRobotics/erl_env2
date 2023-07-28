@@ -18,7 +18,7 @@ namespace erl::env {
         std::vector<DdcMotionPrimitive> m_motion_primitives_;
         std::shared_ptr<common::GridMapInfo3D> m_grid_map_info_;
         std::size_t m_max_num_controls_ = 0;
-        uint8_t m_obstacle_threshold_ = 0;
+        uint8_t m_obstacle_threshold_ = 1;
         bool m_add_map_cost_ = false;
         double m_map_cost_factor_ = 1.0;
         // std::size_t m_max_num_successors_ = 0;
@@ -49,9 +49,9 @@ namespace erl::env {
         struct GridRelSuccessorInfo {
             std::shared_ptr<EnvironmentState> rel_state = nullptr;
             std::vector<std::size_t> orders;
-            std::vector<std::size_t> motion_indices;
-            std::vector<std::size_t> control_indices;
-            std::vector<std::size_t> action_indices;
+            std::vector<int> motion_indices;
+            std::vector<int> control_indices;
+            std::vector<int> action_indices;
             std::vector<double> costs;
         };
 
@@ -73,9 +73,9 @@ namespace erl::env {
         EnvironmentSe2(
             double collision_check_dt,
             std::vector<DdcMotionPrimitive> motion_primitives,
-            const std::shared_ptr<common::GridMapUnsigned2D> &grid_map,
-            uint8_t obstacle_threshold,
             int num_orientations,
+            const std::shared_ptr<common::GridMapUnsigned2D> &grid_map,
+            uint8_t obstacle_threshold = 1,
             bool add_map_cost = false,
             double map_cost_factor = 1.0);
 
@@ -93,11 +93,11 @@ namespace erl::env {
         EnvironmentSe2(
             double collision_check_dt,
             std::vector<DdcMotionPrimitive> motion_primitives,
-            const std::shared_ptr<common::GridMapUnsigned2D> &grid_map,
-            uint8_t obstacle_threshold,
             int num_orientations,
+            const std::shared_ptr<common::GridMapUnsigned2D> &grid_map,
             double inflate_scale,
             const Eigen::Ref<const Eigen::Matrix2Xd> &shape_metric_vertices,
+            uint8_t obstacle_threshold = 1,
             bool add_map_cost = false,
             double map_cost_factor = 1.0);
 
@@ -129,7 +129,7 @@ namespace erl::env {
         }
 
         [[nodiscard]] std::vector<std::shared_ptr<EnvironmentState>>
-        ForwardAction(const std::shared_ptr<const EnvironmentState> &state, std::size_t action_index) const override;
+        ForwardAction(const std::shared_ptr<const EnvironmentState> &state, int action_index) const override;
 
         // [[nodiscard]] inline Eigen::MatrixXd
         // ForwardActionInMetricSpace(const Eigen::Ref<const Eigen::VectorXd> &current_metric_state, std::size_t action_index, double dt) const override {
@@ -166,6 +166,11 @@ namespace erl::env {
         GetSuccessors(const std::shared_ptr<EnvironmentState> &state) const override;
 
         [[nodiscard]] bool
+        InStateSpace(const std::shared_ptr<EnvironmentState> &state) const override {
+            return m_grid_map_info_->InGrids(state->grid);
+        }
+
+        [[nodiscard]] bool
         IsReachable(const std::vector<std::shared_ptr<EnvironmentState>> &trajectory) const override {
             return std::all_of(trajectory.begin(), trajectory.end(), [this](const auto &state) {
                 auto &grid_state = state->grid;
@@ -174,7 +179,7 @@ namespace erl::env {
             });
         }
 
-        [[nodiscard]] inline std::size_t
+        [[nodiscard]] inline uint32_t
         StateHashing(const std::shared_ptr<env::EnvironmentState> &state) const override {
             return GridStateHashingImpl(state->grid);
         }
@@ -199,15 +204,15 @@ namespace erl::env {
             return metric_state;
         }
 
-        [[nodiscard]] inline std::size_t
-        ActionCoordsToActionIndex(const std::vector<std::size_t> &action_coords) const override {
-            return action_coords[0] * m_max_num_controls_ + action_coords[1];  // action_coords = [motion_id, control_id]
+        [[nodiscard]] inline int
+        ActionCoordsToActionIndex(const std::vector<int> &action_coords) const override {
+            return action_coords[0] * int(m_max_num_controls_) + action_coords[1];  // action_coords = [motion_id, control_id]
         }
 
-        [[nodiscard]] inline std::vector<std::size_t>
-        ActionIndexToActionCoords(std::size_t action_idx) const override {
-            auto motion_id = action_idx / m_max_num_controls_;
-            auto control_id = action_idx % m_max_num_controls_;
+        [[nodiscard]] inline std::vector<int>
+        ActionIndexToActionCoords(int action_idx) const override {
+            auto motion_id = action_idx / int(m_max_num_controls_);
+            auto control_id = action_idx % int(m_max_num_controls_);
             return {motion_id, control_id};
         }
 

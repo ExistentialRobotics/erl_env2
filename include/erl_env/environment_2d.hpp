@@ -62,17 +62,18 @@ namespace erl::env {
         typedef MotionPrimitive<Eigen::Vector2i> GridMotionPrimitive;  // control signal is 2D-grid movement
 
     protected:
-        int m_step_size_ = 1;
-        GridMotionPrimitive m_grid_motion_primitive_;
-        std::vector<double> m_motion_cost_;
-        uint8_t m_obstacle_threshold_ = 1;
-        bool m_add_map_cost_ = false;
-        double m_map_cost_factor_ = 1.0;
-        cv::Mat m_original_grid_map_;
-        cv::Mat m_grid_map_;
-        std::shared_ptr<common::GridMapInfo2D> m_grid_map_info_;
-        Eigen::Matrix2Xd m_shape_metric_vertices_;
-        bool m_already_reset_ = true;
+        int m_step_size_ = 1;                                     // step size in grid space
+        GridMotionPrimitive m_grid_motion_primitive_;             // motion primitives in grid space
+        std::vector<double> m_motion_cost_;                       // cost of each motion primitive
+        uint8_t m_obstacle_threshold_ = 1;                        // minimum map value to be considered as obstacle
+        bool m_add_map_cost_ = false;                             // indicate whether to add map cost to the successor cost
+        double m_map_cost_factor_ = 1.0;                          // map cost = map_cost_factor * map_cost
+        cv::Mat m_original_grid_map_;                             // original grid map, where each cell is a scaled cost value
+        cv::Mat m_grid_map_;                                      // inflated grid map
+        std::shared_ptr<common::GridMapInfo2D> m_grid_map_info_;  // grid map description, x to the bottom, y to the right, along y first
+        Eigen::Matrix2Xd m_shape_metric_vertices_;                // vertices of the shape in metric space, assume the shape center is at the origin
+        bool m_already_reset_ = true;                             // indicate whether the environment has been reset
+        bool m_multi_resolution_mode_ = false;                    // indicate whether to align to (0, 0) in grid space for multi-resolution search
 
     public:
         Environment2D(
@@ -95,6 +96,11 @@ namespace erl::env {
             bool add_map_cost = false,
             double map_cost_factor = 1.0);
 
+        void
+        SetMultiResolutionMode(bool multi_resolution_mode) {
+            m_multi_resolution_mode_ = multi_resolution_mode;
+        }
+
         [[nodiscard]] inline std::size_t
         GetStateSpaceSize() const override {
             return m_grid_map_info_->Size();
@@ -106,7 +112,7 @@ namespace erl::env {
         }
 
         [[nodiscard]] inline std::vector<std::shared_ptr<EnvironmentState>>
-        ForwardAction(const std::shared_ptr<const EnvironmentState> &state, std::size_t action_index) const override {
+        ForwardAction(const std::shared_ptr<const EnvironmentState> &state, int action_index) const override {
             auto new_state = std::make_shared<EnvironmentState>();
             new_state->grid = state->grid + m_grid_motion_primitive_.controls[action_index];
             new_state->metric = GridToMetric(new_state->grid);
@@ -116,6 +122,12 @@ namespace erl::env {
         [[nodiscard]] std::vector<Successor>
         GetSuccessors(const std::shared_ptr<EnvironmentState> &state) const override;
 
+        [[nodiscard]] bool
+        InStateSpace(const std::shared_ptr<EnvironmentState> &state) const override {
+            return m_grid_map_info_->InGrids(state->grid) &&
+                   (!m_multi_resolution_mode_ || (state->grid[0] % m_step_size_ == 0 && state->grid[1] % m_step_size_ == 0));
+        }
+
         [[nodiscard]] inline bool
         IsReachable(const std::vector<std::shared_ptr<EnvironmentState>> &trajectory) const override {
             return std::all_of(trajectory.begin(), trajectory.end(), [this](const auto &state) {
@@ -123,7 +135,7 @@ namespace erl::env {
             });
         }
 
-        [[nodiscard]] inline std::size_t
+        [[nodiscard]] inline uint32_t
         StateHashing(const std::shared_ptr<env::EnvironmentState> &state) const override {
             return m_grid_map_info_->GridToIndex(state->grid, true);  // row-major
         }
@@ -140,13 +152,13 @@ namespace erl::env {
             return metric_state;
         }
 
-        [[nodiscard]] inline std::size_t
-        ActionCoordsToActionIndex(const std::vector<std::size_t> &action_coords) const override {
+        [[nodiscard]] inline int
+        ActionCoordsToActionIndex(const std::vector<int> &action_coords) const override {
             return action_coords[0];
         }
 
-        [[nodiscard]] inline std::vector<std::size_t>
-        ActionIndexToActionCoords(std::size_t action_idx) const override {
+        [[nodiscard]] inline std::vector<int>
+        ActionIndexToActionCoords(int action_idx) const override {
             return {action_idx};
         }
 

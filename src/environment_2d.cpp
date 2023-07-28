@@ -77,15 +77,18 @@ namespace erl::env {
         }
         m_shape_metric_vertices_ = shape_metric_vertices.array() * inflate_scale;
         InflateGridMap2D(m_original_grid_map_, m_grid_map_, grid_map->info, m_shape_metric_vertices_);
-    };
+    }
 
     std::vector<Successor>
     Environment2D::GetSuccessors(const std::shared_ptr<EnvironmentState> &state) const {
         std::vector<Successor> successors;
-        auto num_controls = m_grid_motion_primitive_.controls.size();
+
+        if (!InStateSpace(state)) { return successors; }
+
+        auto num_controls = int(m_grid_motion_primitive_.controls.size());
         successors.clear();
         successors.reserve(num_controls);
-        for (std::size_t control_idx = 0; control_idx < num_controls; control_idx++) {
+        for (int control_idx = 0; control_idx < num_controls; control_idx++) {
             auto &direction = m_grid_motion_primitive_.controls[control_idx];
             std::vector<std::shared_ptr<EnvironmentState>> trajectory = {std::const_pointer_cast<EnvironmentState>(state)};
             for (long i = 0; i < m_step_size_; ++i) {
@@ -114,7 +117,7 @@ namespace erl::env {
 #ifndef NDEBUG
         cv::Mat map = m_grid_map_ * 255;  // DEBUG
         cv::imshow("environment 2d: map", map);
-        cv::waitKey(100);                 // DEBUG
+        cv::waitKey(100);  // DEBUG
 #endif
 
         if (m_shape_metric_vertices_.cols() == 0) {
@@ -132,7 +135,7 @@ namespace erl::env {
 #ifndef NDEBUG
             map = m_grid_map_ * 255;  // DEBUG
             cv::imshow("environment 2d: map with robot", map);
-            cv::waitKey(100);         // DEBUG
+            cv::waitKey(100);  // DEBUG
 #endif
 
             return;
@@ -150,7 +153,7 @@ namespace erl::env {
 #ifndef NDEBUG
         map = m_grid_map_ * 255;  // DEBUG
         cv::imshow("environment 2d: map with robot", map);
-        cv::waitKey(100);         // DEBUG
+        cv::waitKey(100);  // DEBUG
 #endif
     }
 

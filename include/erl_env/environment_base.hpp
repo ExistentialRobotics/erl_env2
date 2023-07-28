@@ -18,18 +18,18 @@ namespace erl::env {
     struct Successor {
         std::shared_ptr<EnvironmentState> env_state = nullptr;
         double cost = 0.0;
-        std::size_t action_id = -1;
+        int action_id = -1;
 
         Successor() = default;
 
-        Successor(std::shared_ptr<EnvironmentState> state, double cost, std::size_t action_id)
+        Successor(std::shared_ptr<EnvironmentState> state, double cost, int action_id)
             : env_state(std::move(state)),
               cost(cost),
               action_id(action_id) {
             ERL_ASSERTM(env_state != nullptr, "state is nullptr");
         }
 
-        Successor(Eigen::VectorXd env_metric_state, Eigen::VectorXi env_grid_state, double cost, std::size_t action_id)
+        Successor(Eigen::VectorXd env_metric_state, Eigen::VectorXi env_grid_state, double cost, int action_id)
             : env_state(std::make_shared<EnvironmentState>(std::move(env_metric_state), std::move(env_grid_state))),
               cost(cost),
               action_id(action_id) {}
@@ -64,7 +64,7 @@ namespace erl::env {
         GetActionSpaceSize() const = 0;
 
         [[nodiscard]] virtual std::vector<std::shared_ptr<EnvironmentState>>
-        ForwardAction(const std::shared_ptr<const EnvironmentState> &state, std::size_t action_index) const = 0;
+        ForwardAction(const std::shared_ptr<const EnvironmentState> &state, int action_index) const = 0;
 
         [[nodiscard]] inline std::shared_ptr<CostBase>
         GetDistanceCostFunc() const {
@@ -80,14 +80,12 @@ namespace erl::env {
         GetSuccessors(const std::shared_ptr<EnvironmentState> &state) const = 0;
 
         [[nodiscard]] virtual bool
-        InStateSpace(const std::shared_ptr<EnvironmentState> &state) const {
-            throw NotImplemented(__PRETTY_FUNCTION__);
-        }
+        InStateSpace(const std::shared_ptr<EnvironmentState> &state) const = 0;
 
         [[nodiscard]] virtual bool
         IsReachable(const std::vector<std::shared_ptr<EnvironmentState>> &trajectory) const = 0;
 
-        [[nodiscard]] virtual std::size_t
+        [[nodiscard]] virtual uint32_t
         StateHashing(const std::shared_ptr<env::EnvironmentState> &state) const = 0;
 
         [[nodiscard]] virtual Eigen::VectorXi
@@ -96,11 +94,11 @@ namespace erl::env {
         [[nodiscard]] virtual Eigen::VectorXd
         GridToMetric(const Eigen::Ref<const Eigen::VectorXi> &grid_state) const = 0;
 
-        [[nodiscard]] virtual std::size_t
-        ActionCoordsToActionIndex(const std::vector<std::size_t> &action_coords) const = 0;
+        [[nodiscard]] virtual int
+        ActionCoordsToActionIndex(const std::vector<int> &action_coords) const = 0;
 
-        [[nodiscard]] virtual std::vector<std::size_t>
-        ActionIndexToActionCoords(std::size_t action_idx) const = 0;
+        [[nodiscard]] virtual std::vector<int>
+        ActionIndexToActionCoords(int action_idx) const = 0;
 
         virtual void
         PlaceRobot(const Eigen::Ref<const Eigen::VectorXd> &metric_state) = 0;

@@ -9,9 +9,9 @@ namespace erl::env {
     EnvironmentSe2::EnvironmentSe2(
         double collision_check_dt,
         std::vector<DdcMotionPrimitive> motion_primitives,
+        int num_orientations,
         const std::shared_ptr<common::GridMapUnsigned2D> &grid_map,
         uint8_t obstacle_threshold,
-        int num_orientations,
         bool add_map_cost,
         double map_cost_factor)
         : EnvironmentBase(std::make_shared<EuclideanDistanceCost>(), collision_check_dt),
@@ -81,7 +81,7 @@ namespace erl::env {
         }
 
         // init discrete relative trajectories
-        std::size_t num_motions = m_motion_primitives_.size();
+        auto num_motions = int(m_motion_primitives_.size());
         int x_center_g = grid_map_info->CenterGrid().x();
         int y_center_g = grid_map_info->CenterGrid().y();
         m_grid_rel_trajectories_.clear();
@@ -97,14 +97,14 @@ namespace erl::env {
             grid_rel_trajectories.resize(num_motions);
             std::map<std::size_t, GridRelSuccessorInfo> unique_grid_rel_successors;
             std::vector<std::vector<double>> grid_rel_trajectory_metric_lengths(num_motions);
-            for (std::size_t motion_idx = 0; motion_idx < num_motions; ++motion_idx) {
+            for (int motion_idx = 0; motion_idx < num_motions; ++motion_idx) {
                 auto &motion = m_motion_primitives_[motion_idx];
 
                 // a metric trajectory starts from [0, 0, 0]
                 auto &motion_metric_rel_trajectory_segments = m_metric_rel_trajectories_[motion_idx];
                 // grid trajectories starts from [0, 0, theta_g]
                 auto &motion_grid_rel_trajectories = grid_rel_trajectories[motion_idx];
-                auto num_controls = motion.controls.size();
+                auto num_controls = int(motion.controls.size());
                 motion_grid_rel_trajectories.reserve(num_controls);
 
                 auto &motion_grid_rel_trajectory_metric_lengths = grid_rel_trajectory_metric_lengths[motion_idx];
@@ -117,7 +117,7 @@ namespace erl::env {
 
                 double trajectory_length = 0;
                 // a motion primitive can have multiple controls, and the mediate states are considered as successors
-                for (std::size_t control_idx = 0; control_idx < num_controls; ++control_idx) {
+                for (int control_idx = 0; control_idx < num_controls; ++control_idx) {
                     auto &metric_segment = motion_metric_rel_trajectory_segments[control_idx];
 
                     long num_metric_states = metric_segment.cols();
@@ -159,7 +159,7 @@ namespace erl::env {
                     if (grid_trajectory.empty()) {
                         auto &control = motion.controls[control_idx];
                         ERL_WARN_ONCE(
-                            "Empty trajectory for control %lu of motion %lu: v=%f, w=%f.",
+                            "Empty trajectory for control %d of motion %d: v=%f, w=%f.",
                             control_idx,
                             motion_idx,
                             control.linear_v,
@@ -178,7 +178,7 @@ namespace erl::env {
                     if (successor_info.rel_state == nullptr) { successor_info.rel_state = grid_trajectory.back(); }
                     successor_info.motion_indices.push_back(motion_idx);
                     successor_info.control_indices.push_back(control_idx);
-                    successor_info.action_indices.push_back(motion_idx * m_max_num_controls_ + control_idx);
+                    successor_info.action_indices.push_back(motion_idx * int(m_max_num_controls_) + control_idx);
                     successor_info.costs.push_back(motion.costs[control_idx] + trajectory_length);  // add trajectory length
                     motion_grid_rel_trajectory_metric_lengths.push_back(trajectory_length);
                     motion_grid_rel_trajectories.emplace_back(grid_trajectory);
@@ -233,14 +233,14 @@ namespace erl::env {
     EnvironmentSe2::EnvironmentSe2(
         double collision_check_dt,
         std::vector<DdcMotionPrimitive> motion_primitives,
-        const std::shared_ptr<common::GridMapUnsigned2D> &grid_map,
-        uint8_t obstacle_threshold,
         int num_orientations,
+        const std::shared_ptr<common::GridMapUnsigned2D> &grid_map,
         double inflate_scale,
         const Eigen::Ref<const Eigen::Matrix2Xd> &shape_metric_vertices,
+        uint8_t obstacle_threshold,
         bool add_map_cost,
         double map_cost_factor)
-        : EnvironmentSe2(collision_check_dt, std::move(motion_primitives), grid_map, obstacle_threshold, num_orientations, add_map_cost, map_cost_factor) {
+        : EnvironmentSe2(collision_check_dt, std::move(motion_primitives), num_orientations, grid_map, obstacle_threshold, add_map_cost, map_cost_factor) {
 
         if (shape_metric_vertices.cols() == 0) {
             ERL_WARN("shape_metric_vertices is empty, skip inflation.\n");
@@ -262,7 +262,7 @@ namespace erl::env {
     }
 
     std::vector<std::shared_ptr<EnvironmentState>>
-    EnvironmentSe2::ForwardAction(const std::shared_ptr<const EnvironmentState> &state, std::size_t action_index) const {
+    EnvironmentSe2::ForwardAction(const std::shared_ptr<const EnvironmentState> &state, int action_index) const {
         auto action_coords = ActionIndexToActionCoords(action_index);
         auto motion_idx = action_coords[0];
         auto control_idx = action_coords[1];

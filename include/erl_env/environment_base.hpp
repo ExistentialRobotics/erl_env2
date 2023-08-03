@@ -18,26 +18,27 @@ namespace erl::env {
     struct Successor {
         std::shared_ptr<EnvironmentState> env_state = nullptr;
         double cost = 0.0;
-        int action_id = -1;
+        std::vector<int> action_coords = {};
 
         Successor() = default;
 
-        Successor(std::shared_ptr<EnvironmentState> state, double cost, int action_id)
+        Successor(std::shared_ptr<EnvironmentState> state, double cost, std::vector<int> action_coords)
             : env_state(std::move(state)),
               cost(cost),
-              action_id(action_id) {
+              action_coords(std::move(action_coords)) {
             ERL_ASSERTM(env_state != nullptr, "state is nullptr");
         }
 
-        Successor(Eigen::VectorXd env_metric_state, Eigen::VectorXi env_grid_state, double cost, int action_id)
+        Successor(Eigen::VectorXd env_metric_state, Eigen::VectorXi env_grid_state, double cost, std::vector<int> action_coords)
             : env_state(std::make_shared<EnvironmentState>(std::move(env_metric_state), std::move(env_grid_state))),
               cost(cost),
-              action_id(action_id) {}
+              action_coords(std::move(action_coords)) {}
     };
 
     /**
-     * @brief EnvironmentBase is a virtual interface for search-based planning on a metric space. Thus, the EnvironmentBase includes a set of map parameters
-     * such as grid cell resolution, and a collision checker. The internal state representation is discrete grid coordinate.
+     * @brief EnvironmentBase is a virtual interface for search-based planning on a metric space. Thus, the
+     * EnvironmentBase includes a set of map parameters such as grid cell resolution, and a collision checker. The
+     * internal state representation is discrete grid coordinate.
      */
     class EnvironmentBase {
 
@@ -64,7 +65,7 @@ namespace erl::env {
         GetActionSpaceSize() const = 0;
 
         [[nodiscard]] virtual std::vector<std::shared_ptr<EnvironmentState>>
-        ForwardAction(const std::shared_ptr<const EnvironmentState> &state, int action_index) const = 0;
+        ForwardAction(const std::shared_ptr<const EnvironmentState> &state, const std::vector<int> &action_coords) const = 0;
 
         [[nodiscard]] inline std::shared_ptr<CostBase>
         GetDistanceCostFunc() const {
@@ -82,9 +83,6 @@ namespace erl::env {
         [[nodiscard]] virtual bool
         InStateSpace(const std::shared_ptr<EnvironmentState> &state) const = 0;
 
-        [[nodiscard]] virtual bool
-        IsReachable(const std::vector<std::shared_ptr<EnvironmentState>> &trajectory) const = 0;
-
         [[nodiscard]] virtual uint32_t
         StateHashing(const std::shared_ptr<env::EnvironmentState> &state) const = 0;
 
@@ -94,19 +92,7 @@ namespace erl::env {
         [[nodiscard]] virtual Eigen::VectorXd
         GridToMetric(const Eigen::Ref<const Eigen::VectorXi> &grid_state) const = 0;
 
-        [[nodiscard]] virtual int
-        ActionCoordsToActionIndex(const std::vector<int> &action_coords) const = 0;
-
-        [[nodiscard]] virtual std::vector<int>
-        ActionIndexToActionCoords(int action_idx) const = 0;
-
-        virtual void
-        PlaceRobot(const Eigen::Ref<const Eigen::VectorXd> &metric_state) = 0;
-
-        virtual void
-        Reset() = 0;
-
-        virtual void
+        [[nodiscard]] virtual cv::Mat
         ShowPaths(const std::map<int, Eigen::MatrixXd> &) const {
             throw NotImplemented(__PRETTY_FUNCTION__);
         }
@@ -114,7 +100,8 @@ namespace erl::env {
     protected:
         static cv::Mat
         InitializeGridMap2D(const std::shared_ptr<common::GridMapUnsigned2D> &grid_map) {
-            cv::Mat grid_map_mat(grid_map->info->Shape(0), grid_map->info->Shape(1), CV_8UC1, cv::Scalar(0));  // x to the bottom, y to the right, along y first
+            cv::Mat grid_map_mat(grid_map->info->Shape(0), grid_map->info->Shape(1), CV_8UC1,
+                                 cv::Scalar(0));  // x to the bottom, y to the right, along y first
             int size = grid_map->info->Size();
             auto begin = grid_map->data.GetDataPtr();
             auto end = begin + size;

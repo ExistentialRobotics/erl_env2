@@ -6,6 +6,7 @@ namespace erl::env {
     Environment2D::Environment2D(
         bool allow_diagonal,
         int step_size,
+        bool down_sampled,
         std::shared_ptr<CostBase> cost_func,
         const std::shared_ptr<common::GridMapUnsigned2D> &grid_map,
         uint8_t obstacle_threshold,
@@ -13,6 +14,7 @@ namespace erl::env {
         double map_cost_factor)
         : EnvironmentBase(std::move(cost_func)),
           m_step_size_(step_size),
+          m_down_sampled_(down_sampled),
           m_obstacle_threshold_(obstacle_threshold),
           m_add_map_cost_(add_map_cost),
           m_map_cost_factor_(map_cost_factor),
@@ -58,6 +60,7 @@ namespace erl::env {
     Environment2D::Environment2D(
         bool allow_diagonal,
         int step_size,
+        bool down_sampled,
         const std::shared_ptr<CostBase> &cost_func,
         const std::shared_ptr<common::GridMapUnsigned2D> &grid_map,
         uint8_t obstacle_threshold,
@@ -65,7 +68,7 @@ namespace erl::env {
         const Eigen::Ref<const Eigen::Matrix2Xd> &shape_metric_vertices,
         bool add_map_cost,
         double map_cost_factor)
-        : Environment2D(allow_diagonal, step_size, cost_func, grid_map, obstacle_threshold, add_map_cost, map_cost_factor) {
+        : Environment2D(allow_diagonal, step_size, down_sampled, cost_func, grid_map, obstacle_threshold, add_map_cost, map_cost_factor) {
 
         if (shape_metric_vertices.cols() == 0) {
             ERL_WARN("shape_metric_vertices is empty, no inflation");
@@ -81,83 +84,41 @@ namespace erl::env {
 
     std::vector<Successor>
     Environment2D::GetSuccessors(const std::shared_ptr<EnvironmentState> &state) const {
+        if (!InStateSpace(state)) { return {}; }
+
         std::vector<Successor> successors;
-
-        if (!InStateSpace(state)) { return successors; }
-
         auto num_controls = int(m_grid_motion_primitive_.controls.size());
         successors.clear();
         successors.reserve(num_controls);
         for (int control_idx = 0; control_idx < num_controls; control_idx++) {
             auto &direction = m_grid_motion_primitive_.controls[control_idx];
-            std::vector<std::shared_ptr<EnvironmentState>> trajectory = {std::const_pointer_cast<EnvironmentState>(state)};
+            bool is_reachable = true;
+            auto next_state = std::make_shared<EnvironmentState>();
+            next_state->grid = state->grid;
             for (long i = 0; i < m_step_size_; ++i) {
-                auto next_state = std::make_shared<EnvironmentState>();
-                next_state->grid = trajectory.back()->grid + direction;
-                trajectory.push_back(next_state);
+                next_state->grid += direction;
+                if (!InStateSpace(next_state) || m_grid_map_.at<uint8_t>(next_state->grid[0], next_state->grid[1]) >= m_obstacle_threshold_) {
+                    is_reachable = false;
+                    break;
+                }
             }
-            if (!IsReachable(trajectory)) { continue; }
-            auto next_state = trajectory.back();
+            if (!is_reachable) { continue; }
             next_state->metric = GridToMetric(next_state->grid);
+
             if (m_add_map_cost_) {
                 double map_cost = m_map_cost_factor_ * double(m_grid_map_.at<uint8_t>(next_state->grid[0], next_state->grid[1]));
                 double cost = m_grid_motion_primitive_.costs[control_idx] + map_cost;
-                successors.emplace_back(next_state, cost, control_idx);
+                successors.emplace_back(next_state, cost, std::vector<int>{});
             } else {
-                successors.emplace_back(next_state, m_grid_motion_primitive_.costs[control_idx], control_idx);
+                successors.emplace_back(next_state, m_grid_motion_primitive_.costs[control_idx], std::vector<int>{});
             }
+            successors.back().action_coords.reserve(2);  // reserve one more for multi resolution search
+            successors.back().action_coords.push_back(control_idx);
         }
         return successors;
     }
 
-    void
-    Environment2D::PlaceRobot(const Eigen::Ref<const Eigen::VectorXd> &metric_state) {
-        m_already_reset_ = false;
-
-#ifndef NDEBUG
-        cv::Mat map = m_grid_map_ * 255;  // DEBUG
-        cv::imshow("environment 2d: map", map);
-        cv::waitKey(100);  // DEBUG
-#endif
-
-        if (m_shape_metric_vertices_.cols() == 0) {
-            Eigen::VectorXi grid_state = MetricToGrid(metric_state);
-            int block_half_size = 1;
-            for (int i = -block_half_size; i <= block_half_size; ++i) {
-                for (int j = -block_half_size; j <= block_half_size; ++j) {
-                    int x = grid_state[0] + i;
-                    int y = grid_state[1] + j;
-                    if (x < 0 || x >= m_grid_map_info_->Shape(0) || y < 0 || y >= m_grid_map_info_->Shape(1)) { continue; }
-                    m_grid_map_.at<uint8_t>(x, y) = 0;
-                }
-            }
-
-#ifndef NDEBUG
-            map = m_grid_map_ * 255;  // DEBUG
-            cv::imshow("environment 2d: map with robot", map);
-            cv::waitKey(100);  // DEBUG
-#endif
-
-            return;
-        }
-
-        Eigen::Vector2d translation_vector = metric_state.head<2>();
-        Eigen::Matrix2Xd vertices = m_shape_metric_vertices_.colwise() + translation_vector;
-        std::vector<std::vector<cv::Point>> contour(1);
-        auto &contour_points = contour[0];
-        for (int i = 0; i < vertices.cols(); ++i) {
-            contour_points.emplace_back(m_grid_map_info_->MeterToGridForValue(vertices(1, i), 1), m_grid_map_info_->MeterToGridForValue(vertices(0, i), 0));
-        }
-        cv::drawContours(m_grid_map_, contour, 0, cv::Scalar(0), cv::FILLED);
-
-#ifndef NDEBUG
-        map = m_grid_map_ * 255;  // DEBUG
-        cv::imshow("environment 2d: map with robot", map);
-        cv::waitKey(100);  // DEBUG
-#endif
-    }
-
-    void
+    cv::Mat
     Environment2D::ShowPaths(const std::map<int, Eigen::MatrixXd> &paths) const {
         cv::Mat img = m_grid_map_ * 255;
         cv::cvtColor(img, img, cv::COLOR_GRAY2BGR);
@@ -173,7 +134,9 @@ namespace erl::env {
             cv::Scalar color(random_int(common::g_random_engine), random_int(common::g_random_engine), random_int(common::g_random_engine));
             cv::polylines(img, points, false, color, 1);
         }
+        cv::namedWindow("environment 2d: paths", cv::WINDOW_NORMAL);
         cv::imshow("environment 2d: paths", img);
         cv::waitKey(100);
+        return img;
     }
 }  // namespace erl::env

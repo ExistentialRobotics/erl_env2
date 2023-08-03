@@ -4,7 +4,6 @@
 #include "erl_env/environment_se2.hpp"
 #include "erl_env/differential_drive_model.hpp"
 
-
 namespace erl::env {
     EnvironmentSe2::EnvironmentSe2(
         double collision_check_dt,
@@ -26,14 +25,12 @@ namespace erl::env {
         m_inflated_grid_maps_.resize(num_orientations);
         for (int i = 0; i < num_orientations; ++i) { m_original_grid_map_.copyTo(m_inflated_grid_maps_[i]); }
 
-        // The motion primitives may generate trajectories that go outside the map. We need to determine the furthest distance and create a new grid_map_info
-        // that is large enough to contain all the trajectories.
+        // The motion primitives may generate trajectories that go outside the map. We need to determine the furthest
+        // distance and create a new grid_map_info that is large enough to contain all the trajectories.
         double max_distance = 0;
         // process motion primitives and prepare metric relative trajectories starting from [0, 0, 0]
         m_metric_rel_trajectories_.reserve(m_motion_primitives_.size());
         for (auto &motion: m_motion_primitives_) {
-            std::size_t num_controls = motion.controls.size();
-            if (num_controls > m_max_num_controls_) { m_max_num_controls_ = num_controls; }
             // convert incremental cost to cumulative cost
             std::partial_sum(motion.costs.begin(), motion.costs.end(), motion.costs.begin());
             // compute metric relative trajectory segments
@@ -47,8 +44,9 @@ namespace erl::env {
             }
         }
 
-        // We should use the grid map center as the reference point and make sure the grid_map_info contains the longest metric relative trajectory, so that
-        // the grid state hashing can work properly. The hashing result will be wrong if there is negative value in the grid state.
+        // We should use the grid map center as the reference point and make sure the grid_map_info contains the longest
+        // metric relative trajectory, so that the grid state hashing can work properly. The hashing result will be
+        // wrong if there is negative value in the grid state.
         double x_center = m_grid_map_info_->Center().x();
         double y_center = m_grid_map_info_->Center().y();
         // m_max_num_successors_ = m_max_num_controls_ * m_motion_primitives_.size();
@@ -64,10 +62,16 @@ namespace erl::env {
             const double &kThetaRes = m_grid_map_info_->Resolution(2);
 
             grid_map_info = std::make_shared<common::GridMapInfo3D>(
-                Eigen::Vector3d(x_center - double(num_cells_x) * kXRes, y_center - double(num_cells_y) * kYRes, -M_PI),  // min
-                Eigen::Vector3d(x_center + double(num_cells_x) * kXRes, y_center + double(num_cells_y) * kYRes, M_PI),   // max
-                Eigen::Vector3d(kXRes, kYRes, kThetaRes),                                                                // resolution
-                Eigen::Vector3i(0, 0, 0));                                                                               // padding
+                Eigen::Vector3d(
+                    x_center - double(num_cells_x) * kXRes,
+                    y_center - double(num_cells_y) * kYRes,
+                    -M_PI),  // min
+                Eigen::Vector3d(
+                    x_center + double(num_cells_x) * kXRes,
+                    y_center + double(num_cells_y) * kYRes,
+                    M_PI),                                 // max
+                Eigen::Vector3d(kXRes, kYRes, kThetaRes),  // resolution
+                Eigen::Vector3i(0, 0, 0));                 // padding
             ERL_DEBUG_ASSERT(
                 grid_map_info->Center().x() == x_center,
                 "Grid map center changed! x_center: %f, grid_map_info->Center().x(): %f",
@@ -122,7 +126,8 @@ namespace erl::env {
 
                     long num_metric_states = metric_segment.cols();
                     for (long i = 0; i < num_metric_states; ++i) {
-                        // to hash the grid state correctly, use grid map center as the reference point, [x_center_g, y_center_g, theta_g]
+                        // to hash the grid state correctly, use grid map center as the reference point, [x_center_g,
+                        // y_center_g, theta_g]
                         Eigen::Vector3i grid_state(
                             grid_map_info->MeterToGridForValue(cos_theta * metric_segment(0, i) - sin_theta * metric_segment(1, i) + x_center, 0),
                             grid_map_info->MeterToGridForValue(sin_theta * metric_segment(0, i) + cos_theta * metric_segment(1, i) + y_center, 1),
@@ -148,7 +153,8 @@ namespace erl::env {
                             Eigen::Vector3i diff = (state1 - state2).cwiseAbs();
                             ERL_WARN_ONCE_COND(
                                 diff[0] > 1 || diff[1] > 1 || std::min(diff[2], num_orientations - diff[2]) > 1,
-                                "grid trajectory segment [%d, %d] -> [%d, %d] has a step larger than 1. Collision checking may be compromised.",
+                                "grid trajectory segment [%d, %d] -> [%d, %d] has a step larger than 1. Collision "
+                                "checking may be compromised.",
                                 state1[0],
                                 state1[1],
                                 state2[0],
@@ -169,7 +175,8 @@ namespace erl::env {
                         continue;  // skip the control if the trajectory is empty
                     }
 
-                    auto hashing = grid_map_info->GridToIndex(grid_trajectory.back()->grid, true);  // hashing will be wrong if there are negative values!
+                    auto hashing = grid_map_info->GridToIndex(grid_trajectory.back()->grid,
+                                                              true);  // hashing will be wrong if there are negative values!
                     for (auto &state: grid_trajectory) {
                         state->metric -= ref_state->metric;
                         state->grid -= ref_state->grid;
@@ -178,7 +185,7 @@ namespace erl::env {
                     if (successor_info.rel_state == nullptr) { successor_info.rel_state = grid_trajectory.back(); }
                     successor_info.motion_indices.push_back(motion_idx);
                     successor_info.control_indices.push_back(control_idx);
-                    successor_info.action_indices.push_back(motion_idx * int(m_max_num_controls_) + control_idx);
+                    successor_info.action_coords.push_back({motion_idx, control_idx});
                     successor_info.costs.push_back(motion.costs[control_idx] + trajectory_length);  // add trajectory length
                     motion_grid_rel_trajectory_metric_lengths.push_back(trajectory_length);
                     motion_grid_rel_trajectories.emplace_back(grid_trajectory);
@@ -262,8 +269,8 @@ namespace erl::env {
     }
 
     std::vector<std::shared_ptr<EnvironmentState>>
-    EnvironmentSe2::ForwardAction(const std::shared_ptr<const EnvironmentState> &state, int action_index) const {
-        auto action_coords = ActionIndexToActionCoords(action_index);
+    EnvironmentSe2::ForwardAction(const std::shared_ptr<const EnvironmentState> &state, const std::vector<int> &action_coords) const {
+        ERL_ASSERTM(action_coords.size() == 2, "action_coords.size() == 2");
         auto motion_idx = action_coords[0];
         auto control_idx = action_coords[1];
 
@@ -282,7 +289,7 @@ namespace erl::env {
 
     std::vector<Successor>
     EnvironmentSe2::GetSuccessors(const std::shared_ptr<EnvironmentState> &state) const {
-
+        if (!InStateSpace(state)) { return {}; }
         int current_theta_g = state->grid[2];
 
         auto &grid_rel_trajectories = m_grid_rel_trajectories_[current_theta_g];
@@ -340,9 +347,9 @@ namespace erl::env {
                 if (m_add_map_cost_) {
                     double map_cost = double(m_inflated_grid_maps_[theta_g].at<uint8_t>(x_g, y_g)) * m_map_cost_factor_;
                     double cost = rel_successor_info.costs[index] + map_cost;
-                    successors.emplace_back(metric_state, grid_state, cost, rel_successor_info.action_indices[index]);
+                    successors.emplace_back(metric_state, grid_state, cost, rel_successor_info.action_coords[index]);
                 } else {
-                    successors.emplace_back(metric_state, grid_state, rel_successor_info.costs[index], rel_successor_info.action_indices[index]);
+                    successors.emplace_back(metric_state, grid_state, rel_successor_info.costs[index], rel_successor_info.action_coords[index]);
                 }
 
                 ERL_DEBUG_ASSERT((grid_state.array() >= 0).all(), "Grid state is negative: [%d, %d, %d].\n", grid_state[0], grid_state[1], grid_state[2]);
@@ -351,65 +358,7 @@ namespace erl::env {
         return successors;
     }
 
-    void
-    EnvironmentSe2::PlaceRobot(const Eigen::Ref<const Eigen::VectorXd> &metric_state) {
-        m_already_reset_ = false;
-
-        if (m_shape_metric_vertices_.cols() == 0) {
-            Eigen::VectorXi grid_state = MetricToGrid(metric_state);
-            int num_orientations = m_grid_map_info_->Shape(2);
-            int block_half_size = 1;
-            for (int i = -block_half_size; i <= block_half_size; ++i) {
-                for (int j = -block_half_size; j <= block_half_size; ++j) {
-                    for (int k = 0; k < num_orientations; ++k) {
-                        int x = grid_state[0] + i;
-                        int y = grid_state[1] + j;
-                        if (x < 0 || x >= m_grid_map_info_->Shape(0) || y < 0 || y >= m_grid_map_info_->Shape(1)) { continue; }
-                        m_inflated_grid_maps_[k].at<uint8_t>(x, y) = 0;
-                    }
-                }
-            }
-            return;
-        }
-
-        Eigen::Matrix2d rotation_matrix = Eigen::Rotation2Dd(metric_state[2]).toRotationMatrix();
-        Eigen::Vector2d translation_vector = metric_state.head<2>();
-        Eigen::Matrix2Xd vertices = (rotation_matrix * m_shape_metric_vertices_).colwise() + translation_vector;
-        auto &grid_map = m_inflated_grid_maps_[m_grid_map_info_->MeterToGridForValue(metric_state[2], 2)];
-        std::vector<std::vector<cv::Point>> contour(1);
-        auto &contour_points = contour[0];
-        for (int i = 0; i < vertices.cols(); ++i) {
-            contour_points.emplace_back(m_grid_map_info_->MeterToGridForValue(vertices(1, i), 1), m_grid_map_info_->MeterToGridForValue(vertices(0, i), 0));
-        }
-        cv::drawContours(grid_map, contour, 0, cv::Scalar(0), cv::FILLED);
-    }
-
-    void
-    EnvironmentSe2::Reset() {
-        if (m_already_reset_) { return; }
-        m_already_reset_ = true;
-
-        int num_orientations = m_grid_map_info_->Shape(2);
-        m_inflated_grid_maps_.clear();
-        m_inflated_grid_maps_.resize(num_orientations);
-
-        if (m_shape_metric_vertices_.cols() == 0) {
-            for (int i = 0; i < num_orientations; ++i) { m_original_grid_map_.copyTo(m_inflated_grid_maps_[i]); }
-            return;
-        }
-
-        for (int theta_g = 0; theta_g < num_orientations; ++theta_g) {
-            double theta = m_grid_map_info_->GridToMeterForValue(theta_g, 2);
-            Eigen::Matrix2Xd vertices = Eigen::Rotation2Dd(theta).toRotationMatrix() * m_shape_metric_vertices_;
-            InflateGridMap2D(
-                m_original_grid_map_,
-                m_inflated_grid_maps_[theta_g],
-                std::make_shared<common::GridMapInfo2D>(m_grid_map_info_->Squeeze(2)),
-                vertices);
-        }
-    }
-
-    void
+    cv::Mat
     EnvironmentSe2::ShowPaths(const std::map<int, Eigen::MatrixXd> &paths) const {
         cv::Mat img = m_original_grid_map_ * 255;
         cv::cvtColor(img, img, cv::COLOR_GRAY2BGR);
@@ -431,6 +380,7 @@ namespace erl::env {
         }
         cv::namedWindow("environment se2: paths", cv::WINDOW_NORMAL);
         cv::imshow("environment se2: paths", img);
-        cv::waitKey(0);
+        cv::waitKey(100);
+        return img;
     }
 }  // namespace erl::env

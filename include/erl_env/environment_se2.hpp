@@ -76,6 +76,11 @@ namespace erl::env {
          */
         explicit EnvironmentSe2(const std::shared_ptr<common::GridMapUnsigned2D> &grid_map, std::shared_ptr<Setting> setting = nullptr);
 
+        [[nodiscard]] std::shared_ptr<Setting>
+        GetSetting() const {
+            return m_setting_;
+        }
+
         [[nodiscard]] inline std::size_t
         GetStateSpaceSize() const override {
             return m_grid_map_info_->Size();

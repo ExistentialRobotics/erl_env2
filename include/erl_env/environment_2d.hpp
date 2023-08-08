@@ -73,9 +73,9 @@ namespace erl::env {
         };
 
     protected:
-        std::shared_ptr<Setting> m_setting_;  // environment setting
-        GridMotionPrimitive m_grid_motion_primitive_;  // motion primitives in grid space
-        std::vector<double> m_motion_cost_;            // cost of each motion primitive
+        std::shared_ptr<Setting> m_setting_;                      // environment setting
+        GridMotionPrimitive m_grid_motion_primitive_;             // motion primitives in grid space
+        std::vector<double> m_motion_cost_;                       // cost of each motion primitive
         cv::Mat m_original_grid_map_;                             // original grid map, where each cell is a scaled cost value
         cv::Mat m_grid_map_;                                      // inflated grid map
         std::shared_ptr<common::GridMapInfo2D> m_grid_map_info_;  // grid map description, x to the bottom, y to the right, along y first
@@ -85,6 +85,11 @@ namespace erl::env {
             const std::shared_ptr<common::GridMapUnsigned2D> &grid_map,  // x to the bottom, y to the right, along y first
             std::shared_ptr<Setting> setting = nullptr,
             std::shared_ptr<CostBase> distance_cost_func = nullptr);
+
+        [[nodiscard]] std::shared_ptr<Setting>
+        GetSetting() const {
+            return m_setting_;
+        }
 
         [[nodiscard]] inline std::size_t
         GetStateSpaceSize() const override {

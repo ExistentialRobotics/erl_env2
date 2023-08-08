@@ -129,6 +129,7 @@ BindEnvironments(py::module &m) {
             py::arg("grid_map"),
             py::arg("setting") = nullptr,
             py::arg("distance_cost_func") = nullptr)
+        .def_property_readonly("setting", &Environment2D::GetSetting)
         .def_static("get_action_from_name", &Environment2D::GetActionFromName, py::arg("action_name"));
 
     py::class_<DifferentialDriveControl>(m, "DifferentialDriveControl", "Differential drive control.")
@@ -180,6 +181,7 @@ BindEnvironments(py::module &m) {
             py::init<const std::shared_ptr<GridMapUnsigned2D> &, std::shared_ptr<EnvironmentSe2::Setting>>(),
             py::arg("grid_map"),
             py::arg("setting") = nullptr)
+        .def_property_readonly("setting", &EnvironmentSe2::GetSetting)
         .def_static("motion_model", &EnvironmentSe2::MotionModel, py::arg("metric_state"), py::arg("control"), py::arg("t"));
 }
 

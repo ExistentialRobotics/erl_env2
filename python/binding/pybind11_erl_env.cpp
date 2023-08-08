@@ -5,6 +5,8 @@
 #include "erl_env/environment_base.hpp"
 #include "erl_env/environment_2d.hpp"
 #include "erl_env/environment_se2.hpp"
+#include "erl_env/environment_anchor.hpp"
+#include "erl_env/environment_grid_anchor.hpp"
 
 using namespace erl::common;
 using namespace erl::env;
@@ -24,7 +26,7 @@ public:
 };
 
 template<class EnvBase = EnvironmentBase>
-class PyEnvBase : virtual public EnvBase {
+class PyEnvBase : public EnvBase {
 public:
     using EnvBase::EnvBase;  // Inherit constructors
 
@@ -71,6 +73,37 @@ public:
     [[nodiscard]] cv::Mat
     ShowPaths(const std::map<int, Eigen::MatrixXd> &paths) const override {
         PYBIND11_OVERRIDE_PURE_NAME(cv::Mat, EnvBase, "show_paths", ShowPaths, paths);
+    }
+};
+
+template<class EnvBase = EnvironmentAnchor>
+class PyEnvAnchor : public PyEnvBase<EnvBase> {
+public:
+    using PyEnvBase<EnvBase>::PyEnvBase;
+
+    [[nodiscard]] std::size_t
+    GetStateSpaceSize() const override {
+        PYBIND11_OVERRIDE_NAME(std::size_t, EnvBase, "get_state_space_size", GetStateSpaceSize);
+    }
+
+    [[nodiscard]] std::size_t
+    GetActionSpaceSize() const override {
+        PYBIND11_OVERRIDE_NAME(std::size_t, EnvBase, "get_action_space_size", GetActionSpaceSize);
+    }
+
+    [[nodiscard]] std::vector<std::shared_ptr<EnvironmentState>>
+    ForwardAction(const std::shared_ptr<const EnvironmentState> &env_state, const std::vector<int> &action_coords) const override {
+        PYBIND11_OVERRIDE_NAME(std::vector<std::shared_ptr<EnvironmentState>>, EnvBase, "forward_action", ForwardAction, env_state, action_coords);
+    }
+
+    [[nodiscard]] std::vector<Successor>
+    GetSuccessors(const std::shared_ptr<EnvironmentState> &env_state) const override {
+        PYBIND11_OVERRIDE_NAME(std::vector<Successor>, EnvBase, "get_successors", GetSuccessors, env_state);
+    }
+
+    [[nodiscard]] bool
+    InStateSpace(const std::shared_ptr<EnvironmentState> &env_state) const override {
+        PYBIND11_OVERRIDE_NAME(bool, EnvBase, "in_state_space", InStateSpace, env_state);
     }
 };
 
@@ -183,6 +216,21 @@ BindEnvironments(py::module &m) {
             py::arg("setting") = nullptr)
         .def_property_readonly("setting", &EnvironmentSe2::GetSetting)
         .def_static("motion_model", &EnvironmentSe2::MotionModel, py::arg("metric_state"), py::arg("control"), py::arg("t"));
+
+    py::class_<EnvironmentAnchor, EnvironmentBase, PyEnvAnchor<>, std::shared_ptr<EnvironmentAnchor>>(m, ERL_AS_STRING(EnvironmentAnchor))
+        .def(py::init_alias<std::vector<std::shared_ptr<EnvironmentBase>>>(), py::arg("environments"));
+
+    py::class_<EnvironmentGridAnchor2D, EnvironmentAnchor, std::shared_ptr<EnvironmentGridAnchor2D>>(m, ERL_AS_STRING(EnvironmentGridAnchor2D))
+        .def(
+            py::init<std::vector<std::shared_ptr<EnvironmentBase>>, std::shared_ptr<GridMapInfo2D>>(),
+            py::arg("environments"),
+            py::arg("grid_map_info").none(false));
+
+    py::class_<EnvironmentGridAnchor3D, EnvironmentAnchor, std::shared_ptr<EnvironmentGridAnchor3D>>(m, ERL_AS_STRING(EnvironmentGridAnchor3D))
+        .def(
+            py::init<std::vector<std::shared_ptr<EnvironmentBase>>, std::shared_ptr<GridMapInfo3D>>(),
+            py::arg("environments"),
+            py::arg("grid_map_info").none(false));
 }
 
 PYBIND11_MODULE(PYBIND_MODULE_NAME, m) {

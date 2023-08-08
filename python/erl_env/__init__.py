@@ -10,7 +10,10 @@ __all__ = [
     "EnvironmentBase",
     "Environment2D",
     "EnvironmentSe2",
-    "load_ddc_motion_primitives_from_yaml",
     "DdcMotionPrimitive",
     "DifferentialDriveControl",
+    "load_ddc_motion_primitives_from_yaml",
+    "EnvironmentAnchor",
+    "EnvironmentGridAnchor2D",
+    "EnvironmentGridAnchor3D",
 ]

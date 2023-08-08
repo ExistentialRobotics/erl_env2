@@ -6,16 +6,25 @@ import numpy as np
 import numpy.typing as npt
 from enum import IntEnum
 from erl_common.storage import GridMapUnsigned2D
+from erl_common.storage import GridMapInfo2D
+from erl_common.storage import GridMapInfo3D
 from erl_common.yaml import YamlableBase
 
 __all__ = [
+    "EnvironmentState",
     "Successor",
+    "CostBase",
+    "EuclideanDistanceCost",
+    "ManhattanDistanceCost",
     "EnvironmentBase",
     "Environment2D",
     "EnvironmentSe2",
     "DifferentialDriveControl",
     "DdcMotionPrimitive",
     "load_ddc_motion_primitives_from_yaml",
+    "EnvironmentAnchor",
+    "EnvironmentGridAnchor2D",
+    "EnvironmentGridAnchor3D",
 ]
 
 class EnvironmentState:
@@ -127,7 +136,6 @@ class DdcMotionPrimitive:
 def load_ddc_motion_primitives_from_yaml(filename: str) -> List[DdcMotionPrimitive]: ...
 
 class EnvironmentSe2(EnvironmentBase):
-
     class Setting(YamlableBase):
         time_step: float
         motion_primitives: List[DdcMotionPrimitive]
@@ -136,7 +144,6 @@ class EnvironmentSe2(EnvironmentBase):
         add_map_cost: bool
         map_cost_factor: float
         shape: npt.NDArray[np.float64]
-
     def __init__(
         self: EnvironmentSe2,
         grid_map: GridMapUnsigned2D,
@@ -146,3 +153,17 @@ class EnvironmentSe2(EnvironmentBase):
     def motion_model(
         metric_state: npt.NDArray[np.float64], control: DifferentialDriveControl, t: float
     ) -> npt.NDArray[np.float64]: ...
+
+class EnvironmentAnchor(EnvironmentBase):
+    def __init__(self: EnvironmentAnchor, environments: List[EnvironmentBase]) -> None: ...
+
+class EnvironmentGridAnchor2D(EnvironmentAnchor):
+    def __init__(
+        self: EnvironmentGridAnchor2D, environments: List[EnvironmentBase], grid_map_info: GridMapInfo2D
+    ) -> None: ...
+
+
+class EnvironmentGridAnchor3D(EnvironmentAnchor):
+    def __init__(
+            self: EnvironmentGridAnchor3D, environments: List[EnvironmentBase], grid_map_info: GridMapInfo3D
+    ) -> None: ...

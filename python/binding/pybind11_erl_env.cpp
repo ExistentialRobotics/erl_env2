@@ -33,24 +33,29 @@ public:
         PYBIND11_OVERRIDE_PURE_NAME(std::size_t, EnvBase, "get_state_space_size", GetStateSpaceSize);
     }
 
+    [[nodiscard]] std::size_t
+    GetActionSpaceSize() const override {
+        PYBIND11_OVERRIDE_PURE_NAME(std::size_t, EnvBase, "get_action_space_size", GetActionSpaceSize);
+    }
+
     [[nodiscard]] std::vector<std::shared_ptr<EnvironmentState>>
-    ForwardAction(const std::shared_ptr<const EnvironmentState> &state, std::size_t action_index, double dt) const override {
-        PYBIND11_OVERRIDE_PURE_NAME(std::vector<std::shared_ptr<EnvironmentState>>, EnvBase, "forward_action", ForwardAction, state, action_index, dt);
+    ForwardAction(const std::shared_ptr<const EnvironmentState> &env_state, const std::vector<int> &action_coords) const override {
+        PYBIND11_OVERRIDE_PURE_NAME(std::vector<std::shared_ptr<EnvironmentState>>, EnvBase, "forward_action", ForwardAction, env_state, action_coords);
     }
 
     [[nodiscard]] std::vector<Successor>
-    GetSuccessors(const std::shared_ptr<const EnvironmentState> &state) const override {
-        PYBIND11_OVERRIDE_PURE_NAME(std::vector<Successor>, EnvBase, "get_successors", GetSuccessors, state);
+    GetSuccessors(const std::shared_ptr<EnvironmentState> &env_state) const override {
+        PYBIND11_OVERRIDE_PURE_NAME(std::vector<Successor>, EnvBase, "get_successors", GetSuccessors, env_state);
     }
 
     [[nodiscard]] bool
-    IsReachable(const std::vector<std::shared_ptr<EnvironmentState>> &trajectory) const override {
-        PYBIND11_OVERRIDE_PURE_NAME(bool, EnvBase, "is_reachable", IsReachable, trajectory);
+    InStateSpace(const std::shared_ptr<EnvironmentState> &env_state) const override {
+        PYBIND11_OVERRIDE_PURE_NAME(bool, EnvBase, "in_state_space", InStateSpace, env_state);
     }
 
-    [[nodiscard]] std::size_t
-    GridStateHashing(const Eigen::Ref<const Eigen::VectorXi> &grid_state) const override {
-        PYBIND11_OVERRIDE_PURE_NAME(std::size_t, EnvBase, "grid_state_hashing", GridStateHashing, grid_state);
+    [[nodiscard]] uint32_t
+    StateHashing(const std::shared_ptr<EnvironmentState> &env_state) const override {
+        PYBIND11_OVERRIDE_PURE_NAME(uint32_t, EnvBase, "state_hashing", StateHashing, env_state);
     }
 
     [[nodiscard]] Eigen::VectorXi
@@ -63,29 +68,9 @@ public:
         PYBIND11_OVERRIDE_PURE_NAME(Eigen::VectorXd, EnvBase, "grid_to_metric", GridToMetric, grid_state);
     }
 
-    [[nodiscard]] std::size_t
-    ActionCoordsToActionIndex(const std::vector<std::size_t> &action_coords) const override {
-        PYBIND11_OVERRIDE_PURE_NAME(std::size_t, EnvBase, "action_coords_to_action_index", ActionCoordsToActionIndex, action_coords);
-    }
-
-    [[nodiscard]] std::vector<std::size_t>
-    ActionIndexToActionCoords(std::size_t action_idx) const override {
-        PYBIND11_OVERRIDE_PURE_NAME(std::vector<std::size_t>, EnvBase, "action_index_to_action_coords", ActionIndexToActionCoords, action_idx);
-    }
-
-    void
-    PlaceRobot(const Eigen::Ref<const Eigen::VectorXd> &metric_state) override {
-        PYBIND11_OVERRIDE_PURE_NAME(void, EnvBase, "place_robot", PlaceRobot, metric_state);
-    }
-
-    void
-    Reset() override {
-        PYBIND11_OVERRIDE_PURE_NAME(void, EnvBase, "reset", Reset);
-    }
-
-    void
-    SHowPaths(const std::map<int, Eigen::MatrixXd> &paths) const {
-        PYBIND11_OVERRIDE_NAME(void, EnvBase, "show_paths", ShowPaths, paths);
+    [[nodiscard]] cv::Mat
+    ShowPaths(const std::map<int, Eigen::MatrixXd> &paths) const override {
+        PYBIND11_OVERRIDE_PURE_NAME(cv::Mat, EnvBase, "show_paths", ShowPaths, paths);
     }
 };
 
@@ -103,15 +88,18 @@ static void
 BindEnvironments(py::module &m) {
 
     py::class_<EnvironmentBase, PyEnvBase<>, std::shared_ptr<EnvironmentBase>>(m, ERL_AS_STRING(EnvironmentBase))
-        .def(py::init_alias<>())
-        .def("forward_action", &EnvironmentBase::ForwardAction, py::arg("state"), py::arg("action_index"), py::arg("dt"))
-        .def("get_successors", &EnvironmentBase::GetSuccessors, py::arg("state"))
-        .def("is_reachable", &EnvironmentBase::IsReachable, py::arg("trajectory"))
-        .def("grid_state_hashing", &EnvironmentBase::StateHashing, py::arg("grid_state"))
+        .def(py::init_alias<std::shared_ptr<CostBase>, double>(), py::arg("distance_cost_func").none(false), py::arg("time_step"))
+        .def_property_readonly("state_space_size", &EnvironmentBase::GetStateSpaceSize)
+        .def_property_readonly("action_space_size", &EnvironmentBase::GetActionSpaceSize)
+        .def("forward_action", &EnvironmentBase::ForwardAction, py::arg("env_state"), py::arg("action_coords"))
+        .def_property_readonly("distance_cost_func", &EnvironmentBase::GetDistanceCostFunc)
+        .def_property_readonly("time_step", &EnvironmentBase::GetTimeStep)
+        .def("get_successors", &EnvironmentBase::GetSuccessors, py::arg("env_state").none(false))
+        .def("in_state_space", &EnvironmentBase::InStateSpace, py::arg("env_state").none(false))
+        .def("state_hashing", &EnvironmentBase::StateHashing, py::arg("env_state").none(false))
         .def("metric_to_grid", &EnvironmentBase::MetricToGrid, py::arg("metric_state"))
         .def("grid_to_metric", &EnvironmentBase::GridToMetric, py::arg("grid_state"))
-        .def("action_coords_to_action_index", &EnvironmentBase::ActionCoordsToActionIndex, py::arg("action_coords"))
-        .def("action_index_to_action_coords", &EnvironmentBase::ActionIndexToActionCoords, py::arg("action_index"));
+        .def("show_paths", &EnvironmentBase::ShowPaths, py::arg("paths"));
 
     auto env_2d = py::class_<Environment2D, EnvironmentBase, std::shared_ptr<Environment2D>>(m, ERL_AS_STRING(Environment2D));
 
@@ -126,36 +114,21 @@ BindEnvironments(py::module &m) {
         .value(Environment2D::GetActionName(Environment2D::Action::kBackLeft), Environment2D::Action::kBackLeft)
         .export_values();
 
+    py::class_<Environment2D::Setting, YamlableBase, std::shared_ptr<Environment2D::Setting>>(env_2d, "Setting")
+        .def_readwrite("allow_diagonal", &Environment2D::Setting::allow_diagonal)
+        .def_readwrite("step_size", &Environment2D::Setting::step_size)
+        .def_readwrite("down_sampled", &Environment2D::Setting::down_sampled)
+        .def_readwrite("obstacle_threshold", &Environment2D::Setting::obstacle_threshold)
+        .def_readwrite("add_map_cost", &Environment2D::Setting::add_map_cost)
+        .def_readwrite("map_cost_factor", &Environment2D::Setting::map_cost_factor)
+        .def_readwrite("shape", &Environment2D::Setting::shape);
+
     env_2d
         .def(
-            py::init<bool, int, std::shared_ptr<CostBase>, const std::shared_ptr<GridMapUnsigned2D> &, uint8_t, bool, double>(),
-            py::arg("allow_diagonal"),
-            py::arg("step_size"),
-            py::arg("cost_func"),
+            py::init<const std::shared_ptr<GridMapUnsigned2D> &, std::shared_ptr<Environment2D::Setting>, std::shared_ptr<CostBase>>(),
             py::arg("grid_map"),
-            py::arg("obstacle_threshold"),
-            py::arg("add_map_cost") = false,
-            py::arg("map_cost_factor") = 1.0)
-        .def(
-            py::init<
-                bool,
-                int,
-                const std::shared_ptr<CostBase> &,
-                const std::shared_ptr<GridMapUnsigned2D> &,
-                uint8_t,
-                double,
-                const Eigen::Ref<const Eigen::Matrix2Xd> &,
-                bool,
-                double>(),
-            py::arg("allow_diagonal"),
-            py::arg("step_size"),
-            py::arg("cost_func"),
-            py::arg("grid_map"),
-            py::arg("obstacle_threshold"),
-            py::arg("inflate_scale"),
-            py::arg("shape_metric_vertices"),
-            py::arg("add_map_cost") = false,
-            py::arg("map_cost_factor") = 1.0)
+            py::arg("setting") = nullptr,
+            py::arg("distance_cost_func") = nullptr)
         .def_static("get_action_from_name", &Environment2D::GetActionFromName, py::arg("action_name"));
 
     py::class_<DifferentialDriveControl>(m, "DifferentialDriveControl", "Differential drive control.")
@@ -191,108 +164,35 @@ BindEnvironments(py::module &m) {
 
     m.def("load_ddc_motion_primitives_from_yaml", &LoadDdcMotionPrimitivesFromYaml, py::arg("filename"));
 
-    py::class_<EnvironmentSe2, EnvironmentBase, std::shared_ptr<EnvironmentSe2>>(m, ERL_AS_STRING(EnvironmentSe2))
-        .def(
-            py::init<double, std::vector<DdcMotionPrimitive>, const std::shared_ptr<GridMapUnsigned2D> &, uint8_t, int, bool, double>(),
-            py::arg("collision_check_dt"),
-            py::arg("motion_primitives"),
-            py::arg("grid_map"),
-            py::arg("obstacle_threshold"),
-            py::arg("num_orientations"),
-            py::arg("add_map_cost") = false,
-            py::arg("map_cost_factor") = 1.0)
-        .def(
-            py::init<
-                double,
-                std::vector<DdcMotionPrimitive>,
-                const std::shared_ptr<GridMapUnsigned2D> &,
-                uint8_t,
-                int,
-                double,
-                const Eigen::Ref<const Eigen::Matrix2Xd> &,
-                bool,
-                double>(),
-            py::arg("collision_check_dt"),
-            py::arg("motion_primitives"),
-            py::arg("grid_map"),
-            py::arg("obstacle_threshold"),
-            py::arg("num_orientations"),
-            py::arg("inflate_scale"),
-            py::arg("shape_metric_vertices"),
-            py::arg("add_map_cost") = false,
-            py::arg("map_cost_factor") = 1.0)
-        .def_static("motion_model", &EnvironmentSe2::MotionModel, py::arg("state"), py::arg("control"), py::arg("t"));
+    auto env_se2 = py::class_<EnvironmentSe2, EnvironmentBase, std::shared_ptr<EnvironmentSe2>>(m, ERL_AS_STRING(EnvironmentSe2));
 
-    // py::class_<EnvironmentGridSe2, EnvironmentBase, std::shared_ptr<EnvironmentGridSe2>>(m, ERL_AS_STRING(EnvironmentGridSe2))
-    //     .def(py::init<int, const std::shared_ptr<GridMapUnsigned2D> &, int>(), py::arg("step_size"), py::arg("grid_map"), py::arg("num_orientations"))
-    //     .def(
-    //         py::init<int, const std::shared_ptr<GridMapUnsigned2D> &, int, double, const Eigen::Ref<const Eigen::Matrix2Xd> &>(),
-    //         py::arg("step_size"),
-    //         py::arg("grid_map"),
-    //         py::arg("num_orientations"),
-    //         py::arg("inflate_scale"),
-    //         py::arg("shape_metric_vertices"));
-    // py::class_<EnvironmentGridSe2, EnvironmentBase, std::shared_ptr<EnvironmentGridSe2>>(m, ERL_AS_STRING(EnvironmentGridSe2))
-    //     .def(
-    //         py::init<double, double, double, double, double, double, double, double, double, double, int, const std::shared_ptr<GridMapUnsigned2D> &, int>(),
-    //         py::arg("linear_velocity_min"),
-    //         py::arg("linear_velocity_max"),
-    //         py::arg("linear_velocity_step"),
-    //         py::arg("euclidean_square_distance_cost_weight"),
-    //         py::arg("angular_velocity_min"),
-    //         py::arg("angular_velocity_max"),
-    //         py::arg("angular_velocity_step"),
-    //         py::arg("angular_square_distance_cost_weight"),
-    //         py::arg("duration_step"),
-    //         py::arg("duration"),
-    //         py::arg("max_step_size"),
-    //         py::arg("grid_map"),
-    //         py::arg("num_orientations"))
-    //     .def(
-    //         py::init<
-    //             double,
-    //             double,
-    //             double,
-    //             double,
-    //             double,
-    //             double,
-    //             double,
-    //             double,
-    //             double,
-    //             double,
-    //             int,
-    //             const std::shared_ptr<GridMapUnsigned2D> &,
-    //             int,
-    //             double,
-    //             const Eigen::Ref<const Eigen::Matrix2Xd> &>(),
-    //         py::arg("linear_velocity_min"),
-    //         py::arg("linear_velocity_max"),
-    //         py::arg("linear_velocity_step"),
-    //         py::arg("euclidean_square_distance_cost_weight"),
-    //         py::arg("angular_velocity_min"),
-    //         py::arg("angular_velocity_max"),
-    //         py::arg("angular_velocity_step"),
-    //         py::arg("angular_square_distance_cost_weight"),
-    //         py::arg("duration_step"),
-    //         py::arg("duration"),
-    //         py::arg("max_step_size"),
-    //         py::arg("grid_map"),
-    //         py::arg("num_orientations"),
-    //         py::arg("inflate_scale"),
-    //         py::arg("shape_metric_vertices"));
+    py::class_<EnvironmentSe2::Setting, YamlableBase, std::shared_ptr<EnvironmentSe2::Setting>>(env_se2, "Setting")
+        .def_readwrite("time_step", &EnvironmentSe2::Setting::time_step)
+        .def_readwrite("motion_primitives", &EnvironmentSe2::Setting::motion_primitives)
+        .def_readwrite("num_orientations", &EnvironmentSe2::Setting::num_orientations)
+        .def_readwrite("obstacle_threshold", &EnvironmentSe2::Setting::obstacle_threshold)
+        .def_readwrite("add_map_cost", &EnvironmentSe2::Setting::add_map_cost)
+        .def_readwrite("map_cost_factor", &EnvironmentSe2::Setting::map_cost_factor)
+        .def_readwrite("shape", &EnvironmentSe2::Setting::shape);
+
+    env_se2
+        .def(
+            py::init<const std::shared_ptr<GridMapUnsigned2D> &, std::shared_ptr<EnvironmentSe2::Setting>>(),
+            py::arg("grid_map"),
+            py::arg("setting") = nullptr)
+        .def_static("motion_model", &EnvironmentSe2::MotionModel, py::arg("metric_state"), py::arg("control"), py::arg("t"));
 }
 
 PYBIND11_MODULE(PYBIND_MODULE_NAME, m) {
     m.doc() = "Python 3 Interface of erl_env";
 
-    py::class_<Successor>(m, ERL_AS_STRING(Successor))
-        .def_readwrite("env_state", &Successor::env_state)
-        .def_readwrite("cost", &Successor::cost)
-        .def_readwrite("action_id", &Successor::action_id);
-
     py::class_<EnvironmentState, std::shared_ptr<EnvironmentState>>(m, ERL_AS_STRING(EnvironmentState))
         .def_readwrite("metric", &EnvironmentState::metric)
         .def_readwrite("grid", &EnvironmentState::grid);
+    py::class_<Successor>(m, ERL_AS_STRING(Successor))
+        .def_readwrite("env_state", &Successor::env_state)
+        .def_readwrite("cost", &Successor::cost)
+        .def_readwrite("action_coords", &Successor::action_coords);
 
     BindCosts(m);
     BindEnvironments(m);

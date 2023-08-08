@@ -4,27 +4,20 @@
 namespace erl::env {
 
     Environment2D::Environment2D(
-        bool allow_diagonal,
-        int step_size,
-        bool down_sampled,
-        std::shared_ptr<CostBase> cost_func,
         const std::shared_ptr<common::GridMapUnsigned2D> &grid_map,
-        uint8_t obstacle_threshold,
-        bool add_map_cost,
-        double map_cost_factor)
-        : EnvironmentBase(std::move(cost_func)),
-          m_step_size_(step_size),
-          m_down_sampled_(down_sampled),
-          m_obstacle_threshold_(obstacle_threshold),
-          m_add_map_cost_(add_map_cost),
-          m_map_cost_factor_(map_cost_factor),
+        std::shared_ptr<Setting> setting,
+        std::shared_ptr<CostBase> distance_cost_func)
+        : EnvironmentBase(std::move(distance_cost_func)),
+          m_setting_(std::move(setting)),
           m_grid_map_info_(grid_map->info) {  // x to the bottom, y to the right, along y first
+
+        if (m_setting_ == nullptr) { m_setting_ = std::make_shared<Setting>(); }
 
         // init grid map
         m_original_grid_map_ = InitializeGridMap2D(grid_map);
         m_original_grid_map_.copyTo(m_grid_map_);
 
-        if (allow_diagonal) {
+        if (m_setting_->allow_diagonal) {
             m_grid_motion_primitive_.controls = {
                 {1, 0},    // kForward
                 {-1, 0},   // kBack
@@ -51,40 +44,19 @@ namespace erl::env {
         state0.metric = m_grid_map_info_->GridToMeterForPoints(state0.grid);
 
         for (auto &control: m_grid_motion_primitive_.controls) {
-            state1.grid = state0.grid + control * m_step_size_;
+            state1.grid = state0.grid + control * m_setting_->step_size;
             state1.metric = m_grid_map_info_->GridToMeterForPoints(state1.grid);
             m_grid_motion_primitive_.costs.push_back((*m_distance_cost_func_)(state0, state1));  // compute distance cost in metric space
         }
-    }
 
-    Environment2D::Environment2D(
-        bool allow_diagonal,
-        int step_size,
-        bool down_sampled,
-        const std::shared_ptr<CostBase> &cost_func,
-        const std::shared_ptr<common::GridMapUnsigned2D> &grid_map,
-        uint8_t obstacle_threshold,
-        double inflate_scale,
-        const Eigen::Ref<const Eigen::Matrix2Xd> &shape_metric_vertices,
-        bool add_map_cost,
-        double map_cost_factor)
-        : Environment2D(allow_diagonal, step_size, down_sampled, cost_func, grid_map, obstacle_threshold, add_map_cost, map_cost_factor) {
-
-        if (shape_metric_vertices.cols() == 0) {
-            ERL_WARN("shape_metric_vertices is empty, no inflation");
-            return;
+        if (m_setting_->shape.cols() > 0) {
+            InflateGridMap2D(m_original_grid_map_, m_grid_map_, m_grid_map_info_, m_setting_->shape);
         }
-        if (inflate_scale <= 0) {
-            ERL_WARN("inflate_scale <= 0, no inflation");
-            return;
-        }
-        m_shape_metric_vertices_ = shape_metric_vertices.array() * inflate_scale;
-        InflateGridMap2D(m_original_grid_map_, m_grid_map_, grid_map->info, m_shape_metric_vertices_);
     }
 
     std::vector<Successor>
-    Environment2D::GetSuccessors(const std::shared_ptr<EnvironmentState> &state) const {
-        if (!InStateSpace(state)) { return {}; }
+    Environment2D::GetSuccessors(const std::shared_ptr<EnvironmentState> &env_state) const {
+        if (!InStateSpace(env_state)) { return {}; }
 
         std::vector<Successor> successors;
         auto num_controls = int(m_grid_motion_primitive_.controls.size());
@@ -94,10 +66,10 @@ namespace erl::env {
             auto &direction = m_grid_motion_primitive_.controls[control_idx];
             bool is_reachable = true;
             auto next_state = std::make_shared<EnvironmentState>();
-            next_state->grid = state->grid;
-            for (long i = 0; i < m_step_size_; ++i) {
+            next_state->grid = env_state->grid;
+            for (long i = 0; i < m_setting_->step_size; ++i) {
                 next_state->grid += direction;
-                if (!InStateSpace(next_state) || m_grid_map_.at<uint8_t>(next_state->grid[0], next_state->grid[1]) >= m_obstacle_threshold_) {
+                if (!InStateSpace(next_state) || m_grid_map_.at<uint8_t>(next_state->grid[0], next_state->grid[1]) >= m_setting_->obstacle_threshold) {
                     is_reachable = false;
                     break;
                 }
@@ -105,8 +77,8 @@ namespace erl::env {
             if (!is_reachable) { continue; }
             next_state->metric = GridToMetric(next_state->grid);
 
-            if (m_add_map_cost_) {
-                double map_cost = m_map_cost_factor_ * double(m_grid_map_.at<uint8_t>(next_state->grid[0], next_state->grid[1]));
+            if (m_setting_->add_map_cost) {
+                double map_cost = m_setting_->map_cost_factor * double(m_grid_map_.at<uint8_t>(next_state->grid[0], next_state->grid[1]));
                 double cost = m_grid_motion_primitive_.costs[control_idx] + map_cost;
                 successors.emplace_back(next_state, cost, std::vector<int>{});
             } else {

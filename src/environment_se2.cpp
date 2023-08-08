@@ -5,36 +5,28 @@
 #include "erl_env/differential_drive_model.hpp"
 
 namespace erl::env {
-    EnvironmentSe2::EnvironmentSe2(
-        double collision_check_dt,
-        std::vector<DdcMotionPrimitive> motion_primitives,
-        int num_orientations,
-        const std::shared_ptr<common::GridMapUnsigned2D> &grid_map,
-        uint8_t obstacle_threshold,
-        bool add_map_cost,
-        double map_cost_factor)
-        : EnvironmentBase(std::make_shared<EuclideanDistanceCost>(), collision_check_dt),
-          m_motion_primitives_(std::move(motion_primitives)),
-          m_grid_map_info_(std::make_shared<common::GridMapInfo3D>(grid_map->info->Extend(num_orientations, -M_PI, M_PI, 2))),
-          m_obstacle_threshold_(obstacle_threshold),
-          m_add_map_cost_(add_map_cost),
-          m_map_cost_factor_(map_cost_factor) {
+    EnvironmentSe2::EnvironmentSe2(const std::shared_ptr<common::GridMapUnsigned2D> &grid_map, std::shared_ptr<Setting> setting)
+        : EnvironmentBase(nullptr, 0),
+          m_setting_(setting == nullptr ? std::make_shared<Setting>() : std::move(setting)),
+          m_grid_map_info_(std::make_shared<common::GridMapInfo3D>(grid_map->info->Extend(m_setting_->num_orientations, -M_PI, M_PI, 2))) {
+        m_time_step_ = m_setting_->time_step;
+        m_distance_cost_func_ = std::make_shared<EuclideanDistanceCost>();
 
         // init grid maps
         m_original_grid_map_ = erl::env::EnvironmentSe2::InitializeGridMap2D(grid_map);
-        m_inflated_grid_maps_.resize(num_orientations);
-        for (int i = 0; i < num_orientations; ++i) { m_original_grid_map_.copyTo(m_inflated_grid_maps_[i]); }
+        m_inflated_grid_maps_.resize(m_setting_->num_orientations);
+        for (int i = 0; i < m_setting_->num_orientations; ++i) { m_original_grid_map_.copyTo(m_inflated_grid_maps_[i]); }
 
         // The motion primitives may generate trajectories that go outside the map. We need to determine the furthest
         // distance and create a new grid_map_info that is large enough to contain all the trajectories.
         double max_distance = 0;
         // process motion primitives and prepare metric relative trajectories starting from [0, 0, 0]
-        m_metric_rel_trajectories_.reserve(m_motion_primitives_.size());
-        for (auto &motion: m_motion_primitives_) {
+        m_metric_rel_trajectories_.reserve(m_setting_->motion_primitives.size());
+        for (auto &motion: m_setting_->motion_primitives) {
             // convert incremental cost to cumulative cost
             std::partial_sum(motion.costs.begin(), motion.costs.end(), motion.costs.begin());
             // compute metric relative trajectory segments
-            m_metric_rel_trajectories_.push_back(motion.ComputeTrajectorySegments(Eigen::Vector3d::Zero(), m_dt_, MotionModel));
+            m_metric_rel_trajectories_.push_back(motion.ComputeTrajectorySegments(Eigen::Vector3d::Zero(), m_time_step_, MotionModel));
             // compute the maximum distance of the trajectory segments
             for (auto &segment: m_metric_rel_trajectories_.back()) {
                 for (long i = 0; i < segment.cols(); ++i) {
@@ -85,14 +77,14 @@ namespace erl::env {
         }
 
         // init discrete relative trajectories
-        auto num_motions = int(m_motion_primitives_.size());
+        auto num_motions = int(m_setting_->motion_primitives.size());
         int x_center_g = grid_map_info->CenterGrid().x();
         int y_center_g = grid_map_info->CenterGrid().y();
         m_grid_rel_trajectories_.clear();
-        m_grid_rel_trajectories_.resize(num_orientations);
+        m_grid_rel_trajectories_.resize(m_setting_->num_orientations);
         m_grid_rel_successors_.clear();
-        m_grid_rel_successors_.resize(num_orientations);
-        for (int theta_g = 0; theta_g < num_orientations; ++theta_g) {
+        m_grid_rel_successors_.resize(m_setting_->num_orientations);
+        for (int theta_g = 0; theta_g < m_setting_->num_orientations; ++theta_g) {
             double theta = grid_map_info->GridToMeterForValue(theta_g, 2);
             double sin_theta = std::sin(theta);
             double cos_theta = std::cos(theta);
@@ -102,7 +94,7 @@ namespace erl::env {
             std::map<std::size_t, GridRelSuccessorInfo> unique_grid_rel_successors;
             std::vector<std::vector<double>> grid_rel_trajectory_metric_lengths(num_motions);
             for (int motion_idx = 0; motion_idx < num_motions; ++motion_idx) {
-                auto &motion = m_motion_primitives_[motion_idx];
+                auto &motion = m_setting_->motion_primitives[motion_idx];
 
                 // a metric trajectory starts from [0, 0, 0]
                 auto &motion_metric_rel_trajectory_segments = m_metric_rel_trajectories_[motion_idx];
@@ -235,46 +227,24 @@ namespace erl::env {
                 grid_rel_successors.push_back(std::move(successor_info));
             }
         }
-    }
 
-    EnvironmentSe2::EnvironmentSe2(
-        double collision_check_dt,
-        std::vector<DdcMotionPrimitive> motion_primitives,
-        int num_orientations,
-        const std::shared_ptr<common::GridMapUnsigned2D> &grid_map,
-        double inflate_scale,
-        const Eigen::Ref<const Eigen::Matrix2Xd> &shape_metric_vertices,
-        uint8_t obstacle_threshold,
-        bool add_map_cost,
-        double map_cost_factor)
-        : EnvironmentSe2(collision_check_dt, std::move(motion_primitives), num_orientations, grid_map, obstacle_threshold, add_map_cost, map_cost_factor) {
-
-        if (shape_metric_vertices.cols() == 0) {
-            ERL_WARN("shape_metric_vertices is empty, skip inflation.\n");
-            return;
-        }
-        if (inflate_scale <= 0) {
-            ERL_WARN("inflate_scale <= 0, skip inflation.\n");
-            return;
-        }
-        m_shape_metric_vertices_ = shape_metric_vertices.array() * inflate_scale;
+        if (m_setting_->shape.cols() == 0) { return; }
 
         // inflate grid map for different orientations
-        m_inflated_grid_maps_.resize(num_orientations);
-        for (int theta_g = 0; theta_g < num_orientations; ++theta_g) {
+        for (int theta_g = 0; theta_g < m_setting_->num_orientations; ++theta_g) {
             double theta = m_grid_map_info_->GridToMeterForValue(theta_g, 2);
-            Eigen::Matrix2Xd vertices = Eigen::Rotation2Dd(theta).toRotationMatrix() * m_shape_metric_vertices_;
+            Eigen::Matrix2Xd vertices = Eigen::Rotation2Dd(theta).toRotationMatrix() * m_setting_->shape;
             InflateGridMap2D(m_original_grid_map_, m_inflated_grid_maps_[theta_g], grid_map->info, vertices);
         }
     }
 
     std::vector<std::shared_ptr<EnvironmentState>>
-    EnvironmentSe2::ForwardAction(const std::shared_ptr<const EnvironmentState> &state, const std::vector<int> &action_coords) const {
+    EnvironmentSe2::ForwardAction(const std::shared_ptr<const EnvironmentState> &env_state, const std::vector<int> &action_coords) const {
         ERL_ASSERTM(action_coords.size() == 2, "action_coords.size() == 2");
         auto motion_idx = action_coords[0];
         auto control_idx = action_coords[1];
 
-        Eigen::MatrixXd states = m_motion_primitives_[motion_idx].ComputeTrajectorySegment(state->metric, control_idx, m_dt_, MotionModel);
+        Eigen::MatrixXd states = m_setting_->motion_primitives[motion_idx].ComputeTrajectorySegment(env_state->metric, control_idx, m_time_step_, MotionModel);
 
         std::vector<std::shared_ptr<EnvironmentState>> trajectory(states.cols());
         long num_states = states.cols();
@@ -288,9 +258,9 @@ namespace erl::env {
     }
 
     std::vector<Successor>
-    EnvironmentSe2::GetSuccessors(const std::shared_ptr<EnvironmentState> &state) const {
-        if (!InStateSpace(state)) { return {}; }
-        int current_theta_g = state->grid[2];
+    EnvironmentSe2::GetSuccessors(const std::shared_ptr<EnvironmentState> &env_state) const {
+        if (!InStateSpace(env_state)) { return {}; }
+        int current_theta_g = env_state->grid[2];
 
         auto &grid_rel_trajectories = m_grid_rel_trajectories_[current_theta_g];
         auto &grid_rel_successors = m_grid_rel_successors_[current_theta_g];
@@ -324,8 +294,8 @@ namespace erl::env {
 
                 for (std::size_t i = 0; i < num_steps; ++i) {
                     auto &rel_grid = grid_rel_trajectory[i]->grid;
-                    x_g = rel_grid[0] + state->grid[0];
-                    y_g = rel_grid[1] + state->grid[1];
+                    x_g = rel_grid[0] + env_state->grid[0];
+                    y_g = rel_grid[1] + env_state->grid[1];
                     theta_g = rel_grid[2];
 
                     if (x_g < 0 || x_g >= x_len || y_g < 0 || y_g >= y_len) {  // out of grid map
@@ -333,19 +303,19 @@ namespace erl::env {
                         break;
                     }
 
-                    if (m_inflated_grid_maps_[theta_g].at<uint8_t>(x_g, y_g) > 0) {  // in collision
+                    if (m_inflated_grid_maps_[theta_g].at<uint8_t>(x_g, y_g) >= m_setting_->obstacle_threshold) {  // in collision
                         collided = true;
                         break;
                     }
 
                     auto &rel_metric = grid_rel_trajectory[i]->metric;
-                    x = rel_metric[0] + state->metric[0];
-                    y = rel_metric[1] + state->metric[1];
+                    x = rel_metric[0] + env_state->metric[0];
+                    y = rel_metric[1] + env_state->metric[1];
                     theta = rel_metric[2];
                 }
                 if (collided) { continue; }  // this control is invalid, try next one
-                if (m_add_map_cost_) {
-                    double map_cost = double(m_inflated_grid_maps_[theta_g].at<uint8_t>(x_g, y_g)) * m_map_cost_factor_;
+                if (m_setting_->add_map_cost) {
+                    double map_cost = double(m_inflated_grid_maps_[theta_g].at<uint8_t>(x_g, y_g)) * m_setting_->map_cost_factor;
                     double cost = rel_successor_info.costs[index] + map_cost;
                     successors.emplace_back(metric_state, grid_state, cost, rel_successor_info.action_coords[index]);
                 } else {

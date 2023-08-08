@@ -11,15 +11,22 @@ namespace erl::env {
 
     class EnvironmentSe2 : virtual public EnvironmentBase {
 
+    public:
+        struct Setting : public common::Yamlable<Setting> {
+            double time_step = 0.05;
+            std::vector<DdcMotionPrimitive> motion_primitives;
+            int num_orientations = 16;
+            uint8_t obstacle_threshold = 1;
+            bool add_map_cost = false;
+            double map_cost_factor = 1.0;
+            Eigen::Matrix2Xd shape = {};
+        };
+
     protected:
+        std::shared_ptr<Setting> m_setting_;
         cv::Mat m_original_grid_map_;
         std::vector<cv::Mat> m_inflated_grid_maps_;
-        Eigen::Matrix2Xd m_shape_metric_vertices_;
-        std::vector<DdcMotionPrimitive> m_motion_primitives_;
         std::shared_ptr<common::GridMapInfo3D> m_grid_map_info_;
-        uint8_t m_obstacle_threshold_ = 1;
-        bool m_add_map_cost_ = false;
-        double m_map_cost_factor_ = 1.0;
 
         // clang-format off
         /*
@@ -67,36 +74,7 @@ namespace erl::env {
          * @param add_map_cost
          * @param map_cost_factor
          */
-        EnvironmentSe2(
-            double collision_check_dt,
-            std::vector<DdcMotionPrimitive> motion_primitives,
-            int num_orientations,
-            const std::shared_ptr<common::GridMapUnsigned2D> &grid_map,
-            uint8_t obstacle_threshold = 1,
-            bool add_map_cost = false,
-            double map_cost_factor = 1.0);
-
-        /**
-         * @brief Construct a new Environment Se2 object that assumes the robot is a polygon.
-         * @param collision_check_dt
-         * @param motion_primitives
-         * @param grid_map
-         * @param num_orientations
-         * @param inflate_scale
-         * @param shape_metric_vertices
-         * @param add_map_cost
-         * @param map_cost_factor
-         */
-        EnvironmentSe2(
-            double collision_check_dt,
-            std::vector<DdcMotionPrimitive> motion_primitives,
-            int num_orientations,
-            const std::shared_ptr<common::GridMapUnsigned2D> &grid_map,
-            double inflate_scale,
-            const Eigen::Ref<const Eigen::Matrix2Xd> &shape_metric_vertices,
-            uint8_t obstacle_threshold = 1,
-            bool add_map_cost = false,
-            double map_cost_factor = 1.0);
+        explicit EnvironmentSe2(const std::shared_ptr<common::GridMapUnsigned2D> &grid_map, std::shared_ptr<Setting> setting = nullptr);
 
         [[nodiscard]] inline std::size_t
         GetStateSpaceSize() const override {
@@ -106,7 +84,7 @@ namespace erl::env {
         [[nodiscard]] inline std::size_t
         GetActionSpaceSize() const override {
             std::size_t size = 0;
-            for (auto &motion_primitive: m_motion_primitives_) { size += motion_primitive.controls.size(); }
+            for (auto &motion_primitive: m_setting_->motion_primitives) { size += motion_primitive.controls.size(); }
             return size;
         }
 
@@ -128,19 +106,19 @@ namespace erl::env {
         }
 
         [[nodiscard]] std::vector<std::shared_ptr<EnvironmentState>>
-        ForwardAction(const std::shared_ptr<const EnvironmentState> &state, const std::vector<int> &action_index) const override;
+        ForwardAction(const std::shared_ptr<const EnvironmentState> &env_state, const std::vector<int> &action_coords) const override;
 
         [[nodiscard]] std::vector<Successor>
-        GetSuccessors(const std::shared_ptr<EnvironmentState> &state) const override;
+        GetSuccessors(const std::shared_ptr<EnvironmentState> &env_state) const override;
 
         [[nodiscard]] bool
-        InStateSpace(const std::shared_ptr<EnvironmentState> &state) const override {
-            return m_grid_map_info_->InGrids(state->grid);
+        InStateSpace(const std::shared_ptr<EnvironmentState> &env_state) const override {
+            return m_grid_map_info_->InGrids(env_state->grid);
         }
 
         [[nodiscard]] inline uint32_t
-        StateHashing(const std::shared_ptr<env::EnvironmentState> &state) const override {
-            return GridStateHashingImpl(state->grid);
+        StateHashing(const std::shared_ptr<env::EnvironmentState> &env_state) const override {
+            return GridStateHashingImpl(env_state->grid);
         }
 
         [[nodiscard]] inline Eigen::VectorXi
@@ -163,24 +141,6 @@ namespace erl::env {
             return metric_state;
         }
 
-        // [[nodiscard]] inline int
-        // ActionCoordsToActionIndex(const std::vector<int> &action_coords) const override {
-        //     return action_coords[0] * int(m_max_num_controls_) + action_coords[1];  // action_coords = [motion_id, control_id]
-        // }
-        //
-        // [[nodiscard]] inline std::vector<int>
-        // ActionIndexToActionCoords(int action_idx) const override {
-        //     auto motion_id = action_idx / int(m_max_num_controls_);
-        //     auto control_id = action_idx % int(m_max_num_controls_);
-        //     return {motion_id, control_id};
-        // }
-
-        // void
-        // PlaceRobot(const Eigen::Ref<const Eigen::VectorXd> &metric_state) override;
-
-        // void
-        // Reset() override;
-
         [[nodiscard]] cv::Mat
         ShowPaths(const std::map<int, Eigen::MatrixXd> &paths) const override;
 
@@ -192,3 +152,47 @@ namespace erl::env {
     };
 
 }  // namespace erl::env
+
+namespace YAML {
+    template<>
+    struct convert<erl::env::EnvironmentSe2::Setting> {
+        static Node
+        encode(const erl::env::EnvironmentSe2::Setting &rhs) {
+            Node node;
+            node["time_step"] = rhs.time_step;
+            node["motion_primitives"] = rhs.motion_primitives;
+            node["num_orientations"] = rhs.num_orientations;
+            node["obstacle_threshold"] = rhs.obstacle_threshold;
+            node["add_map_cost"] = rhs.add_map_cost;
+            node["map_cost_factor"] = rhs.map_cost_factor;
+            node["shape"] = rhs.shape;
+            return node;
+        }
+
+        static bool
+        decode(const Node &node, erl::env::EnvironmentSe2::Setting &rhs) {
+            rhs.time_step = node["time_step"].as<double>();
+            rhs.motion_primitives = node["motion_primitives"].as<std::vector<erl::env::DdcMotionPrimitive>>();
+            rhs.num_orientations = node["num_orientations"].as<int>();
+            rhs.obstacle_threshold = node["obstacle_threshold"].as<uint8_t>();
+            rhs.add_map_cost = node["add_map_cost"].as<bool>();
+            rhs.map_cost_factor = node["map_cost_factor"].as<double>();
+            rhs.shape = node["shape"].as<Eigen::Matrix2Xd>();
+            return true;
+        }
+    };
+
+    inline Emitter &
+    operator<<(Emitter &out, const erl::env::EnvironmentSe2::Setting &rhs) {
+        out << BeginMap;
+        out << Key << "time_step" << Value << rhs.time_step;
+        out << Key << "motion_primitives" << Value << rhs.motion_primitives;
+        out << Key << "num_orientations" << Value << rhs.num_orientations;
+        out << Key << "obstacle_threshold" << Value << rhs.obstacle_threshold;
+        out << Key << "add_map_cost" << Value << rhs.add_map_cost;
+        out << Key << "map_cost_factor" << Value << rhs.map_cost_factor;
+        out << Key << "shape" << Value << rhs.shape;
+        out << EndMap;
+        return out;
+    }
+}  // namespace YAML

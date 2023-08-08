@@ -44,12 +44,12 @@ namespace erl::env {
 
     protected:
         std::shared_ptr<CostBase> m_distance_cost_func_;
-        double m_dt_ = 0.01;  // 10ms
+        double m_time_step_ = 0.01;  // 10ms
 
     public:
-        explicit EnvironmentBase(std::shared_ptr<CostBase> distance_cost_func, double dt = 0.01)
+        explicit EnvironmentBase(std::shared_ptr<CostBase> distance_cost_func = nullptr, double time_step = 0.01)
             : m_distance_cost_func_(std::move(distance_cost_func)),
-              m_dt_(dt) {
+              m_time_step_(time_step) {
             if (m_distance_cost_func_ == nullptr) {
                 ERL_INFO("distance_cost_func is nullptr, use Euclidean distance as default cost function.");
                 m_distance_cost_func_ = std::make_shared<EuclideanDistanceCost>();
@@ -65,7 +65,7 @@ namespace erl::env {
         GetActionSpaceSize() const = 0;
 
         [[nodiscard]] virtual std::vector<std::shared_ptr<EnvironmentState>>
-        ForwardAction(const std::shared_ptr<const EnvironmentState> &state, const std::vector<int> &action_coords) const = 0;
+        ForwardAction(const std::shared_ptr<const EnvironmentState> &env_state, const std::vector<int> &action_coords) const = 0;
 
         [[nodiscard]] inline std::shared_ptr<CostBase>
         GetDistanceCostFunc() const {
@@ -74,17 +74,17 @@ namespace erl::env {
 
         [[nodiscard]] inline double
         GetTimeStep() const {
-            return m_dt_;
+            return m_time_step_;
         }
 
         [[nodiscard]] virtual std::vector<Successor>
-        GetSuccessors(const std::shared_ptr<EnvironmentState> &state) const = 0;
+        GetSuccessors(const std::shared_ptr<EnvironmentState> &env_state) const = 0;
 
         [[nodiscard]] virtual bool
-        InStateSpace(const std::shared_ptr<EnvironmentState> &state) const = 0;
+        InStateSpace(const std::shared_ptr<EnvironmentState> &env_state) const = 0;
 
         [[nodiscard]] virtual uint32_t
-        StateHashing(const std::shared_ptr<env::EnvironmentState> &state) const = 0;
+        StateHashing(const std::shared_ptr<env::EnvironmentState> &env_state) const = 0;
 
         [[nodiscard]] virtual Eigen::VectorXi
         MetricToGrid(const Eigen::Ref<const Eigen::VectorXd> &metric_state) const = 0;
@@ -93,9 +93,7 @@ namespace erl::env {
         GridToMetric(const Eigen::Ref<const Eigen::VectorXi> &grid_state) const = 0;
 
         [[nodiscard]] virtual cv::Mat
-        ShowPaths(const std::map<int, Eigen::MatrixXd> &) const {
-            throw NotImplemented(__PRETTY_FUNCTION__);
-        }
+        ShowPaths(const std::map<int, Eigen::MatrixXd> &) const = 0;
 
     protected:
         static cv::Mat

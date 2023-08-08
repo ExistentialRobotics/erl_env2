@@ -9,14 +9,15 @@ message(STATUS "Configuring ${PROJECT_NAME} ${PROJECT_VERSION}")
 if (NOT COMMAND erl_project_setup)
     find_package(erl_common REQUIRED)
 endif ()
-set(${PROJECT_NAME}_CATKIN_COMPONENTS erl_common erl_geometry)
-erl_project_setup()
+erl_project_setup(
+        ERL_PACKAGES erl_common erl_geometry
+)
 erl_setup_ros(CATKIN_COMPONENTS ${${PROJECT_NAME}_CATKIN_COMPONENTS})
 erl_catkin_package(
         INCLUDE_DIRS include
         LIBRARIES ${PROJECT_NAME} py${PROJECT_NAME}
-        CATKIN_DEPENDS ${${PROJECT_NAME}_CATKIN_COMPONENTS}
-        DEPENDS ${${PROJECT_NAME}_DEPENDS})   # dependencies are collected via erl_find_package
+        CATKIN_DEPENDS ${${PROJECT_NAME}_CATKIN_DEPENDS}
+        DEPENDS ${${PROJECT_NAME}_DEPENDS})   # non-catkin dependencies are collected via erl_find_package
 
 #######################################################################################################################
 # BUILD
@@ -28,7 +29,6 @@ erl_catkin_package(
 file(GLOB_RECURSE SRC_FILES src/*.cpp)
 add_library(${PROJECT_NAME} ${SRC_FILES})
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
-set(${PROJECT_NAME}_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_include_directories(${PROJECT_NAME}
         PUBLIC
         $<BUILD_INTERFACE:${${PROJECT_NAME}_INCLUDE_DIR}>

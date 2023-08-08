@@ -1,11 +1,12 @@
 from typing import overload
 from typing import List
-from typing import Union
+from typing import Dict
 from typing import Callable
 import numpy as np
 import numpy.typing as npt
 from enum import IntEnum
-from @PY_PACKAGE_NAME@.common.storage import GridMapUnsigned2D
+from erl_common.storage import GridMapUnsigned2D
+from erl_common.yaml import YamlableBase
 
 __all__ = [
     "Successor",
@@ -17,35 +18,41 @@ __all__ = [
     "load_ddc_motion_primitives_from_yaml",
 ]
 
+class EnvironmentState:
+    metric: npt.NDArray[np.float64]
+    grid: npt.NDArray[np.int32]
+
 class Successor:
-    env_metric_state: npt.NDArray[np.float64]
-    env_grid_state: npt.NDArray[np.int32]
+    env_state: EnvironmentState
     cost: float
-    action_id: int
+    action_coords: List[int]
+
+class CostBase:
+    def __call__(self: CostBase, state1: EnvironmentState, state2: EnvironmentState) -> float: ...
+
+class EuclideanDistanceCost(CostBase):
+    def __init__(self: EuclideanDistanceCost) -> None: ...
+
+class ManhattanDistanceCost(CostBase):
+    def __init__(self: ManhattanDistanceCost) -> None: ...
 
 class EnvironmentBase:
-    def __init__(self: EnvironmentBase) -> None: ...
-    def forward_action_in_metric_space(
-        self: EnvironmentBase, current_metric_state: npt.NDArray[np.float64], action_index: int, dt: float
-    ) -> npt.NDArray[np.float64]: ...
-    def forward_action_in_grid_space(
-        self: EnvironmentBase, current_grid_state: npt.NDArray[np.int32], action_index: int, dt: float
-    ) -> npt.NDArray[np.float64]: ...
-    def get_successors_in_metric_space(
-        self: EnvironmentBase, current_metric_state: npt.NDArray[np.float64]
-    ) -> List[Successor]: ...
-    def get_successors_in_grid_space(
-        self: EnvironmentBase, current_grid_state: npt.NDArray[np.int32]
-    ) -> List[Successor]: ...
-    def is_metric_state_collided(self: EnvironmentBase, metric_state: npt.NDArray[np.float64]) -> bool: ...
-    def is_grid_state_collided(self: EnvironmentBase, grid_state: npt.NDArray[np.int32]) -> bool: ...
-    def grid_state_hashing(self: EnvironmentBase, grid_state: npt.NDArray[np.int32]) -> int: ...
+    def __init__(self: EnvironmentBase, distance_cost_func: CostBase, time_step: float) -> None: ...
+    @property
+    def state_space_size(self: EnvironmentBase) -> int: ...
+    @property
+    def action_space_size(self: EnvironmentBase) -> int: ...
+    def forward_action(
+        self: EnvironmentBase, env_state: EnvironmentState, action_coords: int
+    ) -> List[EnvironmentState]: ...
+    @property
+    def distance_cost_func(self: EnvironmentBase) -> CostBase: ...
+    def get_successors(self: EnvironmentBase, env_state: EnvironmentState) -> List[Successor]: ...
+    def in_state_space(self: EnvironmentBase, env_state: EnvironmentState) -> bool: ...
+    def state_hashing(self: EnvironmentBase, env_state: EnvironmentState) -> int: ...
     def metric_to_grid(self: EnvironmentBase, metric_state: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]: ...
     def grid_to_metric(self: EnvironmentBase, grid_state: npt.NDArray[np.int32]) -> npt.NDArray[np.int32]: ...
-    def action_coords_to_action_index(
-        self: EnvironmentBase, action_coords: Union[npt.NDArray[np.int32], List[int]]
-    ) -> int: ...
-    def action_index_to_action_coords(self: EnvironmentBase, action_idx: int) -> List[int]: ...
+    def show_paths(self: EnvironmentBase, paths: Dict[int, npt.NDArray[np.float]]) -> None: ...
 
 class Environment2D(EnvironmentBase):
     class Action(IntEnum):
@@ -57,24 +64,23 @@ class Environment2D(EnvironmentBase):
         kForwardLeft = (5,)
         kBackRight = (6,)
         kBackLeft = 7
-    @overload
+
+    class Setting(YamlableBase):
+        allow_diagonal: bool
+        step_size: int
+        down_sampled: bool
+        obstacle_threshold: float
+        add_map_cost: bool
+        map_cost_factor: float
+        shape: npt.NDArray[np.float64]
     def __init__(
         self: Environment2D,
-        allow_diagonal: bool,
-        step_size: int,
         grid_map: GridMapUnsigned2D,
-    ) -> None: ...
-    @overload
-    def __init__(
-        self: Environment2D,
-        allow_diagonal: bool,
-        step_size: int,
-        grid_map: GridMapUnsigned2D,
-        inflate_scale: float,
-        shape_metric_vertices: npt.NDArray[np.float64],
+        setting: Setting = None,
+        distance_cost_func: CostBase = None,
     ) -> None: ...
     @staticmethod
-    def get_grid_2d_action_from_name(action_name: str) -> Action: ...
+    def get_action_from_name(action_name: str) -> Action: ...
 
 class DifferentialDriveControl:
     @overload
@@ -121,30 +127,20 @@ class DdcMotionPrimitive:
 def load_ddc_motion_primitives_from_yaml(filename: str) -> List[DdcMotionPrimitive]: ...
 
 class EnvironmentSe2(EnvironmentBase):
-    @overload
+
+    class Setting(YamlableBase):
+        time_step: float
+        motion_primitives: List[DdcMotionPrimitive]
+        num_orientations: int
+        obstacle_threshold: float
+        add_map_cost: bool
+        map_cost_factor: float
+        shape: npt.NDArray[np.float64]
+
     def __init__(
         self: EnvironmentSe2,
-        collision_checker: Callable[[EnvironmentSe2, float, float], bool],
-        collision_check_dt: float,
-        motion_primitives: List[DdcMotionPrimitive],
-    ) -> None: ...
-    @overload
-    def __init__(
-        self: EnvironmentSe2,
-        collision_check_dt: float,
-        motion_primitives: List[DdcMotionPrimitive],
         grid_map: GridMapUnsigned2D,
-        num_orientations: int,
-    ) -> None: ...
-    @overload
-    def __init__(
-        self: EnvironmentSe2,
-        collision_check_dt: float,
-        motion_primitives: List[DdcMotionPrimitive],
-        grid_map: GridMapUnsigned2D,
-        num_orientations: int,
-        inflate_scale: float,
-        shape_metric_vertices: npt.NDArray[np.float64],
+        setting: Setting = None,
     ) -> None: ...
     @staticmethod
     def motion_model(

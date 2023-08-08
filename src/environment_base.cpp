@@ -52,5 +52,4 @@ namespace erl::env {
         // dst(x, y) = max_{(x', y') of nonzero elements in kernel} src(x + x' - anchor.x, y + y' - anchor.y)
         cv::dilate(original_grid_map, inflated_grid_map, dilation_kernel, anchor, 1);
     }
-
 }  // namespace erl::env

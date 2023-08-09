@@ -10,9 +10,12 @@ if (NOT COMMAND erl_project_setup)
     find_package(erl_common REQUIRED)
 endif ()
 erl_project_setup(
+        ${PROJECT_NAME}
         ERL_PACKAGES erl_common
 )
-erl_setup_ros(CATKIN_COMPONENTS ${${PROJECT_NAME}_CATKIN_COMPONENTS})
+erl_setup_ros(
+    CATKIN_COMPONENTS ${${PROJECT_NAME}_CATKIN_COMPONENTS}
+)
 erl_catkin_package(
         INCLUDE_DIRS include
         LIBRARIES ${PROJECT_NAME} py${PROJECT_NAME}
@@ -61,4 +64,4 @@ erl_add_tests(
 #######################################################################################################################
 # export variables
 #######################################################################################################################
-erl_mark_project_found()
+erl_mark_project_found(${PROJECT_NAME})

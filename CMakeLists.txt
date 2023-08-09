@@ -10,7 +10,7 @@ if (NOT COMMAND erl_project_setup)
     find_package(erl_common REQUIRED)
 endif ()
 erl_project_setup(
-        ERL_PACKAGES erl_common erl_geometry
+        ERL_PACKAGES erl_common
 )
 erl_setup_ros(CATKIN_COMPONENTS ${${PROJECT_NAME}_CATKIN_COMPONENTS})
 erl_catkin_package(
@@ -34,7 +34,7 @@ target_include_directories(${PROJECT_NAME}
         $<BUILD_INTERFACE:${${PROJECT_NAME}_INCLUDE_DIR}>
         $<INSTALL_INTERFACE:${${PROJECT_NAME}_INSTALL_INCLUDE_DIR}>)
 target_include_directories(${PROJECT_NAME} SYSTEM PUBLIC ${catkin_INCLUDE_DIRS})
-target_link_libraries(${PROJECT_NAME} PUBLIC erl_common erl_geometry ${catkin_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} PUBLIC erl_common ${catkin_LIBRARIES})
 
 ###################
 # Python bindings #
@@ -42,7 +42,7 @@ target_link_libraries(${PROJECT_NAME} PUBLIC erl_common erl_geometry ${catkin_LI
 erl_add_python_package(
         PYTHON_PKG_DIR ${${PROJECT_NAME}_PYTHON_DIR}/${PROJECT_NAME}
         PYBIND_MODULE_NAME py${PROJECT_NAME}
-        DEPENDS_PYTHON_PKGS erl_common erl_geometry)
+        DEPENDS_PYTHON_PKGS erl_common)
 
 #######################################################################################################################
 # INSTALL

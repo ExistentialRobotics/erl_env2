@@ -144,7 +144,7 @@ namespace erl::env {
                             auto &state2 = grid_trajectory.back()->grid;
                             Eigen::Vector3i diff = (state1 - state2).cwiseAbs();
                             ERL_WARN_ONCE_COND(
-                                diff[0] > 1 || diff[1] > 1 || std::min(diff[2], num_orientations - diff[2]) > 1,
+                                diff[0] > 1 || diff[1] > 1 || std::min(diff[2], m_setting_->num_orientations - diff[2]) > 1,
                                 "grid trajectory segment [%d, %d] -> [%d, %d] has a step larger than 1. Collision "
                                 "checking may be compromised.",
                                 state1[0],

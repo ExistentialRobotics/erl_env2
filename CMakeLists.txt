@@ -13,6 +13,12 @@ erl_project_setup(
         ${PROJECT_NAME}
         ERL_PACKAGES erl_common
 )
+erl_find_package(
+        PACKAGE spot
+        PKGCONFIG REQUIRED libspot  # available modules: libbddx libspot libspotgen libspotltsmin
+        COMMANDS ARCH_LINUX "try `paru -S spot`"
+        COMMANDS GENERAL "visit https://spot.lrde.epita.fr/install.html"
+)
 erl_setup_ros(
     CATKIN_COMPONENTS ${${PROJECT_NAME}_CATKIN_COMPONENTS}
 )
@@ -36,8 +42,8 @@ target_include_directories(${PROJECT_NAME}
         PUBLIC
         $<BUILD_INTERFACE:${${PROJECT_NAME}_INCLUDE_DIR}>
         $<INSTALL_INTERFACE:${${PROJECT_NAME}_INSTALL_INCLUDE_DIR}>)
-target_include_directories(${PROJECT_NAME} SYSTEM PUBLIC ${catkin_INCLUDE_DIRS})
-target_link_libraries(${PROJECT_NAME} PUBLIC ${${PROJECT_NAME}_ERL_PACKAGES} ${catkin_LIBRARIES})
+target_include_directories(${PROJECT_NAME} SYSTEM PUBLIC ${catkin_INCLUDE_DIRS} ${spot_INCLUDE_DIRS})
+target_link_libraries(${PROJECT_NAME} PUBLIC ${${PROJECT_NAME}_ERL_PACKAGES} ${catkin_LIBRARIES} ${spot_LIBRARIES})
 
 ###################
 # Python bindings #

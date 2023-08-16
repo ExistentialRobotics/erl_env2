@@ -7,7 +7,7 @@ namespace erl::env {
 
     struct EnvironmentState {
         Eigen::VectorXd metric = {};
-        Eigen::VectorXi grid = {};
+        Eigen::VectorXi grid = {};  // use signed int to allow for virtual states
 
         EnvironmentState() = default;
 

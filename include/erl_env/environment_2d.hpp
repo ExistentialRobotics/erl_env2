@@ -1,12 +1,12 @@
 #pragma once
 
+#include "erl_common/opencv.hpp"
 #include "erl_common/yaml.hpp"
 #include "erl_common/grid_map.hpp"
 #include "erl_common/grid_map_info.hpp"
 #include "environment_base.hpp"
 #include "motion_primitive.hpp"
 #include "cost.hpp"
-#include <opencv2/highgui.hpp>
 
 namespace erl::env {
 
@@ -146,7 +146,7 @@ namespace YAML {
 
     template<>
     struct convert<erl::env::Environment2D::Setting> {
-        static Node
+        inline static Node
         encode(const erl::env::Environment2D::Setting &rhs) {
             Node node;
             node["allow_diagonal"] = rhs.allow_diagonal;
@@ -159,7 +159,7 @@ namespace YAML {
             return node;
         }
 
-        static bool
+        inline static bool
         decode(const Node &node, erl::env::Environment2D::Setting &rhs) {
             rhs.allow_diagonal = node["allow_diagonal"].as<bool>();
             rhs.step_size = node["step_size"].as<int>();
@@ -174,7 +174,6 @@ namespace YAML {
 
     inline Emitter &
     operator<<(Emitter &out, const erl::env::Environment2D::Setting &rhs) {
-        out << Flow;
         out << BeginMap;
         out << Key << "allow_diagonal" << Value << rhs.allow_diagonal;
         out << Key << "step_size" << Value << rhs.step_size;

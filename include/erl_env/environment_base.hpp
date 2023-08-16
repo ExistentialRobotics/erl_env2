@@ -64,6 +64,12 @@ namespace erl::env {
         [[nodiscard]] virtual std::size_t
         GetActionSpaceSize() const = 0;
 
+        /**
+         * Apply an action on the given environment state to get the next state. No collision check guarantee!
+         * @param env_state
+         * @param action_coords
+         * @return
+         */
         [[nodiscard]] virtual std::vector<std::shared_ptr<EnvironmentState>>
         ForwardAction(const std::shared_ptr<const EnvironmentState> &env_state, const std::vector<int> &action_coords) const = 0;
 
@@ -77,6 +83,11 @@ namespace erl::env {
             return m_time_step_;
         }
 
+        /**
+         * Get reachable next environment states with the current state. Collision check is applied.
+         * @param env_state the current environment state
+         * @return vector of reachable next environment states
+         */
         [[nodiscard]] virtual std::vector<Successor>
         GetSuccessors(const std::shared_ptr<EnvironmentState> &env_state) const = 0;
 

@@ -9,7 +9,7 @@ namespace erl::env {
         std::shared_ptr<CostBase> distance_cost_func)
         : EnvironmentBase(std::move(distance_cost_func)),
           m_setting_(std::move(setting)),
-          m_grid_map_info_(grid_map->info) {  // x to the bottom, y to the right, along y first
+          m_grid_map_info_((assert(grid_map != nullptr), grid_map->info)) {  // x to the bottom, y to the right, along y first
 
         if (m_setting_ == nullptr) { m_setting_ = std::make_shared<Setting>(); }
 
@@ -49,9 +49,7 @@ namespace erl::env {
             m_grid_motion_primitive_.costs.push_back((*m_distance_cost_func_)(state0, state1));  // compute distance cost in metric space
         }
 
-        if (m_setting_->shape.cols() > 0) {
-            InflateGridMap2D(m_original_grid_map_, m_grid_map_, m_grid_map_info_, m_setting_->shape);
-        }
+        if (m_setting_->shape.cols() > 0) { InflateGridMap2D(m_original_grid_map_, m_grid_map_, m_grid_map_info_, m_setting_->shape); }
     }
 
     std::vector<Successor>
@@ -62,14 +60,25 @@ namespace erl::env {
         auto num_controls = int(m_grid_motion_primitive_.controls.size());
         successors.clear();
         successors.reserve(num_controls);
-        for (int control_idx = 0; control_idx < num_controls; control_idx++) {
+        for (int control_idx = 0; control_idx < num_controls; ++control_idx) {
             auto &direction = m_grid_motion_primitive_.controls[control_idx];
             bool is_reachable = true;
             auto next_state = std::make_shared<EnvironmentState>();
             next_state->grid = env_state->grid;
+            int &nx_grid = next_state->grid[0];
+            int &ny_grid = next_state->grid[1];
             for (long i = 0; i < m_setting_->step_size; ++i) {
-                next_state->grid += direction;
-                if (!InStateSpace(next_state) || m_grid_map_.at<uint8_t>(next_state->grid[0], next_state->grid[1]) >= m_setting_->obstacle_threshold) {
+                nx_grid += direction[0];
+                if (nx_grid < 0 || nx_grid >= m_grid_map_info_->Shape(0)) {
+                    is_reachable = false;
+                    break;
+                }
+                ny_grid += direction[1];
+                if (ny_grid < 0 || ny_grid >= m_grid_map_info_->Shape(1)) {
+                    is_reachable = false;
+                    break;
+                }
+                if (m_grid_map_.at<uint8_t>(nx_grid, ny_grid) >= m_setting_->obstacle_threshold) {
                     is_reachable = false;
                     break;
                 }

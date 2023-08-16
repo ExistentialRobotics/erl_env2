@@ -53,7 +53,7 @@ namespace erl::env {
 
         inline double
         operator()(const EnvironmentState&, const EnvironmentState& state2) const override {
-            return map.data(state2.grid);
+            return map.data[state2.grid];
         }
     };
 

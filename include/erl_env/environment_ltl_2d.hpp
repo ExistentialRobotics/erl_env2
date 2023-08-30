@@ -39,7 +39,7 @@ namespace erl::env {
         std::vector<double> m_motion_cost_;                       // cost of each motion primitive
         cv::Mat m_original_grid_map_;                             // original grid map, where each cell is a scaled cost value
         cv::Mat m_grid_map_;                                      // inflated grid map
-        std::shared_ptr<common::GridMapInfo2D> m_grid_map_info_;  // grid map description, x to the bottom, y to the right, along y first
+        std::shared_ptr<common::GridMapInfo3D> m_grid_map_info_;  // grid map description, x to the bottom, y to the right, along y first
         Eigen::MatrixXi m_label_map_;                             // each element is a |AP|-bit word representing the result of atomic propositions
 
     public:
@@ -50,9 +50,14 @@ namespace erl::env {
             std::shared_ptr<CostBase> distance_cost_func = nullptr)
             : EnvironmentBase(std::move(distance_cost_func)),
               m_setting_(std::move(setting)),
-              m_grid_map_info_((assert(grid_map != nullptr), grid_map->info)),
+              // m_grid_map_info_((assert(grid_map != nullptr), grid_map->info->Extend())),
               m_label_map_(std::move(label_map)) {
             ERL_ASSERTM(m_setting_ != nullptr, "setting is nullptr.");
+            ERL_ASSERTM(grid_map != nullptr, "grid_map is nullptr.");
+
+            auto num_states = int(m_setting_->fsa->num_states);
+            if (num_states % 2 == 0) { num_states += 1; }
+            m_grid_map_info_ = std::make_shared<common::GridMapInfo3D>(grid_map->info->Extend(num_states, -0.5, double(num_states) - 0.5, 2));
 
             // generate motions and compute their costs
             if (m_setting_->allow_diagonal) {
@@ -78,17 +83,17 @@ namespace erl::env {
             m_grid_motion_primitive_.costs.reserve(m_grid_motion_primitive_.controls.size());
             EnvironmentState state0, state1;
             state0.grid = Eigen::VectorXi::Zero(2);
-            state0.metric = m_grid_map_info_->GridToMeterForPoints(state0.grid);
+            state0.metric = grid_map->info->GridToMeterForPoints(state0.grid);
             for (auto &control: m_grid_motion_primitive_.controls) {
                 state1.grid = state0.grid + control * m_setting_->step_size;
-                state1.metric = m_grid_map_info_->GridToMeterForPoints(state1.grid);
+                state1.metric = grid_map->info->GridToMeterForPoints(state1.grid);
                 m_grid_motion_primitive_.costs.push_back((*m_distance_cost_func_)(state0, state1));  // compute distance cost in metric space
             }
 
             // generate 2D obstacle/cost map
             m_original_grid_map_ = InitializeGridMap2D(grid_map);
             m_original_grid_map_.copyTo(m_grid_map_);
-            if (m_setting_->shape.cols() > 0) { InflateGridMap2D(m_original_grid_map_, m_grid_map_, m_grid_map_info_, m_setting_->shape); }
+            if (m_setting_->shape.cols() > 0) { InflateGridMap2D(m_original_grid_map_, m_grid_map_, grid_map->info, m_setting_->shape); }
 
             // configure finite state automaton
             ERL_ASSERTM(m_setting_->fsa != nullptr, "setting->fsa is nullptr.");
@@ -107,7 +112,7 @@ namespace erl::env {
             return m_fsa_;
         }
 
-        [[nodiscard]] inline std::shared_ptr<common::GridMapInfo2D>
+        [[nodiscard]] inline std::shared_ptr<common::GridMapInfo3D>
         GetGridMapInfo() const {
             return m_grid_map_info_;
         }
@@ -203,15 +208,17 @@ namespace erl::env {
 
         [[nodiscard]] inline bool
         InStateSpace(const std::shared_ptr<EnvironmentState> &env_state) const override {
-            return m_grid_map_info_->InGrids(env_state->grid.head<2>()) &&
+            return m_grid_map_info_->InGrids(env_state->grid) &&
                    (!m_setting_->down_sampled || (env_state->grid[0] % m_setting_->step_size == 0 && env_state->grid[1] % m_setting_->step_size == 0));
         }
 
         [[nodiscard]] inline uint32_t
         StateHashing(const std::shared_ptr<env::EnvironmentState> &env_state) const override {
-            uint32_t hashing = m_grid_map_info_->GridToIndex(env_state->grid.head<2>(), true);
-            hashing = hashing * m_setting_->fsa->num_states + env_state->grid[2];
+            uint32_t hashing = m_grid_map_info_->GridToIndex(env_state->grid, true);
             return hashing;
+            // uint32_t hashing = m_grid_map_info_->GridToIndex(env_state->grid.head<2>(), true);
+            // hashing = hashing * m_setting_->fsa->num_states + env_state->grid[2];
+            // return hashing;
         }
 
         [[nodiscard]] inline Eigen::VectorXi

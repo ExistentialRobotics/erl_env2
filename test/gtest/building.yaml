@@ -1,0 +1,1530 @@
+floor_area: 29.843622649751218
+floors:
+  0:
+    cat_map: cat_maps/0.png
+    down_stairs_id: -1
+    grid_map_origin:
+      - -3.9349700000000003
+      - 2.14037
+    grid_map_resolution:
+      - 0.009985776293823039
+      - 0.009991059907834101
+    grid_map_size:
+      - 1085
+      - 599
+    ground_z: -2.6354567878618376
+    id: 0
+    name: A
+    num_rooms: 5
+    parent_id: 4
+    parent_uuid: 1
+    room_map: room_maps/0.png
+    rooms:
+      1:
+        connected_room_ids:
+          - 10
+        floor_area: 7.4210423579773925
+        grid_map_max:
+          - 984
+          - 536
+        grid_map_min:
+          - 759
+          - 371
+        id: 1
+        location:
+          - 0.5904309999999999
+          - -6.549355
+          - -1.4833679999999998
+        name: bathroom
+        num_objects: 3
+        objects:
+          7:
+            action_affordance: &id004
+              - wash
+              - clean
+            floor_area: 1.7355972370064383
+            id: 7
+            location:
+              - 1.0723643216018577
+              - -7.369863979104055
+              - -1.8417292314783524
+            material:
+              - ceramic
+              - null
+            name: sink
+            parent_id: 1
+            parent_uuid: 2
+            size:
+              - 0.5124483939678722
+              - 0.5692844456293251
+              - 0.17976860229091773
+            surface_coverage: 0.22148894842030425
+            type: kObject
+            uuid: 27
+            volume: 0.015325209715655706
+          21:
+            action_affordance: &id008
+              - sit on
+              - clean
+              - flush
+              - close
+              - open
+            floor_area: 2.2151336637517054
+            id: 21
+            location:
+              - 0.9747640934956672
+              - -6.463177503021728
+              - -2.2874547230376994
+            material:
+              - ceramic
+              - null
+            name: toilet
+            parent_id: 1
+            parent_uuid: 2
+            size:
+              - 0.7291419148930607
+              - 0.5469544266374893
+              - 0.7311373135198169
+            surface_coverage: 0.9134197078542818
+            type: kObject
+            uuid: 41
+            volume: 0.15680697946152372
+          31:
+            action_affordance: &id001
+              - water
+              - pick up
+              - move
+            floor_area: 1.936093072734168
+            id: 31
+            location:
+              - 1.0437548241114196
+              - -5.7254729043513075
+              - -0.5844669378467465
+            material:
+              - ceramic
+              - null
+            name: potted plant
+            parent_id: 1
+            parent_uuid: 2
+            size:
+              - 0.5952186742842241
+              - 0.4856154223460383
+              - 0.46126982852666054
+            surface_coverage: 0.27390320813706315
+            type: kObject
+            uuid: 51
+            volume: 0.014031425191297034
+        parent_building: 4
+        parent_id: 0
+        parent_uuid: 3
+        size:
+          - 1.620558
+          - 2.2485100000000005
+          - 2.342164
+        type: kRoom
+        uuid: 2
+        volume: 7.040894272733511
+      6:
+        connected_room_ids:
+          - 10
+          - 13
+        floor_area: 8.552312235363784
+        grid_map_max:
+          - 687
+          - 226
+        grid_map_min:
+          - 341
+          - 126
+        id: 6
+        location:
+          - -2.177605
+          - -2.9937899999999997
+          - -1.4919429999999996
+        name: corridor
+        num_objects: 0
+        objects: {}
+        parent_building: 4
+        parent_id: 0
+        parent_uuid: 3
+        size:
+          - 0.9738099999999998
+          - 3.42084
+          - 2.335774
+        type: kRoom
+        uuid: 9
+        volume: 7.390721100347834
+      10:
+        connected_room_ids:
+          - 1
+          - 6
+        floor_area: 12.203652350703365
+        grid_map_max:
+          - 996
+          - 378
+        grid_map_min:
+          - 678
+          - 23
+        id: 10
+        location:
+          - -1.9344045
+          - -6.226380000000001
+          - -1.4823559999999996
+        name: empty_room
+        num_objects: 0
+        objects: {}
+        parent_building: 4
+        parent_id: 0
+        parent_uuid: 3
+        size:
+          - 3.510411
+          - 3.14328
+          - 2.352408
+        type: kRoom
+        uuid: 14
+        volume: 23.018376656424113
+      13:
+        connected_room_ids:
+          - 14
+          - 6
+        floor_area: 6.6269957753004185
+        grid_map_max:
+          - 370
+          - 227
+        grid_map_min:
+          - 219
+          - 23
+        id: 13
+        location:
+          - -2.690185
+          - -0.8003745
+          - -1.4800330000000002
+        name: lobby
+        num_objects: 0
+        objects: {}
+        parent_building: 4
+        parent_id: 0
+        parent_uuid: 3
+        size:
+          - 1.9926699999999997
+          - 1.482911
+          - 2.331594
+        type: kRoom
+        uuid: 17
+        volume: 6.067614005386601
+      14:
+        connected_room_ids:
+          - 13
+          - 7
+        floor_area: 9.01528754212175
+        grid_map_max:
+          - 0
+          - 0
+        grid_map_min:
+          - 0
+          - 0
+        id: 14
+        location:
+          - -3.21924
+          - -3.073595
+          - -0.17466999999999988
+        name: staircase
+        num_objects: 0
+        objects: {}
+        parent_building: 4
+        parent_id: 0
+        parent_uuid: 3
+        size:
+          - 0.9290400000000001
+          - 3.5956499999999996
+          - 4.93972
+        type: kRoom
+        uuid: 18
+        volume: 7.640081705094032
+    type: kFloor
+    up_stairs_id: 14
+    uuid: 3
+  1:
+    cat_map: cat_maps/1.png
+    down_stairs_id: 14
+    grid_map_origin:
+      - -3.9349700000000003
+      - 2.14037
+    grid_map_resolution:
+      - 0.009985776293823039
+      - 0.009991059907834101
+    grid_map_size:
+      - 1085
+      - 599
+    ground_z: 0.005022057780078107
+    id: 1
+    name: B
+    num_rooms: 5
+    parent_id: 4
+    parent_uuid: 1
+    room_map: room_maps/1.png
+    rooms:
+      7:
+        connected_room_ids:
+          - 9
+          - 11
+          - 12
+          - 14
+          - 15
+        floor_area: 19.302669205642392
+        grid_map_max:
+          - 947
+          - 359
+        grid_map_min:
+          - 187
+          - 23
+        id: 7
+        location:
+          - -2.0302740000000004
+          - -3.5257415
+          - 1.1924655000000002
+        name: corridor
+        num_objects: 3
+        objects:
+          26:
+            action_affordance: &id002
+              - sit on
+              - step on
+              - clean
+              - break
+              - move
+            floor_area: 1.373411447984273
+            id: 26
+            location:
+              - -2.293550987207948
+              - -2.5345888162272168
+              - 0.5558626266849682
+            material:
+              - wood
+              - fabric
+            name: chair
+            parent_id: 7
+            parent_uuid: 10
+            size:
+              - 0.4113274814640744
+              - 0.41112221300588336
+              - 1.1410339142958181
+            surface_coverage: 0.6422159091461082
+            type: kObject
+            uuid: 46
+            volume: 0.07615417638700832
+          29:
+            action_affordance: *id001
+            floor_area: 0.9612257199740097
+            id: 29
+            location:
+              - -2.3493316766008894
+              - -2.1458097431189422
+              - 1.5221279020249652
+            material:
+              - foliage
+              - ceramic
+            name: potted plant
+            parent_id: 7
+            parent_uuid: 10
+            size:
+              - 0.29796023156703777
+              - 0.23164911546336997
+              - 0.2204733701657029
+            surface_coverage: 0.09989267689194635
+            type: kObject
+            uuid: 49
+            volume: 0.0075253234955741264
+          30:
+            action_affordance: *id001
+            floor_area: 0.8301519580083073
+            id: 30
+            location:
+              - -2.3422984225601042
+              - -3.1457304080202473
+              - 1.2937111369115906
+            material:
+              - foliage
+              - ceramic
+            name: potted plant
+            parent_id: 7
+            parent_uuid: 10
+            size:
+              - 0.25441909433257237
+              - 0.2719074491026352
+              - 0.2703933092620494
+            surface_coverage: 0.13627253814662418
+            type: kObject
+            uuid: 50
+            volume: 0.007885684157281669
+        parent_building: 4
+        parent_id: 1
+        parent_uuid: 11
+        size:
+          - 3.315432
+          - 7.570417
+          - 2.436689
+        type: kRoom
+        uuid: 10
+        volume: 47.46693332861454
+      9:
+        connected_room_ids:
+          - 11
+          - 12
+          - 7
+        floor_area: 10.956323225405812
+        grid_map_max:
+          - 598
+          - 551
+        grid_map_min:
+          - 269
+          - 287
+        id: 9
+        location:
+          - 0.24826499999999996
+          - -2.2007315
+          - 1.1489245000000001
+        name: dining_room
+        num_objects: 8
+        objects:
+          19:
+            action_affordance: &id006
+              - grab
+              - eat from
+              - clean
+              - hold
+              - set on
+            floor_area: 1.087748264448415
+            id: 19
+            location:
+              - -0.22504755337278792
+              - -1.0754036751447635
+              - 1.1280341649520929
+            material:
+              - wood
+              - null
+            name: bowl
+            parent_id: 9
+            parent_uuid: 13
+            size:
+              - 0.3700179119572147
+              - 0.32064032718117863
+              - 0.19880922836028225
+            surface_coverage: 0.1955468856213311
+            type: kObject
+            uuid: 39
+            volume: 0.008653649261909929
+          23:
+            action_affordance: *id002
+            floor_area: 1.7753155432245358
+            id: 23
+            location:
+              - 0.11957023334156021
+              - -2.8258468262002663
+              - 0.3793747273802317
+            material:
+              - wood
+              - null
+            name: chair
+            parent_id: 9
+            parent_uuid: 13
+            size:
+              - 0.442139049641911
+              - 0.5532265143363571
+              - 0.7840476097184381
+            surface_coverage: 0.9595513947589291
+            type: kObject
+            uuid: 43
+            volume: 0.11703467851337754
+          24:
+            action_affordance: *id002
+            floor_area: 1.8633393520411334
+            id: 24
+            location:
+              - 0.5335482507782277
+              - -2.3424116447815324
+              - 0.43396106113548827
+            material:
+              - wood
+              - null
+            name: chair
+            parent_id: 9
+            parent_uuid: 13
+            size:
+              - 0.609105504010079
+              - 0.44802046705922294
+              - 0.8937912983710214
+            surface_coverage: 0.6771889535235974
+            type: kObject
+            uuid: 44
+            volume: 0.11354668340740119
+          25:
+            action_affordance: *id002
+            floor_area: 1.8880709603128254
+            id: 25
+            location:
+              - -0.3155723429961532
+              - -2.338403341378261
+              - 0.4103366974456413
+            material:
+              - wood
+              - null
+            name: chair
+            parent_id: 9
+            parent_uuid: 13
+            size:
+              - 0.6463453668875725
+              - 0.5278813883240909
+              - 0.8459011739164222
+            surface_coverage: 1.0248888408661798
+            type: kObject
+            uuid: 45
+            volume: 0.14932842324590226
+          35:
+            action_affordance: &id003
+              - sit at
+              - lay on
+              - pick up
+              - move
+              - clean
+              - set
+              - decorate
+            floor_area: 1.0402291216303285
+            id: 35
+            location:
+              - 0.3527338480348452
+              - -2.1849584645717197
+              - 0.19373571935812783
+            material:
+              - wood
+              - null
+            name: dining table
+            parent_id: 9
+            parent_uuid: 13
+            size:
+              - 0.3531953314391244
+              - 0.3294633883472393
+              - 0.41229715123771027
+            surface_coverage: 0.1442212688913163
+            type: kObject
+            uuid: 55
+            volume: 0.013226829857277056
+          36:
+            action_affordance: *id003
+            floor_area: 4.07693892665201
+            id: 36
+            location:
+              - 0.09449618276331162
+              - -2.3422462507474426
+              - 0.61805122985677
+            material:
+              - fabric
+              - null
+            name: dining table
+            parent_id: 9
+            parent_uuid: 13
+            size:
+              - 1.2516680394600748
+              - 0.9417884083010062
+              - 0.41416404256758443
+            surface_coverage: 2.00537917769981
+            type: kObject
+            uuid: 56
+            volume: 0.3091735149787712
+          37:
+            action_affordance: *id003
+            floor_area: 1.212534584747856
+            id: 37
+            location:
+              - 0.05992100221066057
+              - -2.179771865772956
+              - 0.17146076741388733
+            material:
+              - wood
+              - null
+            name: dining table
+            parent_id: 9
+            parent_uuid: 13
+            size:
+              - 0.4108728907242426
+              - 0.35548694799082625
+              - 0.36578789701721187
+            surface_coverage: 0.0980016019030996
+            type: kObject
+            uuid: 57
+            volume: 0.01410917910661887
+          38:
+            action_affordance: *id003
+            floor_area: 0.7943807523671521
+            id: 38
+            location:
+              - 0.18415757780890635
+              - -2.5567416595968364
+              - 0.19869713692098137
+            material:
+              - wood
+              - null
+            name: dining table
+            parent_id: 9
+            parent_uuid: 13
+            size:
+              - 0.21158259665370782
+              - 0.27402288457057233
+              - 0.42219518816810664
+            surface_coverage: 0.09255435482771629
+            type: kObject
+            uuid: 58
+            volume: 0.009196477191677004
+        parent_building: 4
+        parent_id: 1
+        parent_uuid: 11
+        size:
+          - 2.60819
+          - 3.281797
+          - 2.329751
+        type: kRoom
+        uuid: 13
+        volume: 17.333488268043585
+      11:
+        connected_room_ids:
+          - 9
+          - 7
+        floor_area: 12.186889082685719
+        grid_map_max:
+          - 313
+          - 549
+        grid_map_min:
+          - 27
+          - 185
+        id: 11
+        location:
+          - -0.2692049999999999
+          - 0.444275
+          - 1.169249
+        name: kitchen
+        num_objects: 8
+        objects:
+          1:
+            action_affordance:
+              - open
+              - close
+              - cook
+              - heat
+              - defrost
+              - clean
+            floor_area: 1.79726130240447
+            id: 1
+            location:
+              - -0.35068519413902693
+              - 1.55531707088755
+              - 1.5478495887434516
+            material:
+              - glass
+              - metal
+            name: microwave
+            parent_id: 11
+            parent_uuid: 15
+            size:
+              - 0.7955262348293469
+              - 0.25035937399622776
+              - 0.4508707542839865
+            surface_coverage: 0.42820335097791135
+            type: kObject
+            uuid: 21
+            volume: 0.04116937299876588
+          2:
+            action_affordance:
+              - open
+              - close
+              - heat
+              - turn on
+              - turn off
+              - clean
+            floor_area: 2.9413717539470396
+            id: 2
+            location:
+              - -0.30422397877068547
+              - 1.4506916306503674
+              - 0.5854581416307452
+            material:
+              - glass
+              - metal
+            name: oven
+            parent_id: 11
+            parent_uuid: 15
+            size:
+              - 0.8998953383698559
+              - 0.7678331574494723
+              - 1.1772871555610023
+            surface_coverage: 1.5693813164126653
+            type: kObject
+            uuid: 22
+            volume: 0.381626769781054
+          3:
+            action_affordance: *id004
+            floor_area: 2.529911720432241
+            id: 3
+            location:
+              - 1.0658403012378366
+              - 0.1418143208740717
+              - 0.8095373394031672
+            material:
+              - metal
+              - null
+            name: sink
+            parent_id: 11
+            parent_uuid: 15
+            size:
+              - 0.5835840207385596
+              - 0.8370911757390123
+              - 0.20293586656144313
+            surface_coverage: 0.5567812342038377
+            type: kObject
+            uuid: 23
+            volume: 0.04701986527670527
+          8:
+            action_affordance:
+              - open
+              - close
+              - clean
+              - move
+            floor_area: 3.2387673219084063
+            id: 8
+            location:
+              - -1.5164920404768927
+              - 1.385318351496383
+              - 0.9065209401343199
+            material:
+              - metal
+              - null
+            name: refrigerator
+            parent_id: 11
+            parent_uuid: 15
+            size:
+              - 1.0273351265906459
+              - 0.9031613966347148
+              - 1.8182464655029025
+            surface_coverage: 2.895410601612445
+            type: kObject
+            uuid: 28
+            volume: 0.8906771915383481
+          11:
+            action_affordance: &id005
+              - grab
+              - open
+              - hold
+              - drink from
+            floor_area: 0.2441733212128457
+            id: 11
+            location:
+              - -1.0779467721975844
+              - 1.399542115391199
+              - 1.7802705767966218
+            material:
+              - plastic
+              - null
+            name: bottle
+            parent_id: 11
+            parent_uuid: 15
+            size:
+              - 0.06067631222164849
+              - 0.09684057001182977
+              - 0.0844904342640922
+            surface_coverage: 0.007446057363903701
+            type: kObject
+            uuid: 31
+            volume: 0.00015399650992057164
+          12:
+            action_affordance: *id005
+            floor_area: 0.46694417005576144
+            id: 12
+            location:
+              - -1.1397204453151026
+              - 1.3110150440722919
+              - 1.7743268637905971
+            material:
+              - plastic
+              - null
+            name: bottle
+            parent_id: 11
+            parent_uuid: 15
+            size:
+              - 0.15522306817664844
+              - 0.11648919197239249
+              - 0.11317309956901256
+            surface_coverage: 0.015253918101166261
+            type: kObject
+            uuid: 32
+            volume: 0.0005754709798310829
+          17:
+            action_affordance: *id006
+            floor_area: 1.1470986904454763
+            id: 17
+            location:
+              - 1.197498870595345
+              - -0.6354909563607061
+              - 1.1280706051620806
+            material:
+              - metal
+              - null
+            name: bowl
+            parent_id: 11
+            parent_uuid: 15
+            size:
+              - 0.3953696304556852
+              - 0.35093638528109694
+              - 0.46329358422947375
+            surface_coverage: 0.14676075587291332
+            type: kObject
+            uuid: 37
+            volume: 0.022843137995020614
+          18:
+            action_affordance: *id006
+            floor_area: 0.7360785927271313
+            id: 18
+            location:
+              - 1.2031505329094219
+              - -0.7483724782448412
+              - 0.986111781289161
+            material: null
+            name: bowl
+            parent_id: 11
+            parent_uuid: 15
+            size:
+              - 0.2667148762076643
+              - 0.2218993450395481
+              - 0.18240607156878652
+            surface_coverage: 0.02014147496775441
+            type: kObject
+            uuid: 38
+            volume: 0.0023608715636196835
+        parent_building: 4
+        parent_id: 1
+        parent_uuid: 11
+        size:
+          - 3.5979900000000002
+          - 2.82671
+          - 2.357802
+        type: kRoom
+        uuid: 15
+        volume: 20.42616735456131
+      12:
+        connected_room_ids:
+          - 9
+          - 7
+        floor_area: 16.44114227606001
+        grid_map_max:
+          - 1066
+          - 580
+        grid_map_min:
+          - 567
+          - 102
+        id: 12
+        location:
+          - -0.5297100000000001
+          - -6.021815
+          - 1.1652005000000003
+        name: living_room
+        num_objects: 4
+        objects:
+          16:
+            action_affordance: &id010
+              - hug
+              - pick up
+              - set
+            floor_area: 1.3812448858140824
+            id: 16
+            location:
+              - -0.5157360565266111
+              - -8.197617494509792
+              - 0.5762669034360626
+            material:
+              - fabric
+              - null
+            name: teddy bear
+            parent_id: 12
+            parent_uuid: 16
+            size:
+              - 0.3661769039729291
+              - 0.4093885156027772
+              - 0.5552639693815082
+            surface_coverage: 0.24912718922966404
+            type: kObject
+            uuid: 36
+            volume: 0.039934750111277034
+          28:
+            action_affordance:
+              - sit on
+              - lay on
+              - step on
+              - tidy
+              - clean
+              - move
+            floor_area: 8.277695952740256
+            id: 28
+            location:
+              - -0.8185657178502499
+              - -5.858453082386919
+              - 0.41945996020572857
+            material:
+              - fabric
+              - wood
+            name: couch
+            parent_id: 12
+            parent_uuid: 16
+            size:
+              - 1.8481010613135624
+              - 2.9280537200042014
+              - 0.8628698754187689
+            surface_coverage: 8.443903438961154
+            type: kObject
+            uuid: 48
+            volume: 2.776770107438655
+          40:
+            action_affordance: &id007
+              - turn on
+              - turn off
+              - look at
+              - move
+              - plug
+            floor_area: 3.3831852540152707
+            id: 40
+            location:
+              - 1.5675087833504926
+              - -6.357895804125191
+              - 1.6448854809855558
+            material:
+              - glass
+              - plastic
+            name: tv
+            parent_id: 12
+            parent_uuid: 16
+            size:
+              - 0.5576820489992285
+              - 1.217002232249305
+              - 0.876508102154993
+            surface_coverage: 1.961008315970454
+            type: kObject
+            uuid: 60
+            volume: 0.36415735395018967
+          41:
+            action_affordance: *id007
+            floor_area: 3.144534251051958
+            id: 41
+            location:
+              - 1.611699195075651
+              - -6.345174632908113
+              - 1.9814191872082083
+            material:
+              - glass
+              - plastic
+            name: tv
+            parent_id: 12
+            parent_uuid: 16
+            size:
+              - 0.4477708906039022
+              - 1.2199018488306663
+              - 0.29770341727737804
+            surface_coverage: 0.7465336023137541
+            type: kObject
+            uuid: 61
+            volume: 0.09528853990952531
+        parent_building: 4
+        parent_id: 1
+        parent_uuid: 11
+        size:
+          - 4.75244
+          - 4.9562300000000015
+          - 2.356119
+        type: kRoom
+        uuid: 16
+        volume: 42.128473568804694
+      15:
+        connected_room_ids:
+          - 8
+          - 7
+        floor_area: 8.723197403155774
+        grid_map_max:
+          - 0
+          - 0
+        grid_map_min:
+          - 0
+          - 0
+        id: 15
+        location:
+          - -3.18327
+          - -3.1358650000000003
+          - 2.5684475
+        name: staircase
+        num_objects: 0
+        objects: {}
+        parent_building: 4
+        parent_id: 1
+        parent_uuid: 11
+        size:
+          - 0.99186
+          - 3.41317
+          - 5.140785
+        type: kRoom
+        uuid: 19
+        volume: 11.839076314691047
+    type: kFloor
+    up_stairs_id: 15
+    uuid: 11
+  2:
+    cat_map: cat_maps/2.png
+    down_stairs_id: 15
+    grid_map_origin:
+      - -3.9349700000000003
+      - 2.14037
+    grid_map_resolution:
+      - 0.009985776293823039
+      - 0.009991059907834101
+    grid_map_size:
+      - 1085
+      - 599
+    ground_z: 2.631911701494928
+    id: 2
+    name: C
+    num_rooms: 6
+    parent_id: 4
+    parent_uuid: 1
+    room_map: room_maps/2.png
+    rooms:
+      2:
+        connected_room_ids:
+          - 4
+        floor_area: 7.6787889660958095
+        grid_map_max:
+          - 222
+          - 235
+        grid_map_min:
+          - 30
+          - 19
+        id: 2
+        location:
+          - -2.64671
+          - 0.9385280000000001
+          - 4.05811
+        name: bathroom
+        num_objects: 2
+        objects:
+          4:
+            action_affordance: *id004
+            floor_area: 1.8883470551051786
+            id: 4
+            location:
+              - -3.352547190132457
+              - 0.3781438512538459
+              - 3.39885154467065
+            material:
+              - ceramic
+              - null
+            name: sink
+            parent_id: 2
+            parent_uuid: 4
+            size:
+              - 0.5333569269266296
+              - 0.6743748134430244
+              - 0.15852977851589056
+            surface_coverage: 0.24978881209311554
+            type: kObject
+            uuid: 24
+            volume: 0.019480720000816146
+          20:
+            action_affordance: *id008
+            floor_area: 2.1038685648193196
+            id: 20
+            location:
+              - -2.1813436647105955
+              - 1.4456668890704076
+              - 2.98560388952516
+            material:
+              - ceramic
+              - null
+            name: toilet
+            parent_id: 2
+            parent_uuid: 4
+            size:
+              - 0.4834030012612436
+              - 0.7220669411419547
+              - 0.7272784616087673
+            surface_coverage: 0.8013521024022793
+            type: kObject
+            uuid: 40
+            volume: 0.12329359304767509
+        parent_building: 4
+        parent_id: 2
+        parent_uuid: 5
+        size:
+          - 2.17652
+          - 2.003684
+          - 2.89616
+        type: kRoom
+        uuid: 4
+        volume: 9.08162016239343
+      3:
+        connected_room_ids:
+          - 5
+        floor_area: 9.988644379629495
+        grid_map_max:
+          - 636
+          - 560
+        grid_map_min:
+          - 395
+          - 227
+        id: 3
+        location:
+          - -0.009525000000000006
+          - -3.0135899999999998
+          - 4.17977
+        name: bathroom
+        num_objects: 3
+        objects:
+          5:
+            action_affordance: *id004
+            floor_area: 1.8892739698035625
+            id: 5
+            location:
+              - -1.315342607072675
+              - -3.7152813481744933
+              - 3.4170317723466037
+            material:
+              - ceramic
+              - null
+            name: sink
+            parent_id: 3
+            parent_uuid: 6
+            size:
+              - 0.5200008878137461
+              - 0.619807115292704
+              - 0.17595703071580004
+            surface_coverage: 0.2559892128948112
+            type: kObject
+            uuid: 25
+            volume: 0.01696672295568202
+          6:
+            action_affordance: *id004
+            floor_area: 1.789914218334739
+            id: 6
+            location:
+              - -1.3325997910632572
+              - -2.2290399423439533
+              - 3.4314431633657065
+            material:
+              - ceramic
+              - null
+            name: sink
+            parent_id: 3
+            parent_uuid: 6
+            size:
+              - 0.500689919428791
+              - 0.5785350536032419
+              - 0.08588139927105365
+            surface_coverage: 0.18959826548202677
+            type: kObject
+            uuid: 26
+            volume: 0.008791782139415219
+          22:
+            action_affordance: *id008
+            floor_area: 1.1081544474892844
+            id: 22
+            location:
+              - 0.8108335156402309
+              - -3.4299033513648265
+              - 2.951925796625818
+            material:
+              - ceramic
+              - null
+            name: toilet
+            parent_id: 3
+            parent_uuid: 6
+            size:
+              - 0.348083541513001
+              - 0.3593685437469909
+              - 0.18977052677564155
+            surface_coverage: 0.16676088566011002
+            type: kObject
+            uuid: 42
+            volume: 0.008790929861973443
+        parent_building: 4
+        parent_id: 2
+        parent_uuid: 5
+        size:
+          - 3.29215
+          - 2.3631200000000003
+          - 3.14144
+        type: kRoom
+        uuid: 6
+        volume: 16.736495694006308
+      4:
+        connected_room_ids:
+          - 8
+          - 2
+        floor_area: 11.653132293974778
+        grid_map_max:
+          - 329
+          - 537
+        grid_map_min:
+          - 22
+          - 230
+        id: 4
+        location:
+          - -0.106935
+          - 0.3838750000000002
+          - 4.18018
+        name: bedroom
+        num_objects: 4
+        objects:
+          10:
+            action_affordance: &id009
+              - open
+              - close
+              - read
+              - borrow
+              - lend
+            floor_area: 1.7312326643788392
+            id: 10
+            location:
+              - 1.0842154529426709
+              - 0.19652160104846284
+              - 3.2920352620036617
+            material:
+              - paper
+              - null
+            name: book
+            parent_id: 4
+            parent_uuid: 7
+            size:
+              - 0.4530118084120318
+              - 0.6158506910660186
+              - 0.18896531968647023
+            surface_coverage: 0.1643639045299456
+            type: kObject
+            uuid: 30
+            volume: 0.018697178696017138
+          14:
+            action_affordance:
+              - fill
+              - pick up
+              - break
+              - clean
+            floor_area: 1.3268187679559986
+            id: 14
+            location:
+              - 1.2719324233928164
+              - 1.3160242885481637
+              - 4.203214956684203
+            material:
+              - other
+              - null
+            name: vase
+            parent_id: 4
+            parent_uuid: 7
+            size:
+              - 0.23912222113854997
+              - 0.5718078914236313
+              - 0.5281730199846413
+            surface_coverage: 0.14526626945197194
+            type: kObject
+            uuid: 34
+            volume: 0.017611125270668087
+          27:
+            action_affordance: *id002
+            floor_area: 2.272738868005303
+            id: 27
+            location:
+              - 1.0133055909278759
+              - 0.21498566842790598
+              - 3.0635570996058066
+            material:
+              - wood
+              - null
+            name: chair
+            parent_id: 4
+            parent_uuid: 7
+            size:
+              - 0.7901880438617227
+              - 0.5573949682302618
+              - 0.8903997572154903
+            surface_coverage: 1.3110386344999376
+            type: kObject
+            uuid: 47
+            volume: 0.17736404162523678
+          34:
+            action_affordance: &id011
+              - make
+              - sit on
+              - step on
+              - lay on
+              - move
+            floor_area: 5.8520048599221965
+            id: 34
+            location:
+              - -0.5371091435365436
+              - 1.2673075073737539
+              - 2.9415493608750554
+            material:
+              - wood
+              - fabric
+            name: bed
+            parent_id: 4
+            parent_uuid: 7
+            size:
+              - 2.027703776532256
+              - 1.0896136774076894
+              - 0.6155935472305494
+            surface_coverage: 2.972041414530499
+            type: kObject
+            uuid: 54
+            volume: 0.65800164049938
+        parent_building: 4
+        parent_id: 2
+        parent_uuid: 5
+        size:
+          - 3.04221
+          - 3.03825
+          - 3.14486
+        type: kRoom
+        uuid: 7
+        volume: 23.786311007941872
+      5:
+        connected_room_ids:
+          - 8
+          - 3
+        floor_area: 14.839206686671846
+        grid_map_max:
+          - 1063
+          - 536
+        grid_map_min:
+          - 620
+          - 141
+        id: 5
+        location:
+          - -0.5564899999999999
+          - -6.267385
+          - 4.1814350000000005
+        name: bedroom
+        num_objects: 6
+        objects:
+          9:
+            action_affordance: *id009
+            floor_area: 0.6674587273336086
+            id: 9
+            location:
+              - 1.1673656610642469
+              - -4.24665484036661
+              - 4.246574254299097
+            material:
+              - paper
+              - null
+            name: book
+            parent_id: 5
+            parent_uuid: 8
+            size:
+              - 0.227899064567461
+              - 0.17869631215544235
+              - 0.293170160715432
+            surface_coverage: 0.03255095935328903
+            type: kObject
+            uuid: 29
+            volume: 0.004592189338632099
+          13:
+            action_affordance: *id005
+            floor_area: 0.28696471620134384
+            id: 13
+            location:
+              - -2.2206023574092892
+              - -7.436418426179343
+              - 3.5417341989852686
+            material:
+              - plastic
+              - null
+            name: bottle
+            parent_id: 5
+            parent_uuid: 8
+            size:
+              - 0.11741147344103675
+              - 0.07331846725975133
+              - 0.16793869956322816
+            surface_coverage: 0.010800601094485395
+            type: kObject
+            uuid: 33
+            volume: 0.00026140598986519543
+          15:
+            action_affordance: *id010
+            floor_area: 1.27788551677663
+            id: 15
+            location:
+              - 1.136785550705698
+              - -4.174769909141367
+              - 4.58423195551575
+            material:
+              - fabric
+              - null
+            name: teddy bear
+            parent_id: 5
+            parent_uuid: 8
+            size:
+              - 0.45077728375393855
+              - 0.36960160375338447
+              - 0.3563015442894617
+            surface_coverage: 0.13022388564534781
+            type: kObject
+            uuid: 35
+            volume: 0.014656118491931632
+          32:
+            action_affordance: *id011
+            floor_area: 7.643276434994311
+            id: 32
+            location:
+              - 0.29261965279647617
+              - -6.542740843743848
+              - 3.1373123058595658
+            material:
+              - fabric
+              - null
+            name: bed
+            parent_id: 5
+            parent_uuid: 8
+            size:
+              - 2.195244265110208
+              - 1.983174011197046
+              - 1.0378978657953897
+            surface_coverage: 7.8119522995220265
+            type: kObject
+            uuid: 52
+            volume: 2.5127497803925882
+          33:
+            action_affordance: *id011
+            floor_area: 4.388509320175058
+            id: 33
+            location:
+              - 0.9634300147017273
+              - -4.926369559014228
+              - 2.955485731351185
+            material:
+              - wood
+              - fabric
+            name: bed
+            parent_id: 5
+            parent_uuid: 8
+            size:
+              - 0.7621580976125306
+              - 1.8053826152034338
+              - 0.6792603768104275
+            surface_coverage: 1.5310467804317875
+            type: kObject
+            uuid: 53
+            volume: 0.4657657704452518
+          39:
+            action_affordance: *id007
+            floor_area: 2.182964864989342
+            id: 39
+            location:
+              - -1.239972500822175
+              - -4.562356205252744
+              - 4.497597479502042
+            material:
+              - glass
+              - plastic
+            name: tv
+            parent_id: 5
+            parent_uuid: 8
+            size:
+              - 0.582663559660602
+              - 0.8756263322921507
+              - 0.6386392416775477
+            surface_coverage: 1.120770028961641
+            type: kObject
+            uuid: 59
+            volume: 0.08341654425772492
+        parent_building: 4
+        parent_id: 2
+        parent_uuid: 5
+        size:
+          - 3.9038999999999997
+          - 4.389049999999999
+          - 3.1504699999999994
+        type: kRoom
+        uuid: 8
+        volume: 39.79157429834579
+      8:
+        connected_room_ids:
+          - 16
+          - 4
+          - 5
+          - 15
+        floor_area: 13.978149032287758
+        grid_map_max:
+          - 792
+          - 235
+        grid_map_min:
+          - 227
+          - 25
+        id: 8
+        location:
+          - -2.6349099999999996
+          - -2.946437
+          - 4.068465
+        name: corridor
+        num_objects: 0
+        objects: {}
+        parent_building: 4
+        parent_id: 2
+        parent_uuid: 5
+        size:
+          - 2.07312
+          - 5.612926000000001
+          - 2.91645
+        type: kRoom
+        uuid: 12
+        volume: 23.316879661500668
+      16:
+        connected_room_ids:
+          - 8
+        floor_area: 4.056801289706672
+        grid_map_max:
+          - 362
+          - 129
+        grid_map_min:
+          - 227
+          - 25
+        id: 16
+        location:
+          - -3.1623099999999997
+          - -0.8031844999999999
+          - 3.79533
+        name: utility_room
+        num_objects: 0
+        objects: {}
+        parent_building: 4
+        parent_id: 2
+        parent_uuid: 5
+        size:
+          - 1.00996
+          - 1.325391
+          - 2.35824
+        type: kRoom
+        uuid: 20
+        volume: 2.1558715187175217
+    type: kFloor
+    up_stairs_id: -1
+    uuid: 5
+function: residential
+id: 4
+name: Benevolence
+num_floors: 3
+num_rooms: 16
+parent_id: -1
+parent_uuid: -1
+reference_point:
+  - 0.0
+  - 0.0
+  - 0.0
+size:
+  - 5.580856967034837
+  - 10.439912021678497
+  - 8.416298157597547
+type: kBuilding
+uuid: 1
+volume: 375.2312762465878

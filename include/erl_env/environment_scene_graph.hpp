@@ -1,0 +1,400 @@
+#pragma once
+#include <bitset>
+#include "erl_common/yaml.hpp"
+#include "erl_common/grid_map_info.hpp"
+#include "environment_multi_resolution.hpp"
+#include "scene_graph.hpp"
+
+namespace erl::env {
+
+    /**
+     * Scene graph environment. The scene graph is a representation of
+     */
+    class EnvironmentSceneGraph : public EnvironmentMultiResolution {
+
+    public:
+        struct Setting : public common::Yamlable<Setting> {
+            std::string data_dir = {};           // folder to store scene graph data, actions, cost maps and so on
+            long num_threads = 64;               // number of threads to use
+            bool allow_diagonal = true;          // whether allow diagonal movement
+            double object_reach_distance = 1.0;  // distance (meter) to reach an object
+            Eigen::Matrix2Xd shape = {};         // shape of the robot, assume the shape center is at the origin
+        };
+
+        struct AtomicAction : public common::Yamlable<AtomicAction> {
+            std::string description = {};                          // description of the action
+            double cost = 0.0;                                     // cost of the action
+            Eigen::Vector3i state_diff = Eigen::Vector3i::Zero();  // state_diff = reached_state - current_state
+
+            AtomicAction() = default;
+
+            AtomicAction(std::string description_in, double cost_in, Eigen::Vector3i state_diff_in)
+                : description(std::move(description_in)),
+                  cost(cost_in),
+                  state_diff(std::move(state_diff_in)) {}
+        };
+
+        // struct CompositeAction : public common::Yamlable<CompositeAction> {
+        //     int goal_id = -1;                                      // goal id
+        //     double cost = 0.0;                                     // cost of the action
+        //     std::vector<uint32_t> anchor_actions = {};             // composite actions are consist of atomic actions.
+        //     Eigen::Vector3i state_diff = Eigen::Vector3i::Zero();  // state_diff = reached_state - current_state
+        //
+        //     CompositeAction() = default;
+        //
+        //     CompositeAction(int goal_id_in, double cost_in, std::vector<uint32_t> anchor_actions_in, Eigen::Vector3i state_diff_in)
+        //         : goal_id(goal_id_in),
+        //           cost(cost_in),
+        //           anchor_actions(std::move(anchor_actions_in)),
+        //           state_diff(std::move(state_diff_in)) {}
+        // };
+
+    private:
+        using PathMatrix = Eigen::MatrixX<std::vector<std::array<int, 2>>>;
+
+        struct LocalCostMap {
+            int grid_min_x = 0;  // global x coordinate of the local cost map origin
+            int grid_min_y = 0;  // global y coordinate of the local cost map origin
+            int grid_max_x = 0;  // width of the local cost map
+            int grid_max_y = 0;  // height of the local cost map
+            // Eigen::Matrix2Xi goals = {};       // goals used to compute the local cost map
+            Eigen::MatrixXd cost_map = {};  // local cost map
+            PathMatrix path_map = {};       // path map
+            // Eigen::MatrixXi arg_min_map = {};  // index of goal with minimum cost
+        };
+
+        std::shared_ptr<Setting> m_setting_ = nullptr;
+        std::shared_ptr<scene_graph::Building> m_scene_graph_ = nullptr;
+        std::shared_ptr<common::GridMapInfo3D> m_grid_map_info_ = nullptr;                      // (x, y, floor_num), for hashing
+        std::shared_ptr<common::GridMapInfo2D> m_floor_grid_map_info_ = nullptr;                // (x, y), for floor map operations
+        std::vector<cv::Mat> m_room_maps_ = {};                                                 // room maps for each floor
+        std::vector<cv::Mat> m_cat_maps_ = {};                                                  // category maps for each floor
+        std::vector<cv::Mat> m_ground_masks_ = {};                                              // ground masks for each floor, 0: is ground
+        std::vector<cv::Mat> m_obstacle_maps_ = {};                                             // obstacle space maps for each floor, 0: free, >=1: obstacle
+        std::unordered_map<int, Eigen::MatrixXd> m_up_stairs_cost_maps_ = {};                   // cost maps to go upstairs for each floor
+        std::unordered_map<int, PathMatrix> m_up_stairs_path_maps_ = {};                        // path maps to go upstairs for each floor
+        std::unordered_map<int, Eigen::MatrixXd> m_down_stairs_cost_maps_ = {};                 // cost maps to go downstairs for each floor
+        std::unordered_map<int, PathMatrix> m_down_stairs_path_maps_ = {};                      // path maps to go downstairs for each floor
+        std::unordered_map<int, std::unordered_map<int, LocalCostMap>> m_room_cost_maps_ = {};  // cost maps to go to each room, key: room id
+        std::unordered_map<int, Eigen::MatrixX<std::unordered_set<int>>> m_object_reached_maps_ = {};  // object reached maps for each floor
+        std::unordered_map<int, LocalCostMap> m_object_cost_maps_ = {};                                // cost maps to reach each object, key: object id
+        std::vector<AtomicAction> m_atomic_actions_ = {};                                              // atomic actions
+
+    public:
+        explicit EnvironmentSceneGraph(std::shared_ptr<scene_graph::Building> scene_graph, std::shared_ptr<Setting> setting = nullptr)
+            : EnvironmentMultiResolution(),  // just use the interface of EnvironmentBase, no need to use the distance cost function
+              m_setting_(std::move(setting)),
+              m_scene_graph_(std::move(scene_graph)) {
+            ERL_ASSERTM(m_scene_graph_ != nullptr, "scene_graph should not be nullptr.");
+            if (m_setting_ == nullptr) { m_setting_ = std::make_shared<Setting>(); }
+            GenerateAtomicActions();
+            LoadMaps();
+        }
+
+        std::size_t
+        GetNumResolutionLevels() const override {
+            // 0: anchor
+            // 1: kNA
+            // 2: kObject
+            // 3: kRoom
+            // 4: kFloor
+            return 5;
+        }
+
+        [[nodiscard]] inline std::size_t
+        GetStateSpaceSize() const override {
+            return m_grid_map_info_->Size();
+        }
+
+        std::size_t
+        GetActionSpaceSize() const override {
+            /**
+             * (level, goal_id)
+             * level  | num of goal_id
+             * floor  | 2
+             * room   | m_scene_graph_->room_ids.size()
+             * object | m_scene_graph_->object_ids.size()
+             * atomic | m_atomic_actions_.size()
+             */
+            return 2 + m_scene_graph_->room_ids.size() + m_scene_graph_->object_ids.size() + m_atomic_actions_.size();
+        }
+
+        /**
+         * @brief Get the trajectory starting from the given state and following the given action.
+         * @param env_state
+         * @param action_coords (level, goal_id)
+         * @return
+         */
+        std::vector<std::shared_ptr<EnvironmentState>>
+        ForwardAction(const std::shared_ptr<const EnvironmentState> &env_state, const std::vector<int> &action_coords) const override;
+
+        std::vector<Successor>
+        GetSuccessors(const std::shared_ptr<EnvironmentState> &env_state) const override {  // NOLINT(*-no-recursion)
+            if (!InStateSpace(env_state)) { return {}; }
+            std::vector<Successor> successors;
+            successors.reserve(m_scene_graph_->object_ids.size() + m_scene_graph_->room_ids.size());
+            for (auto level: {
+                     scene_graph::Node::Type::kNA,
+                     scene_graph::Node::Type::kObject,
+                     scene_graph::Node::Type::kRoom,
+                     scene_graph::Node::Type::kFloor,
+                 }) {
+                std::vector<Successor> level_successors = GetSuccessorsAtLevel(env_state, std::size_t(level) + 1);
+                successors.insert(successors.end(), level_successors.begin(), level_successors.end());
+            }
+            return successors;
+        }
+
+        std::vector<Successor>
+        GetSuccessorsAtLevel(const std::shared_ptr<EnvironmentState> &state, std::size_t resolution_level) const override;
+
+        bool
+        InStateSpace(const std::shared_ptr<EnvironmentState> &env_state) const override {
+            return m_grid_map_info_->InGrids(env_state->grid);
+        }
+
+        bool
+        InStateSpaceAtLevel(const std::shared_ptr<EnvironmentState> &env_state, std::size_t resolution_level) const override {
+            if (resolution_level == 0) { return m_grid_map_info_->InGrids(env_state->grid); }
+            auto level = scene_graph::Node::Type(resolution_level - 1);
+            bool in_grid = m_grid_map_info_->InGrids(env_state->grid);
+            if (!in_grid) { return false; }
+            switch (level) {
+                case scene_graph::Node::Type::kObject: {
+                    return !m_object_reached_maps_.at(env_state->grid[2])(env_state->grid[0], env_state->grid[1]).empty();
+                }
+                case scene_graph::Node::Type::kRoom: {
+                    return m_room_maps_[env_state->grid[2]].at<int>(env_state->grid[0], env_state->grid[1]) > 0;
+                }
+                case scene_graph::Node::Type::kNA:
+                case scene_graph::Node::Type::kFloor:
+                case scene_graph::Node::Type::kBuilding:
+                    return true;
+                default:
+                    throw std::runtime_error("Unknown level.");
+            }
+        }
+
+        inline uint32_t
+        StateHashing(const std::shared_ptr<env::EnvironmentState> &env_state) const override {
+            return m_grid_map_info_->GridToIndex(env_state->grid, true);
+        }
+
+        inline Eigen::VectorXi
+        MetricToGrid(const Eigen::Ref<const Eigen::VectorXd> &metric_state) const override {
+            Eigen::VectorXi grid;
+            grid.resize(3);
+            grid[0] = m_grid_map_info_->MeterToGridForValue(metric_state[0], 0);
+            grid[1] = m_grid_map_info_->MeterToGridForValue(metric_state[1], 1);
+            grid[2] = int(metric_state[2]);
+            return grid;
+        }
+
+        inline Eigen::VectorXd
+        GridToMetric(const Eigen::Ref<const Eigen::VectorXi> &grid_state) const override {
+            Eigen::VectorXd metric;
+            metric.resize(3);
+            metric[0] = m_grid_map_info_->GridToMeterForValue(grid_state[0], 0);
+            metric[1] = m_grid_map_info_->GridToMeterForValue(grid_state[1], 1);
+            metric[2] = double(grid_state[2]);
+            return metric;
+        }
+
+        cv::Mat
+        ShowPaths(const std::map<int, Eigen::MatrixXd> &) const override {
+            throw NotImplemented(__PRETTY_FUNCTION__);
+        }
+
+    private:
+        void
+        LoadMaps();
+
+        void
+        GenerateAtomicActions();
+
+        void
+        GenerateFloorCostMaps();
+
+        void
+        GenerateRoomCostMaps();
+
+        void
+        GenerateObjectCostMaps();
+
+        inline void
+        ReverseAStar(const Eigen::Ref<Eigen::Matrix2Xi> &goals, const cv::Mat &obstacle_map, Eigen::MatrixXd &cost_map, PathMatrix &path_map) const {
+            Eigen::MatrixX<std::vector<uint32_t>> action_map;  // empty
+            Eigen::MatrixXi goal_index_map;                    // empty
+            ReverseAStar(goals, obstacle_map, cost_map, path_map, action_map, goal_index_map);
+        }
+
+        inline void
+        ReverseAStar(
+            const Eigen::Ref<Eigen::Matrix2Xi> &goals,
+            const cv::Mat &obstacle_map,
+            Eigen::MatrixXd &cost_map,
+            PathMatrix &path_map,
+            Eigen::MatrixXi &goal_index_map) const {
+            Eigen::MatrixX<std::vector<uint32_t>> action_map;  // empty
+            ReverseAStar(goals, obstacle_map, cost_map, path_map, action_map, goal_index_map);
+        }
+
+        /**
+         * @brief reverse A* search to compute the cost of a composite action
+         * @param x0
+         * @param y0
+         * @param obstacle_map
+         * @return
+         */
+        void
+        ReverseAStar(
+            const Eigen::Ref<Eigen::Matrix2Xi> &goals,
+            const cv::Mat &obstacle_map,
+            Eigen::MatrixXd &cost_map,
+            PathMatrix &path_map,
+            Eigen::MatrixX<std::vector<uint32_t>> &action_map,
+            Eigen::MatrixXi &goal_index_map) const;
+
+        inline std::vector<std::shared_ptr<EnvironmentState>>
+        ConvertPath(const std::vector<std::array<int, 2>> &path, int floor_num) const {
+            std::vector<std::shared_ptr<EnvironmentState>> next_env_states;
+            next_env_states.reserve(path.size() + 1);
+            for (auto &point: path) {
+                auto next_env_state = std::make_shared<EnvironmentState>();
+                next_env_state->grid.resize(3);
+                next_env_state->grid[0] = point[0];
+                next_env_state->grid[1] = point[1];
+                next_env_state->grid[2] = floor_num;
+                next_env_state->metric = m_grid_map_info_->GridToMeterForPoints(next_env_state->grid);
+                next_env_states.push_back(next_env_state);
+            }
+            return next_env_states;
+        }
+
+        inline std::vector<std::shared_ptr<EnvironmentState>>
+        GetPathToFloor(int x, int y, int floor_num, int next_floor_num) const {
+            ERL_DEBUG_ASSERT(std::abs(floor_num - next_floor_num) == 1, "floor_num and next_floor_num should differ by 1.");
+            auto &path = m_up_stairs_path_maps_.at(floor_num)(x, y);
+            std::vector<std::shared_ptr<EnvironmentState>> next_env_states = ConvertPath(path, floor_num);
+            auto next_env_state = std::make_shared<EnvironmentState>();
+            auto &floor = m_scene_graph_->floors.at(next_floor_num);
+            next_env_state->grid.resize(3);
+            if (floor_num < next_floor_num) {  // go upstairs
+                next_env_state->grid[0] = floor->down_stairs_portal.value()[0];
+                next_env_state->grid[1] = floor->down_stairs_portal.value()[1];
+            } else {  // go downstairs
+                next_env_state->grid[0] = floor->up_stairs_portal.value()[0];
+                next_env_state->grid[1] = floor->up_stairs_portal.value()[1];
+            }
+            next_env_state->grid[2] = floor->id;
+            next_env_state->metric = m_grid_map_info_->GridToMeterForPoints(next_env_state->grid);
+            next_env_states.push_back(next_env_state);
+            return next_env_states;
+        }
+    };
+
+}  // namespace erl::env
+
+namespace YAML {
+    template<>
+    struct convert<erl::env::EnvironmentSceneGraph::Setting> {
+        inline static Node
+        encode(const erl::env::EnvironmentSceneGraph::Setting &rhs) {
+            Node node;
+            node["data_dir"] = rhs.data_dir;
+            node["num_threads"] = rhs.num_threads;
+            node["allow_diagonal"] = rhs.allow_diagonal;
+            node["object_reach_distance"] = rhs.object_reach_distance;
+            node["shape"] = rhs.shape;
+            return node;
+        }
+
+        inline static bool
+        decode(const Node &node, erl::env::EnvironmentSceneGraph::Setting &rhs) {
+            if (!node.IsMap()) { return false; }
+            rhs.data_dir = node["data_dir"].as<std::string>();
+            rhs.num_threads = node["num_threads"].as<long>();
+            rhs.allow_diagonal = node["allow_diagonal"].as<bool>();
+            rhs.object_reach_distance = node["object_reach_distance"].as<double>();
+            rhs.shape = node["shape"].as<Eigen::Matrix2Xd>();
+            return true;
+        }
+    };
+
+    inline Emitter &
+    operator<<(Emitter &out, const erl::env::EnvironmentSceneGraph::Setting &rhs) {
+        out << BeginMap;
+        out << Key << "data_dir" << Value << rhs.data_dir;
+        out << Key << "num_threads" << Value << rhs.num_threads;
+        out << Key << "allow_diagonal" << Value << rhs.allow_diagonal;
+        out << Key << "object_reach_distance" << Value << rhs.object_reach_distance;
+        out << Key << "shape" << Value << rhs.shape;
+        out << EndMap;
+        return out;
+    }
+
+    template<>
+    struct convert<erl::env::EnvironmentSceneGraph::AtomicAction> {
+        inline static Node
+        encode(const erl::env::EnvironmentSceneGraph::AtomicAction &rhs) {
+            Node node;
+            node["description"] = rhs.description;
+            node["cost"] = rhs.cost;
+            node["state_diff"] = rhs.state_diff;
+            return node;
+        }
+
+        inline static bool
+        decode(const Node &node, erl::env::EnvironmentSceneGraph::AtomicAction &rhs) {
+            if (!node.IsMap()) { return false; }
+            rhs.description = node["description"].as<std::string>();
+            rhs.cost = node["cost"].as<double>();
+            rhs.state_diff = node["state_diff"].as<Eigen::Vector3i>();
+            return true;
+        }
+    };
+
+    inline Emitter &
+    operator<<(Emitter &out, const erl::env::EnvironmentSceneGraph::AtomicAction &rhs) {
+        out << BeginMap;
+        out << Key << "description" << Value << rhs.description;
+        out << Key << "cost" << Value << rhs.cost;
+        out << Key << "state_diff" << Value << rhs.state_diff;
+        out << EndMap;
+        return out;
+    }
+
+    // template<>
+    // struct convert<erl::env::EnvironmentSceneGraph::CompositeAction> {
+    //     inline static Node
+    //     encode(const erl::env::EnvironmentSceneGraph::CompositeAction &rhs) {
+    //         Node node;
+    //         node["goal_id"] = rhs.goal_id;
+    //         node["cost"] = rhs.cost;
+    //         node["anchor_actions"] = rhs.anchor_actions;
+    //         node["state_diff"] = rhs.state_diff;
+    //         return node;
+    //     }
+    //
+    //     inline static bool
+    //     decode(const Node &node, erl::env::EnvironmentSceneGraph::CompositeAction &rhs) {
+    //         if (!node.IsMap()) { return false; }
+    //         rhs.goal_id = node["goal_id"].as<int>();
+    //         rhs.cost = node["cost"].as<double>();
+    //         rhs.anchor_actions = node["anchor_actions"].as<std::vector<uint32_t>>();
+    //         rhs.state_diff = node["state_diff"].as<Eigen::Vector3i>();
+    //         return true;
+    //     }
+    // };
+    //
+    // inline Emitter &
+    // operator<<(Emitter &out, const erl::env::EnvironmentSceneGraph::CompositeAction &rhs) {
+    //     out << BeginMap;
+    //     out << Key << "goal_id" << Value << rhs.goal_id;
+    //     out << Key << "cost" << Value << rhs.cost;
+    //     out << Key << "anchor_actions" << Value << rhs.anchor_actions;
+    //     out << Key << "state_diff" << Value << rhs.state_diff;
+    //     out << EndMap;
+    //     return out;
+    // }
+}  // namespace YAML

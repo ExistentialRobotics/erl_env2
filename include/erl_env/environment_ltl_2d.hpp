@@ -39,7 +39,7 @@ namespace erl::env {
         std::vector<double> m_motion_cost_;                       // cost of each motion primitive
         cv::Mat m_original_grid_map_;                             // original grid map, where each cell is a scaled cost value
         cv::Mat m_grid_map_;                                      // inflated grid map
-        std::shared_ptr<common::GridMapInfo3D> m_grid_map_info_;  // grid map description, x to the bottom, y to the right, along y first
+        std::shared_ptr<common::GridMapInfo3D> m_grid_map_info_;  // grid map description (x, y, q), x to the bottom, y to the right, along y first
         Eigen::MatrixXi m_label_map_;                             // each element is a |AP|-bit word representing the result of atomic propositions
 
     public:
@@ -91,7 +91,7 @@ namespace erl::env {
             }
 
             // generate 2D obstacle/cost map
-            m_original_grid_map_ = InitializeGridMap2D(grid_map);
+            InitializeGridMap2D(grid_map, m_original_grid_map_);
             m_original_grid_map_.copyTo(m_grid_map_);
             if (m_setting_->shape.cols() > 0) { InflateGridMap2D(m_original_grid_map_, m_grid_map_, grid_map->info, m_setting_->shape); }
 

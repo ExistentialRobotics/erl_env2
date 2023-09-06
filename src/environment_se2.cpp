@@ -13,7 +13,7 @@ namespace erl::env {
         m_distance_cost_func_ = std::make_shared<EuclideanDistanceCost>();
 
         // init grid maps
-        m_original_grid_map_ = erl::env::EnvironmentSe2::InitializeGridMap2D(grid_map);
+        InitializeGridMap2D(grid_map, m_original_grid_map_);
         m_inflated_grid_maps_.resize(m_setting_->num_orientations);
         for (int i = 0; i < m_setting_->num_orientations; ++i) { m_original_grid_map_.copyTo(m_inflated_grid_maps_[i]); }
 

@@ -14,7 +14,7 @@ namespace erl::env {
         if (m_setting_ == nullptr) { m_setting_ = std::make_shared<Setting>(); }
 
         // init grid map
-        m_original_grid_map_ = InitializeGridMap2D(grid_map);
+        InitializeGridMap2D(grid_map, m_original_grid_map_);
         m_original_grid_map_.copyTo(m_grid_map_);
 
         if (m_setting_->allow_diagonal) {

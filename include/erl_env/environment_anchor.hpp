@@ -1,6 +1,6 @@
 #pragma once
 
-#include "environment_base.hpp"
+#include "environment_multi_resolution.hpp"
 
 namespace erl::env {
 
@@ -11,14 +11,14 @@ namespace erl::env {
      * generating all possible neighboring states of a given state with the finest resolution, i.e. all possible
      * actions.
      */
-    class EnvironmentAnchor : public EnvironmentBase {
+    class EnvironmentAnchor : public EnvironmentMultiResolution {
     protected:
         std::vector<std::shared_ptr<EnvironmentBase>> m_envs_ = {};
         std::size_t m_action_space_size_ = 0;
 
     public:
         explicit EnvironmentAnchor(std::vector<std::shared_ptr<EnvironmentBase>> environments)
-            : EnvironmentBase(nullptr),  // just use the interface of EnvironmentBase, no need to use the distance cost function
+            : EnvironmentMultiResolution(),
               m_envs_(std::move(environments)) {
             for (auto &env: m_envs_) {
                 ERL_ASSERTM(env != nullptr, "env is nullptr");
@@ -26,9 +26,14 @@ namespace erl::env {
             }
         }
 
+        [[nodiscard]] std::size_t
+        GetNumResolutionLevels() const override {
+            return m_envs_.size() + 1;  // +1 for the anchor level
+        }
+
         [[nodiscard]] inline std::size_t
         GetStateSpaceSize() const override {
-            ERL_WARN("Default implementation of GetStateSpaceSize() is used. The returned size is an upper bound.");
+            ERL_WARN_ONCE("Default implementation of GetStateSpaceSize() is used. The returned size is an upper bound.");
             std::size_t state_space_size = 0;
             for (auto &env: m_envs_) { state_space_size += env->GetStateSpaceSize(); }
             return state_space_size;
@@ -74,7 +79,7 @@ namespace erl::env {
         }
 
         [[nodiscard]] std::vector<Successor>
-        GetSuccessors(const std::shared_ptr<EnvironmentState> &state, std::size_t resolution_level) const {
+        GetSuccessorsAtLevel(const std::shared_ptr<EnvironmentState> &state, std::size_t resolution_level) const override {
             if (resolution_level == 0) { return GetSuccessors(state); }
             std::vector<Successor> successors = m_envs_[resolution_level - 1]->GetSuccessors(state);
             for (auto &successor: successors) { successor.action_coords.push_back(int(resolution_level)); }
@@ -84,6 +89,12 @@ namespace erl::env {
         [[nodiscard]] bool
         InStateSpace(const std::shared_ptr<EnvironmentState> &env_state) const override {
             return std::any_of(m_envs_.begin(), m_envs_.end(), [&env_state](const auto &env) { return env->InStateSpace(env_state); });
+        }
+
+        [[nodiscard]] bool
+        InStateSpaceAtLevel(const std::shared_ptr<EnvironmentState> &env_state, std::size_t resolution_level) const override {
+            if (resolution_level == 0) { return InStateSpace(env_state); }
+            return m_envs_[resolution_level - 1]->InStateSpace(env_state);
         }
     };
 

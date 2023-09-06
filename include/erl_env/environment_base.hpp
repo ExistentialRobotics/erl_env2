@@ -107,15 +107,14 @@ namespace erl::env {
         ShowPaths(const std::map<int, Eigen::MatrixXd> &) const = 0;
 
     protected:
-        static cv::Mat
-        InitializeGridMap2D(const std::shared_ptr<common::GridMapUnsigned2D> &grid_map) {
-            cv::Mat grid_map_mat(grid_map->info->Shape(0), grid_map->info->Shape(1), CV_8UC1,
-                                 cv::Scalar(0));  // x to the bottom, y to the right, along y first
+        static void
+        InitializeGridMap2D(const std::shared_ptr<common::GridMapUnsigned2D> &grid_map, cv::Mat &initialized_grid_map) {
+            // x to the bottom, y to the right, along y first
+            initialized_grid_map = cv::Mat(grid_map->info->Shape(0), grid_map->info->Shape(1), CV_8UC1, cv::Scalar(0));
             int size = grid_map->info->Size();
             auto begin = grid_map->data.GetDataPtr();
             auto end = begin + size;
-            std::copy(begin, end, grid_map_mat.data);  // both erl::common::GridMapUnsigned2D and cv::Mat are row-major.
-            return grid_map_mat;
+            std::copy(begin, end, initialized_grid_map.data);  // both erl::common::GridMapUnsigned2D and cv::Mat are row-major.
         }
 
         static void

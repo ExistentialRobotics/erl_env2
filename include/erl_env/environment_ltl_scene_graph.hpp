@@ -20,7 +20,7 @@ namespace erl::env {
     protected:
         std::shared_ptr<Setting> m_setting_ = nullptr;
         std::shared_ptr<FiniteStateAutomaton> m_fsa_ = nullptr;
-        std::unordered_map<int, Eigen::MatrixX<uint64_t>> m_label_maps_ = {};
+        std::unordered_map<int, Eigen::MatrixX<uint32_t>> m_label_maps_ = {};
 
     public:
         EnvironmentLTLSceneGraph(std::shared_ptr<scene_graph::Building> building, const std::shared_ptr<EnvironmentLTLSceneGraph::Setting> &setting)
@@ -30,15 +30,48 @@ namespace erl::env {
             GenerateLabelMaps();
         }
 
-    private:
+        [[nodiscard]] std::vector<std::shared_ptr<EnvironmentState>>
+        ForwardAction(const std::shared_ptr<const EnvironmentState> &env_state, const std::vector<int> &action_coords) const override;
+
+        [[nodiscard]] std::vector<Successor>
+        GetSuccessorsAtLevel(const std::shared_ptr<EnvironmentState> &env_state, std::size_t resolution_level) const override;
+
+        [[nodiscard]] inline uint32_t
+        StateHashing(const std::shared_ptr<env::EnvironmentState> &env_state) const override {
+            uint32_t hashing = m_grid_map_info_->GridToIndex(env_state->grid, true);
+            hashing = hashing * m_setting_->fsa->num_states + env_state->grid[3];
+            return hashing;
+        }
+
+        [[nodiscard]] inline Eigen::VectorXi
+        MetricToGrid(const Eigen::Ref<const Eigen::VectorXd> &metric_state) const override {
+            return Eigen::Vector4i(
+                m_grid_map_info_->MeterToGridForValue(metric_state[0], 0),
+                m_grid_map_info_->MeterToGridForValue(metric_state[1], 1),
+                m_grid_map_info_->MeterToGridForValue(metric_state[2], 2),
+                int(metric_state[3]));
+        }
+
+        [[nodiscard]] inline Eigen::VectorXd
+        GridToMetric(const Eigen::Ref<const Eigen::VectorXi> &grid_state) const override {
+            return Eigen::Vector4d(
+                m_grid_map_info_->GridToMeterForValue(grid_state[0], 0),
+                m_grid_map_info_->GridToMeterForValue(grid_state[1], 1),
+                m_grid_map_info_->GridToMeterForValue(grid_state[2], 2),
+                grid_state[3]);
+        }
+
+        [[nodiscard]] cv::Mat
+        ShowPaths(const std::map<int, Eigen::MatrixXd> &) const override {
+            throw NotImplemented(__PRETTY_FUNCTION__);
+        }
+
+    protected:
         void
         GenerateLabelMaps() {
-            std::unordered_map<int, Eigen::MatrixX<std::bitset<64>>> label_maps = {};
-            for (int i = 0; i < m_scene_graph_->num_floors; ++i) {  // initialize the label maps
-                label_maps[i].resize(m_floor_grid_map_info_->Shape(0), m_floor_grid_map_info_->Shape(1));
-            }
-
-            // TODO: omp parallel for
+            // initialize the label maps
+            std::unordered_map<int, Eigen::MatrixX<std::bitset<32>>> label_maps = {};
+            for (int i = 0; i < m_scene_graph_->num_floors; ++i) { label_maps[i].resize(m_floor_grid_map_info_->Shape(0), m_floor_grid_map_info_->Shape(1)); }
 
             for (int i = 0; i < m_scene_graph_->num_floors; ++i) {  // each floor
                 int rows = m_floor_grid_map_info_->Shape(0);
@@ -54,7 +87,9 @@ namespace erl::env {
                         }
                     }
                 }
-                m_label_maps_[i] = label_maps[i].cast<uint64_t>();
+                m_label_maps_[i] = label_maps[i].cast<uint32_t>();
+
+                // TODO: check the visualization of label maps
             }
         }
 
@@ -101,6 +136,57 @@ namespace erl::env {
                 }
             }
             return false;
+        }
+
+    private:
+        std::vector<std::shared_ptr<EnvironmentState>>
+        ConvertPath(const std::vector<std::array<int, 2>> &path, int floor_num, int cur_q) const {
+            std::vector<std::shared_ptr<EnvironmentState>> next_env_states;
+            next_env_states.reserve(path.size() + 1);
+            for (auto &point: path) {
+                auto next_env_state = std::make_shared<EnvironmentState>();
+                next_env_state->grid.resize(4);
+                int &nx = next_env_state->grid[0];
+                int &ny = next_env_state->grid[1];
+                int &nz = next_env_state->grid[2];
+                int &nq = next_env_state->grid[3];
+                nx = point[0];
+                ny = point[1];
+                nz = floor_num;
+                nq = int(m_fsa_->GetNextState(cur_q, m_label_maps_.at(nz)(nx, ny)));
+                cur_q = nq;  // update cur_q
+                next_env_state->metric = GridToMetric(next_env_state->grid);
+                next_env_states.push_back(next_env_state);
+            }
+            return next_env_states;
+        }
+
+        std::vector<std::shared_ptr<EnvironmentState>>
+        GetPathToFloor(int xg, int yg, int floor_num, int cur_q, int next_floor_num) const {
+            ERL_DEBUG_ASSERT(std::abs(floor_num - next_floor_num) == 1, "floor_num and next_floor_num should differ by 1.");
+            auto &path = m_up_stairs_path_maps_.at(floor_num)(xg, yg);
+            std::vector<std::shared_ptr<EnvironmentState>> next_env_states = ConvertPath(path, floor_num, cur_q);
+            auto next_env_state = std::make_shared<EnvironmentState>();
+            auto &floor = m_scene_graph_->floors.at(next_floor_num);
+            next_env_state->grid.resize(4);
+            int &nx = next_env_state->grid[0];
+            int &ny = next_env_state->grid[1];
+            int &nz = next_env_state->grid[2];
+            int &nq = next_env_state->grid[3];
+            if (floor_num < next_floor_num) {  // go upstairs
+                nx = floor->down_stairs_portal.value()[0];
+                ny = floor->down_stairs_portal.value()[1];
+                nz = next_floor_num;
+            } else {  // go downstairs
+                nx = floor->up_stairs_portal.value()[0];
+                ny = floor->up_stairs_portal.value()[1];
+                nz = next_floor_num;
+            }
+            if (!next_env_states.empty()) { cur_q = next_env_states.back()->grid[3]; }
+            nq = int(m_fsa_->GetNextState(cur_q, m_label_maps_.at(next_floor_num)(nx, ny)));
+            next_env_state->metric = GridToMetric(next_env_state->grid);
+            next_env_states.push_back(next_env_state);
+            return next_env_states;
         }
     };
 }  // namespace erl::env

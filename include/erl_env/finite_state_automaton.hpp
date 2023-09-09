@@ -50,7 +50,7 @@ namespace erl::env {
         std::shared_ptr<Setting> m_setting_;                                       // setting
         uint32_t m_alphabet_size_ = 0;                                             // alphabet size
         std::unordered_map<uint32_t, std::vector<uint32_t>> m_transition_labels_;  // given key of p->q, return the edge labels
-        std::unordered_map<uint32_t, uint32_t> m_transition_next_state_;           // given key of state p and label a, return the next state q
+        std::unordered_map<uint32_t, uint32_t> m_transition_next_state_;           // given hashing of state p and label a, return the next state q
         std::vector<std::vector<uint32_t>> m_levels_;                              // states in each level
         std::vector<std::vector<bool>> m_levels_b_;                                // states in each level (boolean version)
         std::vector<bool> m_sink_states_;                                          // sink states
@@ -100,6 +100,11 @@ namespace erl::env {
             return result->second;
         }
 
+        /**
+         * @brief Get the lowest level index of the given state.
+         * @param state
+         * @return
+         */
         [[nodiscard]] inline int
         GetLevelIndex(uint32_t state) const {
             if (m_sink_states_[state]) { return -1; }

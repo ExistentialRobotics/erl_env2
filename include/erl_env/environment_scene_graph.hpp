@@ -70,7 +70,7 @@ namespace erl::env {
             LoadMaps();
         }
 
-        std::size_t
+        [[nodiscard]] inline std::size_t
         GetNumResolutionLevels() const override {
             // 0: anchor
             // 1: kNA
@@ -85,7 +85,7 @@ namespace erl::env {
             return m_grid_map_info_->Size();
         }
 
-        std::size_t
+        [[nodiscard]] inline std::size_t
         GetActionSpaceSize() const override {
             /**
              * (level, goal_id)
@@ -104,12 +104,11 @@ namespace erl::env {
          * @param action_coords (level, goal_id)
          * @return
          */
-        std::vector<std::shared_ptr<EnvironmentState>>
+        [[nodiscard]] std::vector<std::shared_ptr<EnvironmentState>>
         ForwardAction(const std::shared_ptr<const EnvironmentState> &env_state, const std::vector<int> &action_coords) const override;
 
-        std::vector<Successor>
+        [[nodiscard]] inline std::vector<Successor>
         GetSuccessors(const std::shared_ptr<EnvironmentState> &env_state) const override {  // NOLINT(*-no-recursion)
-            if (!InStateSpace(env_state)) { return {}; }
             std::vector<Successor> successors;
             successors.reserve(m_scene_graph_->object_ids.size() + m_scene_graph_->room_ids.size());
             for (auto level: {
@@ -124,20 +123,19 @@ namespace erl::env {
             return successors;
         }
 
-        std::vector<Successor>
-        GetSuccessorsAtLevel(const std::shared_ptr<EnvironmentState> &state, std::size_t resolution_level) const override;
+        [[nodiscard]] std::vector<Successor>
+        GetSuccessorsAtLevel(const std::shared_ptr<EnvironmentState> &env_state, std::size_t resolution_level) const override;
 
-        bool
+        [[nodiscard]] bool
         InStateSpace(const std::shared_ptr<EnvironmentState> &env_state) const override {
             return m_grid_map_info_->InGrids(env_state->grid);
         }
 
-        bool
+        [[nodiscard]] inline bool
         InStateSpaceAtLevel(const std::shared_ptr<EnvironmentState> &env_state, std::size_t resolution_level) const override {
             if (resolution_level == 0) { return m_grid_map_info_->InGrids(env_state->grid); }
             auto level = scene_graph::Node::Type(resolution_level - 1);
-            bool in_grid = m_grid_map_info_->InGrids(env_state->grid);
-            if (!in_grid) { return false; }
+            if (!m_grid_map_info_->InGrids(env_state->grid)) { return false; }
             switch (level) {
                 case scene_graph::Node::Type::kObject:
                     return !m_object_reached_maps_.at(env_state->grid[2])(env_state->grid[0], env_state->grid[1]).empty();
@@ -152,32 +150,32 @@ namespace erl::env {
             }
         }
 
-        inline uint32_t
+        [[nodiscard]] inline uint32_t
         StateHashing(const std::shared_ptr<env::EnvironmentState> &env_state) const override {
             return m_grid_map_info_->GridToIndex(env_state->grid, true);
         }
 
-        inline Eigen::VectorXi
+        [[nodiscard]] inline Eigen::VectorXi
         MetricToGrid(const Eigen::Ref<const Eigen::VectorXd> &metric_state) const override {
             Eigen::VectorXi grid;
             grid.resize(3);
             grid[0] = m_grid_map_info_->MeterToGridForValue(metric_state[0], 0);
             grid[1] = m_grid_map_info_->MeterToGridForValue(metric_state[1], 1);
-            grid[2] = int(metric_state[2]);
+            grid[2] = m_grid_map_info_->MeterToGridForValue(metric_state[2], 2);
             return grid;
         }
 
-        inline Eigen::VectorXd
+        [[nodiscard]] inline Eigen::VectorXd
         GridToMetric(const Eigen::Ref<const Eigen::VectorXi> &grid_state) const override {
             Eigen::VectorXd metric;
             metric.resize(3);
             metric[0] = m_grid_map_info_->GridToMeterForValue(grid_state[0], 0);
             metric[1] = m_grid_map_info_->GridToMeterForValue(grid_state[1], 1);
-            metric[2] = double(grid_state[2]);
+            metric[2] = m_grid_map_info_->GridToMeterForValue(grid_state[2], 2);
             return metric;
         }
 
-        cv::Mat
+        [[nodiscard]] cv::Mat
         ShowPaths(const std::map<int, Eigen::MatrixXd> &) const override {
             throw NotImplemented(__PRETTY_FUNCTION__);
         }
@@ -205,17 +203,6 @@ namespace erl::env {
             ReverseAStar(goals, obstacle_map, cost_map, path_map, action_map, goal_index_map);
         }
 
-        // inline void
-        // ReverseAStar(
-        //     const Eigen::Ref<Eigen::Matrix2Xi> &goals,
-        //     const cv::Mat &obstacle_map,
-        //     Eigen::MatrixXd &cost_map,
-        //     PathMatrix &path_map,
-        //     Eigen::MatrixXi &goal_index_map) const {
-        //     Eigen::MatrixX<std::vector<uint32_t>> action_map;  // empty
-        //     ReverseAStar(goals, obstacle_map, cost_map, path_map, action_map, goal_index_map);
-        // }
-
         /**
          * @brief reverse A* search to compute the cost of a composite action
          * @param x0
@@ -232,6 +219,7 @@ namespace erl::env {
             Eigen::MatrixX<std::vector<uint32_t>> &action_map,
             Eigen::MatrixXi &goal_index_map) const;
 
+    private:
         inline std::vector<std::shared_ptr<EnvironmentState>>
         ConvertPath(const std::vector<std::array<int, 2>> &path, int floor_num) const {
             std::vector<std::shared_ptr<EnvironmentState>> next_env_states;
@@ -242,7 +230,7 @@ namespace erl::env {
                 next_env_state->grid[0] = point[0];
                 next_env_state->grid[1] = point[1];
                 next_env_state->grid[2] = floor_num;
-                next_env_state->metric = m_grid_map_info_->GridToMeterForPoints(next_env_state->grid);
+                next_env_state->metric = GridToMetric(next_env_state->grid);
                 next_env_states.push_back(next_env_state);
             }
             return next_env_states;
@@ -264,7 +252,7 @@ namespace erl::env {
                 next_env_state->grid[1] = floor->up_stairs_portal.value()[1];
             }
             next_env_state->grid[2] = floor->id;
-            next_env_state->metric = m_grid_map_info_->GridToMeterForPoints(next_env_state->grid);
+            next_env_state->metric = GridToMetric(next_env_state->grid);
             next_env_states.push_back(next_env_state);
             return next_env_states;
         }

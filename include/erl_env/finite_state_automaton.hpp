@@ -11,8 +11,10 @@
 #include <boost/graph/graphviz.hpp>
 #include <spot/twaalgos/hoa.hh>
 #include <spot/twa/twagraph.hh>
+#include <spot/parseaut/public.hh>
 #include "erl_common/assert.hpp"
 #include "erl_common/yaml.hpp"
+#include "spot_helper.hpp"
 
 namespace erl::env {
 
@@ -24,10 +26,17 @@ namespace erl::env {
     public:
         struct Setting : public common::Yamlable<Setting> {
 
-            struct Transition : public common::Yamlable<Transition> {
+            struct Transition {
                 uint32_t from = 0;
                 uint32_t to = 0;
                 std::vector<uint32_t> labels = {};
+
+                Transition() = default;
+
+                Transition(uint32_t from, uint32_t to, const std::set<uint32_t> &labels)
+                    : from(from),
+                      to(to),
+                      labels(labels.begin(), labels.end()) {}
             };
 
             uint32_t num_states = 0;                            // number of states
@@ -48,67 +57,9 @@ namespace erl::env {
         std::vector<bool> m_accepting_states_;                                     // accepting states
 
     public:
-        explicit FiniteStateAutomaton(std::shared_ptr<Setting> setting)
-            : m_setting_(std::move(setting)) {
-            ERL_ASSERTM(m_setting_ != nullptr, "setting is nullptr");
-
-            m_alphabet_size_ = 1 << m_setting_->atomic_propositions.size();
-
-            // construct transition labels and next state
-            ERL_ASSERTM(!m_setting_->transitions.empty(), "transitions is empty");
-            for (auto &transition: m_setting_->transitions) {
-                {
-                    uint32_t key = HashingTransition(transition.from, transition.to);
-                    auto result = m_transition_labels_.emplace(key, transition.labels);
-                    ERL_ASSERTM(result.second, "duplicated transition");
-                }
-
-                if (transition.from == transition.to) { continue; }
-
-                for (auto &label: transition.labels) {
-                    uint32_t key = HashingStateLabelPair(transition.from, label);
-                    auto result = m_transition_next_state_.emplace(key, transition.to);
-                    ERL_ASSERTM(result.second, "duplicated transition");
-                }
-            }
-
-            // set accepting states
-            m_accepting_states_.resize(m_setting_->num_states, false);
-            for (auto &state: m_setting_->accepting_states) { m_accepting_states_[state] = true; }
-
-            // compute levels
-            m_levels_.emplace_back(m_setting_->accepting_states.begin(), m_setting_->accepting_states.end());  // level 0
-            m_levels_b_.emplace_back(m_setting_->num_states, false);                                           // level 0
-            m_sink_states_.resize(m_setting_->num_states, true);
-            for (auto &state: m_setting_->accepting_states) {
-                m_sink_states_[state] = false;
-                m_levels_b_[0][state] = true;
-            }
-            uint32_t level = 0;
-            while (true) {
-                bool done = true;
-                auto &level_states = m_levels_[level];
-                for (auto &state: level_states) {
-                    for (uint32_t prev_state = 0; prev_state < m_setting_->num_states; ++prev_state) {
-                        if (!m_sink_states_[prev_state]) { continue; }
-                        if (m_transition_labels_.find(HashingTransition(prev_state, state)) == m_transition_labels_.end()) { continue; }
-                        // exist a transition from prev_state to state but prev_state is marked as a sink state
-                        m_sink_states_[prev_state] = false;
-                        if (done) {  // add a new level
-                            done = false;
-                            m_levels_.emplace_back(1, prev_state);
-                            m_levels_b_.emplace_back(m_setting_->num_states, false);
-                            m_levels_b_[level + 1][prev_state] = true;
-                        } else {
-                            m_levels_[level + 1].emplace_back(prev_state);
-                            m_levels_b_[level + 1][prev_state] = true;
-                        }
-                    }
-                }
-                if (done) { break; }
-                level++;
-            }
-        }
+        enum class FileType { kSpotHoa = 0, kBoostDot = 1, kYaml = 2 };
+        explicit FiniteStateAutomaton(std::shared_ptr<Setting> setting);
+        explicit FiniteStateAutomaton(const std::string &filepath, FileType file_type = FileType::kYaml);
 
         [[nodiscard]] inline std::shared_ptr<Setting>
         GetSetting() const {
@@ -168,99 +119,48 @@ namespace erl::env {
             return m_accepting_states_[state];
         }
 
-        using BoostEdgeLabelProperty = boost::edge_color_t;
-        typedef boost::property<BoostEdgeLabelProperty, uint32_t> BoostEdgeLabel;
-        typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::directedS, boost::no_property, BoostEdgeLabel> BoostGraph;
+        // clang-format off
+        typedef boost::property<boost::vertex_index_t, uint32_t,
+                boost::property<boost::vertex_name_t, std::string,
+                boost::property<boost::vertex_color_t, std::string>>> BoostVertexProp;
+        // clang-format on
+        typedef boost::property<boost::edge_color_t, uint32_t> BoostEdgeProp;
+        typedef boost::property<boost::graph_name_t, std::string> BoostGraphProp;
+        typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::directedS, BoostVertexProp, BoostEdgeProp, BoostGraphProp> BoostGraph;
 
         [[nodiscard]] BoostGraph
-        AsBoostGraph() const {
-
-            BoostGraph graph(m_setting_->num_states);
-
-            for (auto &transition: m_setting_->transitions) {
-                for (auto &label: transition.labels) { boost::add_edge(transition.from, transition.to, BoostEdgeLabel(label), graph); }
-            }
-            return graph;
-        }
+        AsBoostGraph() const;
 
         void
-        SaveAsBoostGraphDotFile(
-            const std::string &filename,
-            const std::optional<std::map<std::string, std::string>> &graph_attr_opt = {},
-            const std::optional<std::map<std::string, std::string>> &vertex_attr_opt = {},
-            const std::optional<std::map<std::string, std::string>> &edge_attr_opt = {}) const {
-            std::ofstream ofs(filename);
-
-            std::map<std::string, std::string> graph_attr, vertex_attr, edge_attr;
-            if (graph_attr_opt.has_value()) {
-                graph_attr = graph_attr_opt.value();
-            } else {
-                graph_attr["center"] = "true";
-                graph_attr["rankdir"] = "TB";
-            }
-            if (vertex_attr_opt.has_value()) {
-                vertex_attr = vertex_attr_opt.value();
-            } else {
-                vertex_attr["shape"] = "circle";
-            }
-            if (edge_attr_opt.has_value()) {
-                edge_attr = edge_attr_opt.value();
-            } else {
-                edge_attr["arrowhead"] = "vee";
-            }
-
-            auto graph = AsBoostGraph();
-            auto edge_label_map = boost::get(BoostEdgeLabelProperty::edge_color, graph);
-            boost::write_graphviz(
-                ofs,
-                graph,
-                boost::default_writer(),
-                boost::make_label_writer(edge_label_map),
-                boost::make_graph_attributes_writer(graph_attr, vertex_attr, edge_attr));
-        }
+        SaveAsBoostGraphDotFile(const std::string &filename) const;
 
         using SpotGraph = spot::twa_graph_ptr;
 
         [[nodiscard]] SpotGraph
-        AsSpotGraph() const {
-            // https://spot.lre.epita.fr/tut22.html
-            spot::bdd_dict_ptr dict = spot::make_bdd_dict();
-            SpotGraph graph = spot::make_twa_graph(dict);  // Buchi automaton
+        AsSpotGraph() const;
 
-            std::vector<bdd> atomic_propositions;
-            atomic_propositions.reserve(m_setting_->atomic_propositions.size());
-            for (auto &ap: m_setting_->atomic_propositions) { atomic_propositions.emplace_back(bdd_ithvar(graph->register_ap(ap))); }
+        inline void
+        SaveAsSpotGraphHoaFile(const std::string &filename) const {
+            std::ofstream ofs(filename);
+            spot::print_hoa(ofs, AsSpotGraph());
+        }
 
-            // we do not support multiple accepting sets yet: https://spot.lre.epita.fr/concepts.html#acceptance-set
-            graph->set_generalized_buchi(1);                   // set the number of acceptance sets to use
-            graph->new_states(m_setting_->num_states);         // set the number of states
-            graph->set_init_state(m_setting_->initial_state);  // set the initial state
-
-            auto label_to_bdd = [&atomic_propositions](uint32_t label) -> bdd {
-                bdd result = bddtrue;
-                for (std::size_t i = 0; i < atomic_propositions.size(); ++i) {
-                    if ((label >> i) & 1) {
-                        result &= atomic_propositions[i];
-                    } else {
-                        result &= !atomic_propositions[i];
-                    }
-                }
-                return result;
-            };
-            for (auto &transition: m_setting_->transitions) {
-                for (auto &label: transition.labels) {
-                    if (IsAcceptingState(transition.to)) {
-                        graph->new_edge(transition.from, transition.to, label_to_bdd(label), {0});
-                    } else {
-                        graph->new_edge(transition.from, transition.to, label_to_bdd(label));
-                    }
-                }
-            }
-
-            return graph;
+        inline void
+        SaveAsSpotGraphDotFile(const std::string &filename) const {
+            std::ofstream ofs(filename);
+            AsSpotGraph()->dump_storage_as_dot(ofs);
         }
 
     private:
+        void
+        Init();
+
+        void
+        ReadSpotHoa(const std::string &filepath);
+
+        void
+        ReadBoostDot(const std::string &filepath);
+
         [[nodiscard]] inline uint32_t
         HashingTransition(uint32_t from, uint32_t to) const {
             return from + to * m_setting_->num_states;  // column-major
@@ -325,6 +225,8 @@ namespace YAML {
             rhs.accepting_states = node["accepting_states"].as<std::vector<uint32_t>>();
             rhs.atomic_propositions = node["atomic_propositions"].as<std::vector<std::string>>();
             rhs.transitions = node["transitions"].as<std::vector<erl::env::FiniteStateAutomaton::Setting::Transition>>();
+            std::sort(rhs.accepting_states.begin(), rhs.accepting_states.end(), std::greater<>());
+            for (auto &transition: rhs.transitions) { std::sort(transition.labels.begin(), transition.labels.end(), std::greater<>()); }
             return true;
         }
     };
@@ -334,8 +236,8 @@ namespace YAML {
         out << BeginMap;
         out << Key << "num_states" << Value << rhs.num_states;
         out << Key << "initial_state" << Value << rhs.initial_state;
-        out << Key << "accepting_states" << Value << rhs.accepting_states;
-        out << Key << "atomic_propositions" << Value << rhs.atomic_propositions;
+        out << Key << "accepting_states" << Value << Flow << rhs.accepting_states;
+        out << Key << "atomic_propositions" << Value << Flow << rhs.atomic_propositions;
         out << Key << "transitions" << Value << rhs.transitions;
         out << EndMap;
         return out;

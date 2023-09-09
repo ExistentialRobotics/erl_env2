@@ -2,9 +2,10 @@
 
 #include "erl_common/yaml.hpp"
 #include "erl_common/opencv.hpp"
+#include "atomic_proposition.hpp"
 
 namespace erl::env::scene_graph {
-    struct Node {
+    struct Node : public common::Yamlable<Node> {
         inline static int uuid_counter = 0;
 
     public:
@@ -27,7 +28,7 @@ namespace erl::env::scene_graph {
             : uuid(uuid_counter++) {}
     };
 
-    struct Object : public Node, public common::Yamlable<Object> {
+    struct Object : public common::OverrideYamlable<Node, Object> {
 
         enum class SOC {  // special object category
             kGround = 0,
@@ -45,7 +46,7 @@ namespace erl::env::scene_graph {
         Eigen::Vector3d size = {};                        // object size
     };
 
-    struct Room : public Node, public common::Yamlable<Room> {
+    struct Room : public common::OverrideYamlable<Node, Room> {
         std::unordered_map<int, std::shared_ptr<Object>> objects = {};  // objects
         uint32_t num_objects = 0;                                       // number of objects
         std::vector<int> connected_room_ids = {};                       // neighbor room ids
@@ -57,7 +58,7 @@ namespace erl::env::scene_graph {
         Eigen::Vector3d size = {};                                      // room size
     };
 
-    struct Floor : public Node, public common::Yamlable<Floor> {
+    struct Floor : public common::OverrideYamlable<Node, Floor> {
         int down_stairs_id = -1;                                            // down stairs id
         int up_stairs_id = -1;                                              // up stairs id
         int down_stairs_uuid = -1;                                          // down stairs uuid
@@ -76,7 +77,7 @@ namespace erl::env::scene_graph {
         Eigen::Vector2i grid_map_size = {};                                 // grid_map size
     };
 
-    struct Building : public Node, public common::Yamlable<Building> {
+    struct Building : public common::OverrideYamlable<Node, Building> {
         std::unordered_map<int, std::shared_ptr<Floor>> floors = {};  // floors
         int num_floors = 0;                                           // number of floors
         Eigen::Vector3d reference_point = {};                         // reference 3d coordinate
@@ -123,29 +124,12 @@ namespace erl::env::scene_graph {
             std::sort(object_uuids.begin(), object_uuids.end());
         }
 
-        std::shared_ptr<Object>
-        GetObject(int object_id) {
-            if (id_to_object.find(object_id) == id_to_object.end()) { return nullptr; }
-            return id_to_object[object_id];
-        }
-
-        std::shared_ptr<Room>
-        GetRoom(int room_id) {
-            if (id_to_room.find(room_id) == id_to_room.end()) { return nullptr; }
-            return id_to_room[room_id];
-        }
-
-        std::shared_ptr<Floor>
-        GetFloor(int floor_id) {
-            if (floors.find(floor_id) == floors.end()) { return nullptr; }
-            return floors[floor_id];
-        }
-
         template<class T>
         std::shared_ptr<T>
         GetNode(uint32_t uuid) {
-            if (uuid_to_node.find(uuid) == uuid_to_node.end()) { return nullptr; }
-            return std::dynamic_pointer_cast<T>(uuid_to_node[uuid]);
+            auto itr = uuid_to_node.find(uuid);
+            if (itr == uuid_to_node.end()) { return nullptr; }
+            return std::dynamic_pointer_cast<T>(itr->second);
         }
 
         [[nodiscard]] cv::Mat
@@ -493,4 +477,16 @@ namespace YAML {
             return true;
         }
     };
+
+    inline Emitter&
+    operator<<(Emitter& out, const erl::env::scene_graph::Building& rhs) {
+        out << static_cast<const erl::env::scene_graph::Node&>(rhs);
+        out << BeginMap;
+        out << Key << "floors" << Value << rhs.floors;
+        out << Key << "num_floors" << Value << rhs.num_floors;
+        out << Key << "reference_point" << Value << rhs.reference_point;
+        out << Key << "size" << Value << rhs.size;
+        out << EndMap;
+        return out;
+    }
 }  // namespace YAML

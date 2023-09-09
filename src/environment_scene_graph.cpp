@@ -103,8 +103,8 @@ namespace erl::env {
                 int floor_num_up = floor_num + 1;
                 if (floor_num_up < m_scene_graph_->num_floors) {  // go upstairs
                     auto &floor_up = m_scene_graph_->floors.at(floor_num_up);
-                    ERL_DEBUG_ASSERT(floor->up_stairs_portal.has_value(), "floor->up_stairs_portal should have value.");
-                    ERL_DEBUG_ASSERT(floor_up->down_stairs_portal.has_value(), "floor_up->down_stairs_portal should have value.");
+                    ERL_ASSERTM(floor->up_stairs_portal.has_value(), "floor->up_stairs_portal should have value.");
+                    ERL_ASSERTM(floor_up->down_stairs_portal.has_value(), "floor_up->down_stairs_portal should have value.");
                     const double &cost = m_up_stairs_cost_maps_.at(floor_num)(state->grid[0], state->grid[1]);
                     auto next_env_state = std::make_shared<EnvironmentState>();
                     next_env_state->grid.resize(3);
@@ -117,8 +117,8 @@ namespace erl::env {
                 int floor_num_down = floor_num - 1;
                 if (floor_num_down >= 0) {  // go downstairs
                     auto &floor_down = m_scene_graph_->floors.at(floor_num_down);
-                    ERL_DEBUG_ASSERT(floor->down_stairs_portal.has_value(), "floor->down_stairs_portal should have value.");
-                    ERL_DEBUG_ASSERT(floor_down->up_stairs_portal.has_value(), "floor_down->up_stairs_portal should have value.");
+                    ERL_ASSERTM(floor->down_stairs_portal.has_value(), "floor->down_stairs_portal should have value.");
+                    ERL_ASSERTM(floor_down->up_stairs_portal.has_value(), "floor_down->up_stairs_portal should have value.");
                     const double &cost = m_down_stairs_cost_maps_.at(floor_num)(state->grid[0], state->grid[1]);
                     auto next_env_state = std::make_shared<EnvironmentState>();
                     next_env_state->grid.resize(3);
@@ -151,8 +151,8 @@ namespace erl::env {
                     const double &cost = local_cost_map.cost_map(r, c);
                     auto next_env_state = std::make_shared<EnvironmentState>();
                     next_env_state->grid.resize(3);
-                    next_env_state->grid[0] = path.back()[0] ;
-                    next_env_state->grid[1] = path.back()[1] ;
+                    next_env_state->grid[0] = path.back()[0];
+                    next_env_state->grid[1] = path.back()[1];
                     next_env_state->grid[2] = floor_num;
                     next_env_state->metric = m_grid_map_info_->GridToMeterForPoints(next_env_state->grid);
                     successors.emplace_back(next_env_state, cost, std::vector<int>{int(scene_graph::Node::Type::kObject), object_id});
@@ -287,27 +287,18 @@ namespace erl::env {
                     if (i == j && i == 0) { continue; }
                     double dx = i * x_res;
                     double dy = j * y_res;
-                    m_atomic_actions_.emplace_back(common::AsString("move (%d, %d)", i, j), std::sqrt(dx * dx + dy * dy), Eigen::Vector3i(i, j, 0));
+                    m_atomic_actions_.emplace_back(std::sqrt(dx * dx + dy * dy), Eigen::Vector3i(i, j, 0));
                 }
             }
         } else {
             m_atomic_actions_.reserve(6);
             for (int i: {-1, 1}) {
-                m_atomic_actions_.emplace_back(common::AsString("move (%d, 0)", i), std::abs(x_res), Eigen::Vector3i(i, 0, 0));
-                m_atomic_actions_.emplace_back(common::AsString("move (0, %d)", i), std::abs(y_res), Eigen::Vector3i(0, i, 0));
+                m_atomic_actions_.emplace_back(std::abs(x_res), Eigen::Vector3i(i, 0, 0));
+                m_atomic_actions_.emplace_back(std::abs(y_res), Eigen::Vector3i(0, i, 0));
             }
         }
-        double floor_action_cost = 0;
-        if (m_scene_graph_->num_floors <= 1) {
-            floor_action_cost = std::numeric_limits<double>::infinity();  // no floor up/down action
-        } else {
-            for (int i = 1; i < int(m_scene_graph_->num_floors); ++i) {
-                double height = m_scene_graph_->floors[i]->ground_z - m_scene_graph_->floors[i - 1]->ground_z;
-                floor_action_cost = std::max(floor_action_cost, height);
-            }
-        }
-        m_atomic_actions_.emplace_back("floor up", floor_action_cost, Eigen::Vector3i(0, 0, 1));     // floor up
-        m_atomic_actions_.emplace_back("floor down", floor_action_cost, Eigen::Vector3i(0, 0, -1));  // floor down
+        m_atomic_actions_.emplace_back(-1., Eigen::Vector3i(0, 0, 1));   // floor up
+        m_atomic_actions_.emplace_back(-1., Eigen::Vector3i(0, 0, -1));  // floor down
     }
 
     void

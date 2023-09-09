@@ -40,20 +40,20 @@ namespace erl::env {
         cv::Mat m_original_grid_map_;                             // original grid map, where each cell is a scaled cost value
         cv::Mat m_grid_map_;                                      // inflated grid map
         std::shared_ptr<common::GridMapInfo3D> m_grid_map_info_;  // grid map description (x, y, q), x to the bottom, y to the right, along y first
-        Eigen::MatrixXi m_label_map_;                             // each element is a |AP|-bit word representing the result of atomic propositions
+        Eigen::MatrixX<uint64_t> m_label_map_;                    // each element is a |AP|-bit word representing the result of atomic propositions
 
     public:
         EnvironmentLTL2D(
-            Eigen::MatrixXi label_map,
+            Eigen::MatrixX<uint64_t> label_map,
             const std::shared_ptr<common::GridMapUnsigned2D> &grid_map,
             std::shared_ptr<Setting> setting,
             std::shared_ptr<CostBase> distance_cost_func = nullptr)
             : EnvironmentBase(std::move(distance_cost_func)),
               m_setting_(std::move(setting)),
-              // m_grid_map_info_((assert(grid_map != nullptr), grid_map->info->Extend())),
               m_label_map_(std::move(label_map)) {
             ERL_ASSERTM(m_setting_ != nullptr, "setting is nullptr.");
             ERL_ASSERTM(grid_map != nullptr, "grid_map is nullptr.");
+            ERL_ASSERTM(m_setting_->fsa->atomic_propositions.size() <= 64, "Does not support more than 64 atomic propositions.");
 
             auto num_states = int(m_setting_->fsa->num_states);
             if (num_states % 2 == 0) { num_states += 1; }

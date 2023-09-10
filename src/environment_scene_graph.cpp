@@ -142,8 +142,8 @@ namespace erl::env {
                     const int &object_id = itr.first;                           // reach this object
                     if (reached_object_ids.count(object_id) > 0) { continue; }  // already reached
                     auto &local_cost_map = m_object_cost_maps_.at(object_id);
-                    ERL_DEBUG_ASSERT(local_cost_map.grid_min_x <= x && x <= local_cost_map.grid_max_x, "x is out of range.");
-                    ERL_DEBUG_ASSERT(local_cost_map.grid_min_y <= y && y <= local_cost_map.grid_max_y, "y is out of range.");
+                    ERL_DEBUG_ASSERT(local_cost_map.grid_min_x <= cur_x && cur_x <= local_cost_map.grid_max_x, "x is out of range.");
+                    ERL_DEBUG_ASSERT(local_cost_map.grid_min_y <= cur_y && cur_y <= local_cost_map.grid_max_y, "y is out of range.");
                     int r = cur_x - local_cost_map.grid_min_x;
                     int c = cur_y - local_cost_map.grid_min_y;
                     auto &path = local_cost_map.path_map(r, c);
@@ -164,7 +164,7 @@ namespace erl::env {
                 if (connected_room_cost_maps_itr == m_room_cost_maps_.end()) { return successors; }  // no action for this room
                 auto &connected_room_cost_maps = connected_room_cost_maps_itr->second;
                 auto &room = m_scene_graph_->id_to_room.at(at_room_id);
-                ERL_DEBUG_ASSERT(room->parent_id == floor_num, "On %d floor but action is to reach room on %d floor.", floor_num, room->parent_id);
+                ERL_DEBUG_ASSERT(room->parent_id == cur_z, "On %d floor but action is to reach room on %d floor.", cur_z, room->parent_id);
                 ERL_DEBUG_ASSERT(room->id == at_room_id, "In room %d but action is to reach room %d.", at_room_id, room->id);
                 successors.reserve(room->connected_room_ids.size());
                 for (int &connected_room_id: room->connected_room_ids) {

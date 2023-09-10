@@ -5,7 +5,7 @@ namespace erl::env::spot_helper {
 
     // inspired by bdd_printset_rec in buddy/src/cppext.cxx
     static void
-    bdd_to_vec_rec(std::vector<int> &vec, bdd r, std::vector<int> &set) {
+    bdd_to_vec_rec(std::vector<int> &vec, const bdd& r, std::vector<int> &set) { // NOLINT(*-no-recursion)
         if (r == bddfalse) {  // false terminal
             return;
         } else if (r == bddtrue) {  // true terminal, dump to vec

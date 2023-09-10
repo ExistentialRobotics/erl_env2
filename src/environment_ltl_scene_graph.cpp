@@ -1,5 +1,26 @@
 #include "erl_env/environment_ltl_scene_graph.hpp"
 
+namespace Eigen::internal {
+
+    template<>
+    struct cast_impl<std::bitset<32>, uint32_t> {
+        EIGEN_DEVICE_FUNC
+        static inline uint32_t
+        run(const std::bitset<32> &x) {
+            return static_cast<uint32_t>(x.to_ulong());
+        }
+    };
+
+    template<>
+    struct cast_impl<uint32_t, std::bitset<32>> {
+        EIGEN_DEVICE_FUNC
+        static inline std::bitset<32>
+        run(const uint32_t &x) {
+            return {x};
+        }
+    };
+}  // namespace Eigen::internal
+
 namespace erl::env {
 
     std::vector<std::shared_ptr<EnvironmentState>>
@@ -46,7 +67,8 @@ namespace erl::env {
                 const int &at_room_id = m_room_maps_[cur_z].at<int>(cur_x, cur_y);
                 ERL_ASSERTM(at_room_id == room_id, "In room %d but action is to reach object in room %d.", at_room_id, room_id);
                 ERL_ASSERTM(
-                    cur_x >= local_cost_map.grid_min_x && cur_x < local_cost_map.grid_max_x && cur_y >= local_cost_map.grid_min_y && cur_y < local_cost_map.grid_max_y,
+                    cur_x >= local_cost_map.grid_min_x && cur_x < local_cost_map.grid_max_x && cur_y >= local_cost_map.grid_min_y &&
+                        cur_y < local_cost_map.grid_max_y,
                     "Not in the local cost map of object (id: %d) to reach.",
                     goal_object_id);
 #endif
@@ -272,6 +294,35 @@ namespace erl::env {
             default:
                 throw std::runtime_error("Invalid action: unknown level.");
         }
+    }
+
+    void
+    EnvironmentLTLSceneGraph::GenerateLabelMaps() {
+        auto t0 = std::chrono::high_resolution_clock::now();
+
+        // initialize the label maps
+        std::unordered_map<int, Eigen::MatrixX<std::bitset<32>>> label_maps = {};
+        for (int i = 0; i < m_scene_graph_->num_floors; ++i) { label_maps[i].resize(m_floor_grid_map_info_->Shape(0), m_floor_grid_map_info_->Shape(1)); }
+
+        for (int i = 0; i < m_scene_graph_->num_floors; ++i) {  // each floor
+            int rows = m_floor_grid_map_info_->Shape(0);
+#pragma omp parallel for default(none) shared(rows, label_maps, i)
+            for (int r = 0; r < rows; ++r) {  // each row of the map
+                int cols = m_floor_grid_map_info_->Shape(1);
+                for (int c = 0; c < cols; ++c) {  // each column of the map
+                    std::size_t num_propositions = m_setting_->fsa->atomic_propositions.size();
+                    auto &bitset = label_maps[i](r, c);
+                    for (std::size_t j = 0; j < num_propositions; ++j) {  // each atomic proposition
+                        auto &proposition = m_setting_->atomic_propositions[m_setting_->fsa->atomic_propositions[j]];
+                        bitset.set(j, EvaluateAtomicProposition(r, c, i, proposition));
+                    }
+                }
+            }
+            m_label_maps_[i] = label_maps[i].cast<uint32_t>();
+        }
+
+        auto t1 = std::chrono::high_resolution_clock::now();
+        std::cout << "GenerateLabelMaps: " << std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count() << " ms" << std::endl;
     }
 
 }  // namespace erl::env

@@ -24,6 +24,16 @@ namespace erl::env {
     class FiniteStateAutomaton {
 
     public:
+        // clang-format off
+        typedef boost::property<boost::vertex_index_t, uint32_t,
+                boost::property<boost::vertex_name_t, std::string,
+                boost::property<boost::vertex_color_t, std::string>>> BoostVertexProp;
+        // clang-format on
+        typedef boost::property<boost::edge_color_t, uint32_t> BoostEdgeProp;
+        typedef boost::property<boost::graph_name_t, std::string> BoostGraphProp;
+        typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::directedS, BoostVertexProp, BoostEdgeProp, BoostGraphProp> BoostGraph;
+        using SpotGraph = spot::twa_graph_ptr;
+
         struct Setting : public common::Yamlable<Setting> {
 
             struct Transition {
@@ -44,6 +54,38 @@ namespace erl::env {
             std::vector<uint32_t> accepting_states = {};        // accepting states
             std::vector<std::string> atomic_propositions = {};  // atomic propositions
             std::vector<Transition> transitions = {};           // transitions
+
+            enum class FileType { kSpotHoa = 0, kBoostDot = 1, kYaml = 2 };
+
+            Setting() = default;
+            Setting(const std::string &filepath, FileType file_type);
+
+            [[nodiscard]] BoostGraph
+            AsBoostGraph() const;
+
+            void
+            AsBoostGraphDotFile(const std::string &filename) const;
+
+            void
+            FromBoostGraphDotFile(const std::string &filepath);
+
+            [[nodiscard]] SpotGraph
+            AsSpotGraph() const;
+
+            inline void
+            AsSpotGraphHoaFile(const std::string &filename) const {
+                std::ofstream ofs(filename);
+                spot::print_hoa(ofs, AsSpotGraph());
+            }
+
+            void
+            FromSpotGraphHoaFile(const std::string &filepath);
+
+            inline void
+            AsSpotGraphDotFile(const std::string &filename) const {
+                std::ofstream ofs(filename);
+                AsSpotGraph()->dump_storage_as_dot(ofs);
+            }
         };
 
     protected:
@@ -57,9 +99,7 @@ namespace erl::env {
         std::vector<bool> m_accepting_states_;                                     // accepting states
 
     public:
-        enum class FileType { kSpotHoa = 0, kBoostDot = 1, kYaml = 2 };
         explicit FiniteStateAutomaton(std::shared_ptr<Setting> setting);
-        explicit FiniteStateAutomaton(const std::string &filepath, FileType file_type = FileType::kYaml);
 
         [[nodiscard]] inline std::shared_ptr<Setting>
         GetSetting() const {
@@ -124,47 +164,9 @@ namespace erl::env {
             return m_accepting_states_[state];
         }
 
-        // clang-format off
-        typedef boost::property<boost::vertex_index_t, uint32_t,
-                boost::property<boost::vertex_name_t, std::string,
-                boost::property<boost::vertex_color_t, std::string>>> BoostVertexProp;
-        // clang-format on
-        typedef boost::property<boost::edge_color_t, uint32_t> BoostEdgeProp;
-        typedef boost::property<boost::graph_name_t, std::string> BoostGraphProp;
-        typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::directedS, BoostVertexProp, BoostEdgeProp, BoostGraphProp> BoostGraph;
-
-        [[nodiscard]] BoostGraph
-        AsBoostGraph() const;
-
-        void
-        SaveAsBoostGraphDotFile(const std::string &filename) const;
-
-        using SpotGraph = spot::twa_graph_ptr;
-
-        [[nodiscard]] SpotGraph
-        AsSpotGraph() const;
-
-        inline void
-        SaveAsSpotGraphHoaFile(const std::string &filename) const {
-            std::ofstream ofs(filename);
-            spot::print_hoa(ofs, AsSpotGraph());
-        }
-
-        inline void
-        SaveAsSpotGraphDotFile(const std::string &filename) const {
-            std::ofstream ofs(filename);
-            AsSpotGraph()->dump_storage_as_dot(ofs);
-        }
-
     private:
         void
         Init();
-
-        void
-        ReadSpotHoa(const std::string &filepath);
-
-        void
-        ReadBoostDot(const std::string &filepath);
 
         [[nodiscard]] inline uint32_t
         HashingTransition(uint32_t from, uint32_t to) const {

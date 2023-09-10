@@ -15,6 +15,12 @@ namespace erl::env {
         struct Setting : public common::OverrideYamlable<EnvironmentSceneGraph::Setting, Setting> {
             std::unordered_map<std::string, AtomicProposition> atomic_propositions;
             std::shared_ptr<FiniteStateAutomaton::Setting> fsa;  // finite state automaton
+
+            void
+            LoadAtomicPropositions(const std::string &yaml_file) {
+                YAML::Node node = YAML::LoadFile(yaml_file);
+                YAML::convert<std::unordered_map<std::string, AtomicProposition>>::decode(node, atomic_propositions);
+            }
         };
 
     protected:
@@ -68,30 +74,7 @@ namespace erl::env {
 
     protected:
         void
-        GenerateLabelMaps() {
-            // initialize the label maps
-            std::unordered_map<int, Eigen::MatrixX<std::bitset<32>>> label_maps = {};
-            for (int i = 0; i < m_scene_graph_->num_floors; ++i) { label_maps[i].resize(m_floor_grid_map_info_->Shape(0), m_floor_grid_map_info_->Shape(1)); }
-
-            for (int i = 0; i < m_scene_graph_->num_floors; ++i) {  // each floor
-                int rows = m_floor_grid_map_info_->Shape(0);
-#pragma omp parallel for collapse(2) default(none) shared(rows, label_maps, i)
-                for (int r = 0; r < rows; ++r) {  // each row of the map
-                    int cols = m_floor_grid_map_info_->Shape(1);
-                    for (int c = 0; c < cols; ++c) {  // each column of the map
-                        std::size_t num_propositions = m_setting_->fsa->atomic_propositions.size();
-                        auto &bitset = label_maps[i](r, c);
-                        for (std::size_t j = 0; j < num_propositions; ++j) {  // each atomic proposition
-                            auto &proposition = m_setting_->atomic_propositions[m_setting_->fsa->atomic_propositions[j]];
-                            bitset.set(j, EvaluateAtomicProposition(r, c, i, proposition));
-                        }
-                    }
-                }
-                m_label_maps_[i] = label_maps[i].cast<uint32_t>();
-
-                // TODO: check the visualization of label maps
-            }
-        }
+        GenerateLabelMaps();
 
         inline bool
         EvaluateAtomicProposition(int x, int y, int floor_num, const AtomicProposition &proposition) {
@@ -100,8 +83,10 @@ namespace erl::env {
                     return false;
                 case AtomicProposition::Type::kEnterRoom:
                     return EvaluateEnterRoom(x, y, floor_num, proposition.uuid);
-                case AtomicProposition::Type::kReachObject:
-                    return EvaluateReachObject(x, y, floor_num, proposition.uuid, proposition.reach_distance);
+                case AtomicProposition::Type::kReachObject: {
+                    double reach_distance = proposition.reach_distance > 0 ? proposition.reach_distance : m_setting_->object_reach_distance;
+                    return EvaluateReachObject(x, y, floor_num, proposition.uuid, reach_distance);
+                }
                 default:
                     throw std::runtime_error("Unknown atomic proposition type.");
             }

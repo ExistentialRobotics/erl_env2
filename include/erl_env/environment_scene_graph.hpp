@@ -17,7 +17,7 @@ namespace erl::env {
             std::string data_dir = {};           // folder to store scene graph data, actions, cost maps and so on
             long num_threads = 64;               // number of threads to use
             bool allow_diagonal = true;          // whether allow diagonal movement
-            double object_reach_distance = 1.0;  // distance (meter) to reach an object
+            double object_reach_distance = 0.5;  // distance (meter) to reach an object
             Eigen::Matrix2Xd shape = {};         // shape of the robot, assume the shape center is at the origin
         };
 

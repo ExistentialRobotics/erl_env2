@@ -36,15 +36,49 @@ namespace erl::env {
             GenerateLabelMaps();
         }
 
+        [[nodiscard]] inline std::shared_ptr<FiniteStateAutomaton>
+        GetFiniteStateAutomaton() const {
+            return m_fsa_;
+        }
+
+        [[nodiscard]] inline std::unordered_map<int, Eigen::MatrixX<uint32_t>>
+        GetLabelMaps() const {
+            return m_label_maps_;
+        }
+
         [[nodiscard]] std::vector<std::shared_ptr<EnvironmentState>>
         ForwardAction(const std::shared_ptr<const EnvironmentState> &env_state, const std::vector<int> &action_coords) const override;
 
         [[nodiscard]] std::vector<Successor>
         GetSuccessorsAtLevel(const std::shared_ptr<EnvironmentState> &env_state, std::size_t resolution_level) const override;
 
+        [[nodiscard]] inline bool
+        InStateSpace(const std::shared_ptr<EnvironmentState> &env_state) const override {
+            return m_grid_map_info_->InGrids(env_state->grid.head<3>());
+        }
+
+        [[nodiscard]] inline bool
+        InStateSpaceAtLevel(const std::shared_ptr<EnvironmentState> &env_state, std::size_t resolution_level) const override {
+            if (resolution_level == 0) { return m_grid_map_info_->InGrids(env_state->grid.head<3>()); }
+            auto level = scene_graph::Node::Type(resolution_level - 1);
+            if (!m_grid_map_info_->InGrids(env_state->grid.head<3>())) { return false; }
+            switch (level) {
+                case scene_graph::Node::Type::kObject:
+                    return !m_object_reached_maps_.at(env_state->grid[2])(env_state->grid[0], env_state->grid[1]).empty();
+                case scene_graph::Node::Type::kRoom:
+                    return m_room_maps_[env_state->grid[2]].at<int>(env_state->grid[0], env_state->grid[1]) > 0;
+                case scene_graph::Node::Type::kNA:
+                case scene_graph::Node::Type::kFloor:
+                case scene_graph::Node::Type::kBuilding:
+                    return true;
+                default:
+                    throw std::runtime_error("Unknown level.");
+            }
+        }
+
         [[nodiscard]] inline uint32_t
         StateHashing(const std::shared_ptr<env::EnvironmentState> &env_state) const override {
-            uint32_t hashing = m_grid_map_info_->GridToIndex(env_state->grid, true);
+            uint32_t hashing = m_grid_map_info_->GridToIndex(env_state->grid.head<3>(), true);
             hashing = hashing * m_setting_->fsa->num_states + env_state->grid[3];
             return hashing;
         }
@@ -100,9 +134,9 @@ namespace erl::env {
 
         inline bool
         EvaluateReachObject(int x, int y, int floor_num, int uuid, double reach_distance) {
-            auto half_rows = int(reach_distance / m_floor_grid_map_info_->Resolution(0));
+            auto half_rows = int(reach_distance / m_grid_map_info_->Resolution(0));
             if (half_rows == 0) { half_rows = 1; }
-            auto half_cols = int(reach_distance / m_floor_grid_map_info_->Resolution(1));
+            auto half_cols = int(reach_distance / m_grid_map_info_->Resolution(1));
             if (half_cols == 0) { half_cols = 1; }
 
             int object_id = m_scene_graph_->GetNode<scene_graph::Object>(uuid)->id;

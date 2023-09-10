@@ -34,6 +34,7 @@ namespace erl::env {
         switch (level) {
             case scene_graph::Node::Type::kNA: {  // atomic action
                 const int &atomic_action_id = action_coords[1];
+                ERL_DEBUG("kNA action id: %d", atomic_action_id);
                 ERL_DEBUG_ASSERT(atomic_action_id >= 0 && std::size_t(atomic_action_id) < m_atomic_actions_.size(), "atomic_action_id is out of range.");
                 if (std::size_t(atomic_action_id) < m_atomic_actions_.size() - 2) {  // grid movement
                     auto next_env_state = std::make_shared<EnvironmentState>();
@@ -58,6 +59,7 @@ namespace erl::env {
             }
             case scene_graph::Node::Type::kObject: {  // reach object
                 const int &goal_object_id = action_coords[1];
+                ERL_DEBUG("kObject action id: %d", goal_object_id);
                 const LocalCostMap &local_cost_map = m_object_cost_maps_.at(goal_object_id);
 #ifndef NDEBUG
                 auto &object = m_scene_graph_->id_to_object[goal_object_id];
@@ -67,8 +69,8 @@ namespace erl::env {
                 const int &at_room_id = m_room_maps_[cur_z].at<int>(cur_x, cur_y);
                 ERL_ASSERTM(at_room_id == room_id, "In room %d but action is to reach object in room %d.", at_room_id, room_id);
                 ERL_ASSERTM(
-                    cur_x >= local_cost_map.grid_min_x && cur_x < local_cost_map.grid_max_x && cur_y >= local_cost_map.grid_min_y &&
-                        cur_y < local_cost_map.grid_max_y,
+                    (cur_x >= local_cost_map.grid_min_x && cur_x < local_cost_map.grid_max_x) &&
+                        (cur_y >= local_cost_map.grid_min_y && cur_y < local_cost_map.grid_max_y),
                     "Not in the local cost map of object (id: %d) to reach.",
                     goal_object_id);
 #endif
@@ -78,6 +80,7 @@ namespace erl::env {
             case scene_graph::Node::Type::kRoom: {  // reach room
                 const int &goal_room_id = action_coords[1];
                 const int &at_room_id = m_room_maps_[cur_z].at<int>(cur_x, cur_y);
+                ERL_DEBUG("kRoom action id: %d, at_room_id: %d", goal_room_id, at_room_id);
                 const LocalCostMap &local_cost_map = m_room_cost_maps_.at(at_room_id).at(goal_room_id);
 #ifndef NDEBUG
                 auto &room = m_scene_graph_->id_to_room[goal_room_id];
@@ -93,6 +96,7 @@ namespace erl::env {
             }
             case scene_graph::Node::Type::kFloor: {  // floor up or down
                 const int &goal_floor_num = action_coords[1];
+                ERL_DEBUG("kFloor action id: %d", goal_floor_num);
                 return GetPathToFloor(cur_x, cur_y, cur_z, cur_q, goal_floor_num);
             }
             case scene_graph::Node::Type::kBuilding:
@@ -124,14 +128,17 @@ namespace erl::env {
                     int &nz = next_env_state->grid[2];
                     int &nq = next_env_state->grid[3];
                     nx = cur_x + atomic_action.state_diff[0];                                // next x
-                    if (nx < 0 || nx >= m_floor_grid_map_info_->Shape(0)) { continue; }      // out of map boundary
+                    if (nx < 0 || nx >= m_grid_map_info_->Shape(0)) { continue; }            // out of map boundary
                     ny = cur_y + atomic_action.state_diff[1];                                // next y
-                    if (ny < 0 || ny >= m_floor_grid_map_info_->Shape(1)) { continue; }      // out of map boundary
+                    if (ny < 0 || ny >= m_grid_map_info_->Shape(1)) { continue; }            // out of map boundary
                     if (m_obstacle_maps_[cur_z].at<uint8_t>(nx, ny) > 0) { continue; }       // obstacle
                     nq = int(m_fsa_->GetNextState(cur_q, m_label_maps_.at(cur_z)(nx, ny)));  // next LTL state
                     if (m_fsa_->IsSinkState(nq)) { continue; }                               // sink state
                     nz = cur_z;                                                              // write nz only if nq is not a sink state
                     next_env_state->metric = GridToMetric(next_env_state->grid);
+                    // the room maps may have some small regions marked N/A due to the original mesh processing, we fix it here.
+                    int &next_room_id = const_cast<int &>(m_room_maps_[cur_z].at<int>(nx, ny));
+                    if (next_room_id <= 0) { next_room_id = m_room_maps_[cur_z].at<int>(cur_x, cur_y); }  // room id missing, fix it. This should rarely happen.
                     successors.emplace_back(next_env_state, atomic_action.cost, std::vector<int>{int(scene_graph::Node::Type::kNA), atomic_action_id});
                 }
                 auto &floor = m_scene_graph_->floors.at(cur_z);
@@ -153,7 +160,7 @@ namespace erl::env {
                     if (!m_fsa_->IsSinkState(nq)) {
                         nz = floor_num_up;  // write nz only if nq is not a sink state
                         next_env_state->metric = GridToMetric(next_env_state->grid);
-                        successors.emplace_back(next_env_state, cost, std::vector<int>{int(scene_graph::Node::Type::kNA), num_actions - 2});
+                        successors.emplace_back(next_env_state, cost, std::vector<int>{int(scene_graph::Node::Type::kNA), m_floor_up_action_id_});
                     }
                 }
                 int floor_num_down = cur_z - 1;
@@ -174,7 +181,7 @@ namespace erl::env {
                     if (!m_fsa_->IsSinkState(nq)) {
                         nz = floor_num_down;  // write nz only if nq is not a sink state
                         next_env_state->metric = GridToMetric(next_env_state->grid);
-                        successors.emplace_back(next_env_state, cost, std::vector<int>{int(scene_graph::Node::Type::kNA), num_actions - 1});
+                        successors.emplace_back(next_env_state, cost, std::vector<int>{int(scene_graph::Node::Type::kNA), m_floor_down_action_id_});
                     }
                 }
                 return successors;
@@ -194,6 +201,7 @@ namespace erl::env {
                     int r = cur_x - local_cost_map.grid_min_x;
                     int c = cur_y - local_cost_map.grid_min_y;
                     auto &path = local_cost_map.path_map(r, c);          // path to reach the object
+                    if (path.empty()) { continue; }                      // no path to reach the object
                     const double &cost = local_cost_map.cost_map(r, c);  // cost to reach the object
                     auto next_env_state = std::make_shared<EnvironmentState>();
                     next_env_state->grid.resize(4);
@@ -302,13 +310,13 @@ namespace erl::env {
 
         // initialize the label maps
         std::unordered_map<int, Eigen::MatrixX<std::bitset<32>>> label_maps = {};
-        for (int i = 0; i < m_scene_graph_->num_floors; ++i) { label_maps[i].resize(m_floor_grid_map_info_->Shape(0), m_floor_grid_map_info_->Shape(1)); }
+        for (int i = 0; i < m_scene_graph_->num_floors; ++i) { label_maps[i].resize(m_grid_map_info_->Shape(0), m_grid_map_info_->Shape(1)); }
 
         for (int i = 0; i < m_scene_graph_->num_floors; ++i) {  // each floor
-            int rows = m_floor_grid_map_info_->Shape(0);
+            int rows = m_grid_map_info_->Shape(0);
 #pragma omp parallel for default(none) shared(rows, label_maps, i)
             for (int r = 0; r < rows; ++r) {  // each row of the map
-                int cols = m_floor_grid_map_info_->Shape(1);
+                int cols = m_grid_map_info_->Shape(1);
                 for (int c = 0; c < cols; ++c) {  // each column of the map
                     std::size_t num_propositions = m_setting_->fsa->atomic_propositions.size();
                     auto &bitset = label_maps[i](r, c);
@@ -322,7 +330,7 @@ namespace erl::env {
         }
 
         auto t1 = std::chrono::high_resolution_clock::now();
-        std::cout << "GenerateLabelMaps: " << std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count() << " ms" << std::endl;
+        ERL_INFO("GenerateLabelMaps: %f ms", std::chrono::duration<double, std::milli>(t1 - t0).count());
     }
 
 }  // namespace erl::env

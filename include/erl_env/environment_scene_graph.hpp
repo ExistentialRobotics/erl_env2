@@ -45,7 +45,6 @@ namespace erl::env {
         std::shared_ptr<Setting> m_setting_ = nullptr;
         std::shared_ptr<scene_graph::Building> m_scene_graph_ = nullptr;
         std::shared_ptr<common::GridMapInfo3D> m_grid_map_info_ = nullptr;                             // (x, y, floor_num), for hashing
-        std::shared_ptr<common::GridMapInfo2D> m_floor_grid_map_info_ = nullptr;                       // (x, y), for floor map operations
         std::vector<cv::Mat> m_room_maps_ = {};                                                        // room maps for each floor
         std::vector<cv::Mat> m_cat_maps_ = {};                                                         // category maps for each floor
         std::vector<cv::Mat> m_ground_masks_ = {};                                                     // ground masks for each floor, 0: is ground
@@ -58,6 +57,8 @@ namespace erl::env {
         std::unordered_map<int, Eigen::MatrixX<std::unordered_set<int>>> m_object_reached_maps_ = {};  // object reached maps for each floor
         std::unordered_map<int, LocalCostMap> m_object_cost_maps_ = {};                                // cost maps to reach each object, key: object id
         std::vector<AtomicAction> m_atomic_actions_ = {};                                              // atomic actions
+        int m_floor_up_action_id_ = 0;                                                                 // atomic action id to go upstairs
+        int m_floor_down_action_id_ = 0;                                                               // atomic action id to go downstairs
 
     public:
         explicit EnvironmentSceneGraph(std::shared_ptr<scene_graph::Building> building, std::shared_ptr<Setting> setting = nullptr)
@@ -68,6 +69,16 @@ namespace erl::env {
             if (m_setting_ == nullptr) { m_setting_ = std::make_shared<Setting>(); }
             GenerateAtomicActions();
             LoadMaps();
+        }
+
+        [[nodiscard]] inline std::shared_ptr<Setting>
+        GetSetting() const {
+            return m_setting_;
+        }
+
+        [[nodiscard]] inline std::shared_ptr<common::GridMapInfo3D>
+        GetGridMapInfo() const {
+            return m_grid_map_info_;
         }
 
         [[nodiscard]] inline std::size_t
@@ -181,6 +192,12 @@ namespace erl::env {
         }
 
     protected:
+//        virtual bool
+//        LoadFromCache(const std::filesystem::path &cache_dir);
+//
+//        virtual bool
+//        SaveToCache(const std::filesystem::path &cache_dir);
+
         void
         LoadMaps();
 

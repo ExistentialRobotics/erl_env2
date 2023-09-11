@@ -461,7 +461,6 @@ namespace erl::env {
                 cv::Mat obstacle_map_roi = obstacle_map(room_roi);
                 local_cost_map.cost_map.setConstant(obstacle_map_roi.rows, obstacle_map_roi.cols, std::numeric_limits<double>::infinity());
                 local_cost_map.path_map.resize(obstacle_map_roi.rows, obstacle_map_roi.cols);
-                // local_cost_map.arg_min_map.setConstant(obstacle_map_roi.rows, obstacle_map_roi.cols, -1);
                 ReverseAStar(goals, obstacle_map_roi, local_cost_map.cost_map, local_cost_map.path_map);
 
                 for (int r = 0; r < obstacle_map_roi.rows; ++r) {

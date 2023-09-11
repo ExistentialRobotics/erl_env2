@@ -5,6 +5,10 @@
 #include "environment_multi_resolution.hpp"
 #include "scene_graph.hpp"
 
+namespace erl::search_planning {
+    class LLMSceneGraphHeuristic;  // forward declaration
+}
+
 namespace erl::env {
 
     /**
@@ -59,6 +63,8 @@ namespace erl::env {
         std::vector<AtomicAction> m_atomic_actions_ = {};                                              // atomic actions
         int m_floor_up_action_id_ = 0;                                                                 // atomic action id to go upstairs
         int m_floor_down_action_id_ = 0;                                                               // atomic action id to go downstairs
+
+        friend class erl::search_planning::LLMSceneGraphHeuristic;
 
     public:
         explicit EnvironmentSceneGraph(std::shared_ptr<scene_graph::Building> building, std::shared_ptr<Setting> setting = nullptr)
@@ -192,11 +198,11 @@ namespace erl::env {
         }
 
     protected:
-//        virtual bool
-//        LoadFromCache(const std::filesystem::path &cache_dir);
-//
-//        virtual bool
-//        SaveToCache(const std::filesystem::path &cache_dir);
+        // virtual bool
+        // LoadFromCache(const std::filesystem::path &cache_dir);
+        //
+        // virtual bool
+        // SaveToCache(const std::filesystem::path &cache_dir);
 
         void
         LoadMaps();

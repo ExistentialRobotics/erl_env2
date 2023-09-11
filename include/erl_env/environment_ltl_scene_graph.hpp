@@ -28,6 +28,8 @@ namespace erl::env {
         std::shared_ptr<FiniteStateAutomaton> m_fsa_ = nullptr;
         std::unordered_map<int, Eigen::MatrixX<uint32_t>> m_label_maps_ = {};
 
+        friend class erl::search_planning::LLMSceneGraphHeuristic;
+
     public:
         EnvironmentLTLSceneGraph(std::shared_ptr<scene_graph::Building> building, const std::shared_ptr<EnvironmentLTLSceneGraph::Setting> &setting)
             : EnvironmentSceneGraph(std::move(building), setting),

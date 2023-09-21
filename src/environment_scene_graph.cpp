@@ -11,7 +11,7 @@ namespace erl::env {
         const int &cur_z = env_state->grid[2];
         ERL_DEBUG("forward action, x: %d, y: %d, floor_num: %d, cur_room_id: %d", cur_x, cur_y, cur_z, m_room_maps_[cur_z].at<int>(cur_x, cur_y));
         switch (level) {
-            case scene_graph::Node::Type::kNA: {  // atomic action
+            case scene_graph::Node::Type::kOcc: {  // atomic action
                 const int &atomic_action_id = action_coords[1];
                 ERL_DEBUG("kNA action id: %d", atomic_action_id);
                 ERL_DEBUG_ASSERT(atomic_action_id >= 0 && std::size_t(atomic_action_id) < m_atomic_actions_.size(), "atomic_action_id is out of range.");
@@ -21,9 +21,29 @@ namespace erl::env {
                     next_env_state->metric = GridToMetric(next_env_state->grid);
                     return {next_env_state};
                 } else if (std::size_t(atomic_action_id) == m_atomic_actions_.size() - 2) {  // floor up
-                    return GetPathToFloor(cur_x, cur_y, cur_z, cur_z + 1);
+                    auto next_env_state = std::make_shared<EnvironmentState>();
+                    next_env_state->grid.resize(3);
+                    int &nx = next_env_state->grid[0];
+                    int &ny = next_env_state->grid[1];
+                    int &nz = next_env_state->grid[2];
+                    nz = cur_z + 1;  // go upstairs
+                    auto &floor = m_scene_graph_->floors.at(nz);
+                    nx = floor->down_stairs_portal.value()[0];
+                    ny = floor->down_stairs_portal.value()[1];
+                    next_env_state->metric = GridToMetric(next_env_state->grid);
+                    return {next_env_state};
                 } else if (std::size_t(atomic_action_id) == m_atomic_actions_.size() - 1) {  // floor down
-                    return GetPathToFloor(cur_x, cur_y, cur_z, cur_z - 1);
+                    auto next_env_state = std::make_shared<EnvironmentState>();
+                    next_env_state->grid.resize(3);
+                    int &nx = next_env_state->grid[0];
+                    int &ny = next_env_state->grid[1];
+                    int &nz = next_env_state->grid[2];
+                    nz = cur_z - 1;  // go downstairs
+                    auto &floor = m_scene_graph_->floors.at(nz);
+                    nx = floor->up_stairs_portal.value()[0];
+                    ny = floor->up_stairs_portal.value()[1];
+                    next_env_state->metric = GridToMetric(next_env_state->grid);
+                    return {next_env_state};
                 } else {
                     throw std::runtime_error("Invalid atomic action.");
                 }
@@ -40,8 +60,8 @@ namespace erl::env {
                 const int &at_room_id = m_room_maps_[cur_z].at<int>(cur_x, cur_y);
                 ERL_ASSERTM(at_room_id == room_id, "In room %d but action is to reach object in room %d.", at_room_id, room_id);
                 ERL_ASSERTM(
-                    (cur_x >= local_cost_map.grid_min_x && cur_x < local_cost_map.grid_max_x) &&
-                        (cur_y >= local_cost_map.grid_min_y && cur_y < local_cost_map.grid_max_y),
+                    (cur_x >= local_cost_map.grid_min_x && cur_x <= local_cost_map.grid_max_x) &&
+                        (cur_y >= local_cost_map.grid_min_y && cur_y <= local_cost_map.grid_max_y),
                     "Not in the local cost map of object (id: %d) to reach.",
                     goal_object_id);
 #endif
@@ -87,7 +107,7 @@ namespace erl::env {
         int &cur_z = env_state->grid[2];
         std::vector<Successor> successors;
         switch (level) {
-            case scene_graph::Node::Type::kNA: {
+            case scene_graph::Node::Type::kOcc: {
                 for (int atomic_action_id = 0; atomic_action_id < m_floor_up_action_id_; ++atomic_action_id) {  // grid movement
                     auto &atomic_action = m_atomic_actions_[atomic_action_id];
                     auto next_env_state = std::make_shared<EnvironmentState>();
@@ -101,39 +121,44 @@ namespace erl::env {
                     if (m_obstacle_maps_[cur_z].at<uint8_t>(nx, ny) > 0) { continue; }  // obstacle
                     next_env_state->grid[2] = cur_z;
                     next_env_state->metric = GridToMetric(next_env_state->grid);
-                    // the room maps may have some small regions marked N/A due to the original mesh processing, we fix it here.
-                    int &next_room_id = const_cast<int &>(m_room_maps_[cur_z].at<int>(nx, ny));
-                    if (next_room_id <= 0) { next_room_id = m_room_maps_[cur_z].at<int>(cur_x, cur_y); }  // room id missing, fix it. This should rarely happen.
-                    successors.emplace_back(next_env_state, atomic_action.cost, std::vector<int>{int(scene_graph::Node::Type::kNA), atomic_action_id});
+                    // the room maps may have some small regions marked N/A due to the original mesh processing, we should skip it.
+                    if (m_room_maps_[cur_z].at<int>(nx, ny) <= 0) { continue; }  // room id missing, skip it.
+                    successors.emplace_back(next_env_state, atomic_action.cost, std::vector<int>{int(scene_graph::Node::Type::kOcc), atomic_action_id});
                 }
+                // going up/down stairs only happens when the robot arrives at the stairs portal
                 auto &floor = m_scene_graph_->floors.at(cur_z);
                 int floor_num_up = cur_z + 1;
-                if (floor_num_up < m_scene_graph_->num_floors) {  // go upstairs
+                if (floor_num_up < m_scene_graph_->num_floors && floor->up_stairs_portal.has_value() && cur_x == floor->up_stairs_portal.value()[0] &&
+                    cur_y == floor->up_stairs_portal.value()[1]) {  // go upstairs
                     auto &floor_up = m_scene_graph_->floors.at(floor_num_up);
-                    ERL_ASSERTM(floor->up_stairs_portal.has_value(), "floor->up_stairs_portal should have value.");
+                    // ERL_ASSERTM(floor->up_stairs_portal.has_value(), "floor->up_stairs_portal should have value.");
                     ERL_ASSERTM(floor_up->down_stairs_portal.has_value(), "floor_up->down_stairs_portal should have value.");
-                    const double &cost = m_up_stairs_cost_maps_.at(cur_z)(cur_x, cur_y);
-                    auto next_env_state = std::make_shared<EnvironmentState>();
-                    next_env_state->grid.resize(3);
-                    next_env_state->grid[0] = floor_up->down_stairs_portal.value()[0];
-                    next_env_state->grid[1] = floor_up->down_stairs_portal.value()[1];
-                    next_env_state->grid[2] = floor_num_up;
-                    next_env_state->metric = GridToMetric(next_env_state->grid);
-                    successors.emplace_back(next_env_state, cost, std::vector<int>{int(scene_graph::Node::Type::kNA), m_floor_up_action_id_});
+                    const double &cost = floor->up_stairs_cost;
+                    if (!std::isinf(cost)) {  // no path to go upstairs (should not happen, but just in case)
+                        auto next_env_state = std::make_shared<EnvironmentState>();
+                        next_env_state->grid.resize(3);
+                        next_env_state->grid[0] = floor_up->down_stairs_portal.value()[0];
+                        next_env_state->grid[1] = floor_up->down_stairs_portal.value()[1];
+                        next_env_state->grid[2] = floor_num_up;
+                        next_env_state->metric = GridToMetric(next_env_state->grid);
+                        successors.emplace_back(next_env_state, cost, std::vector<int>{int(scene_graph::Node::Type::kOcc), m_floor_up_action_id_});
+                    }
                 }
                 int floor_num_down = cur_z - 1;
-                if (floor_num_down >= 0) {  // go downstairs
+                if (floor_num_down >= 0 && floor->down_stairs_portal.has_value() && cur_x == floor->down_stairs_portal.value()[0] &&
+                    cur_y == floor->down_stairs_portal.value()[1]) {  // go downstairs
                     auto &floor_down = m_scene_graph_->floors.at(floor_num_down);
-                    ERL_ASSERTM(floor->down_stairs_portal.has_value(), "floor->down_stairs_portal should have value.");
+                    // ERL_ASSERTM(floor->down_stairs_portal.has_value(), "floor->down_stairs_portal should have value.");
                     ERL_ASSERTM(floor_down->up_stairs_portal.has_value(), "floor_down->up_stairs_portal should have value.");
-                    const double &cost = m_down_stairs_cost_maps_.at(cur_z)(cur_x, cur_y);
+                    const double &cost = floor->down_stairs_cost;  // m_down_stairs_cost_maps_.at(cur_z)(cur_x, cur_y);
+                    if (std::isinf(cost)) { return successors; }   // no path to go downstairs (should not happen, but just in case)
                     auto next_env_state = std::make_shared<EnvironmentState>();
                     next_env_state->grid.resize(3);
                     next_env_state->grid[0] = floor_down->up_stairs_portal.value()[0];
                     next_env_state->grid[1] = floor_down->up_stairs_portal.value()[1];
                     next_env_state->grid[2] = floor_num_down;
                     next_env_state->metric = GridToMetric(next_env_state->grid);
-                    successors.emplace_back(next_env_state, cost, std::vector<int>{int(scene_graph::Node::Type::kNA), m_floor_down_action_id_});
+                    successors.emplace_back(next_env_state, cost, std::vector<int>{int(scene_graph::Node::Type::kOcc), m_floor_down_action_id_});
                 }
                 return successors;
             }
@@ -154,6 +179,7 @@ namespace erl::env {
                     auto &path = local_cost_map.path_map(r, c);          // path to reach the object
                     if (path.empty()) { continue; }                      // cannot reach the object
                     const double &cost = local_cost_map.cost_map(r, c);  // cost to reach the object
+                    if (std::isinf(cost)) { continue; }                  // cannot reach the object
                     auto next_env_state = std::make_shared<EnvironmentState>();
                     next_env_state->grid.resize(3);
                     next_env_state->grid[0] = path.back()[0];
@@ -183,6 +209,7 @@ namespace erl::env {
                     int c = cur_y - local_cost_map.grid_min_y;
                     auto &path = local_cost_map.path_map(r, c);
                     const double &cost = local_cost_map.cost_map(r, c);
+                    if (path.empty()) { continue; }  // cannot reach the room
                     auto next_env_state = std::make_shared<EnvironmentState>();
                     next_env_state->grid.resize(3);
                     int &nx = next_env_state->grid[0];
@@ -203,17 +230,20 @@ namespace erl::env {
                 if (floor_num_up < m_scene_graph_->num_floors) {  // go upstairs
                     auto &floor = m_scene_graph_->floors.at(floor_num_up);
                     const double &cost = m_up_stairs_cost_maps_.at(cur_z)(cur_x, cur_y);
-                    auto next_env_state = std::make_shared<EnvironmentState>();
-                    next_env_state->grid.resize(3);
-                    next_env_state->grid[0] = floor->down_stairs_portal.value()[0];
-                    next_env_state->grid[1] = floor->down_stairs_portal.value()[1];
-                    next_env_state->grid[2] = floor_num_up;
-                    next_env_state->metric = GridToMetric(next_env_state->grid);
-                    successors.emplace_back(next_env_state, cost, std::vector<int>{int(scene_graph::Node::Type::kFloor), floor_num_up});
+                    if (!std::isinf(cost)) {
+                        auto next_env_state = std::make_shared<EnvironmentState>();
+                        next_env_state->grid.resize(3);
+                        next_env_state->grid[0] = floor->down_stairs_portal.value()[0];
+                        next_env_state->grid[1] = floor->down_stairs_portal.value()[1];
+                        next_env_state->grid[2] = floor_num_up;
+                        next_env_state->metric = GridToMetric(next_env_state->grid);
+                        successors.emplace_back(next_env_state, cost, std::vector<int>{int(scene_graph::Node::Type::kFloor), floor_num_up});
+                    }
                 }
                 if (floor_num_down >= 0) {  // go downstairs
                     auto &floor = m_scene_graph_->floors.at(floor_num_down);
                     const double &cost = m_down_stairs_cost_maps_.at(cur_z)(cur_x, cur_y);
+                    if (std::isinf(cost)) { return successors; }
                     auto next_env_state = std::make_shared<EnvironmentState>();
                     next_env_state->grid.resize(3);
                     next_env_state->grid[0] = floor->up_stairs_portal.value()[0];
@@ -295,25 +325,28 @@ namespace erl::env {
             }
         }
 
-        GenerateFloorCostMaps();
-        GenerateRoomCostMaps();
-        GenerateObjectCostMaps();
+        GenerateFloorCostMaps();                                                                      // needed by kNA and kFloor actions
+        if (m_setting_->max_level >= scene_graph::Node::Type::kRoom) { GenerateRoomCostMaps(); }      // needed by kRoom actions
+        if (m_setting_->max_level >= scene_graph::Node::Type::kObject) { GenerateObjectCostMaps(); }  // needed by kObject actions
     }
 
     void
     EnvironmentSceneGraph::GenerateAtomicActions() {
         auto &floor = m_scene_graph_->floors[0];
         double floor_height = std::numeric_limits<double>::infinity();
-        for (int i = 1; i < m_scene_graph_->num_floors; ++i) {
-            // get minimum height between two floors to make sure the heuristics is admissible
-            double height = m_scene_graph_->floors[i]->ground_z - m_scene_graph_->floors[i - 1]->ground_z;
-            if (height < floor_height) { floor_height = height; }
+        if (m_scene_graph_->num_floors == 1) {
+            floor_height = 2.0;  // default height for one-floor building, which is not used in the heuristic
+        } else {
+            for (int i = 1; i < m_scene_graph_->num_floors; ++i) {
+                // get minimum height between two floors to make sure the heuristics is admissible
+                double height = m_scene_graph_->floors[i]->ground_z - m_scene_graph_->floors[i - 1]->ground_z;
+                if (height < floor_height) { floor_height = height; }
+            }
         }
-        Eigen::Vector3d grid_map_origin(floor->grid_map_origin.x(), floor->grid_map_origin.y(), 0);
+        Eigen::Vector3d grid_map_origin(floor->grid_map_origin.x(), floor->grid_map_origin.y(), floor->ground_z - 0.5 * floor_height);
         Eigen::Vector3d grid_map_resolution(floor->grid_map_resolution.x(), floor->grid_map_resolution.y(), floor_height);
         Eigen::Vector3i grid_map_size(floor->grid_map_size.x(), floor->grid_map_size.y(), m_scene_graph_->num_floors);
         m_grid_map_info_ = std::make_shared<common::GridMapInfo3D>(grid_map_origin, grid_map_resolution, grid_map_size);
-        // m_floor_grid_map_info_ = std::make_shared<common::GridMapInfo2D>(floor->grid_map_origin, floor->grid_map_resolution, floor->grid_map_size);
 
         double x_res = m_grid_map_info_->Resolution(0);
         double y_res = m_grid_map_info_->Resolution(1);

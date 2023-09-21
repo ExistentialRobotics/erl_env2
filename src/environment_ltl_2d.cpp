@@ -3,7 +3,7 @@
 namespace erl::env {
 
     EnvironmentLTL2D::EnvironmentLTL2D(
-        Eigen::MatrixX<uint64_t> label_map,
+        Eigen::MatrixX<uint32_t> label_map,
         const std::shared_ptr<common::GridMapUnsigned2D> &grid_map,
         std::shared_ptr<Setting> setting,
         std::shared_ptr<CostBase> distance_cost_func)

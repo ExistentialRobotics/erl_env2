@@ -28,6 +28,11 @@ namespace erl::env {
         std::shared_ptr<FiniteStateAutomaton> m_fsa_ = nullptr;
         std::unordered_map<int, Eigen::MatrixX<uint32_t>> m_label_maps_ = {};
 
+        std::unordered_map<int, Eigen::MatrixX<std::vector<int>>> m_up_stairs_path_q_maps_ = {};
+        std::unordered_map<int, Eigen::MatrixX<std::vector<int>>> m_down_stairs_path_q_maps_ = {};
+        std::unordered_map<int, Eigen::MatrixX<std::vector<int>>> m_object_path_q_maps_ = {};
+        std::unordered_map<int, std::unordered_map<int, Eigen::MatrixX<std::vector<int>>>> m_room_path_q_maps_ = {};
+
         friend class erl::search_planning::LLMSceneGraphHeuristic;
 
     public:
@@ -36,6 +41,21 @@ namespace erl::env {
               m_setting_(setting) {
             m_fsa_ = std::make_shared<FiniteStateAutomaton>(m_setting_->fsa);
             GenerateLabelMaps();
+
+            // initialize path_q maps
+            for (auto &[floor_id, cost_map]: m_up_stairs_cost_maps_) { m_up_stairs_path_q_maps_[floor_id].resize(cost_map.rows(), cost_map.cols()); }
+            for (auto &[floor_id, cost_map]: m_down_stairs_cost_maps_) { m_down_stairs_path_q_maps_[floor_id].resize(cost_map.rows(), cost_map.cols()); }
+            for (auto &[obj_id, cost_map]: m_object_cost_maps_) { m_object_path_q_maps_[obj_id].resize(cost_map.cost_map.rows(), cost_map.cost_map.cols()); }
+            for (auto &[room1_id, cost_maps]: m_room_cost_maps_) {
+                for (auto &[room2_id, cost_map]: cost_maps) {
+                    m_room_path_q_maps_[room1_id][room2_id].resize(cost_map.cost_map.rows(), cost_map.cost_map.cols());
+                }
+            }
+        }
+
+        [[nodiscard]] inline std::shared_ptr<Setting>
+        GetSetting() const {
+            return m_setting_;
         }
 
         [[nodiscard]] inline std::shared_ptr<FiniteStateAutomaton>
@@ -69,7 +89,7 @@ namespace erl::env {
                     return !m_object_reached_maps_.at(env_state->grid[2])(env_state->grid[0], env_state->grid[1]).empty();
                 case scene_graph::Node::Type::kRoom:
                     return m_room_maps_[env_state->grid[2]].at<int>(env_state->grid[0], env_state->grid[1]) > 0;
-                case scene_graph::Node::Type::kNA:
+                case scene_graph::Node::Type::kOcc:
                 case scene_graph::Node::Type::kFloor:
                 case scene_graph::Node::Type::kBuilding:
                     return true;
@@ -182,11 +202,17 @@ namespace erl::env {
             return next_env_states;
         }
 
-        std::vector<std::shared_ptr<EnvironmentState>>
+        inline std::vector<std::shared_ptr<EnvironmentState>>
         GetPathToFloor(int xg, int yg, int floor_num, int cur_q, int next_floor_num) const {
             ERL_DEBUG_ASSERT(std::abs(floor_num - next_floor_num) == 1, "floor_num and next_floor_num should differ by 1.");
-            auto &path = m_up_stairs_path_maps_.at(floor_num)(xg, yg);
-            std::vector<std::shared_ptr<EnvironmentState>> next_env_states = ConvertPath(path, floor_num, cur_q);
+            std::vector<std::shared_ptr<EnvironmentState>> next_env_states;
+            if (floor_num < next_floor_num) {  // go upstairs
+                auto &path = m_up_stairs_path_maps_.at(floor_num)(xg, yg);
+                next_env_states = ConvertPath(path, floor_num, cur_q);
+            } else {  // go downstairs
+                auto &path = m_down_stairs_path_maps_.at(floor_num)(xg, yg);
+                next_env_states = ConvertPath(path, floor_num, cur_q);
+            }
             auto next_env_state = std::make_shared<EnvironmentState>();
             auto &floor = m_scene_graph_->floors.at(next_floor_num);
             next_env_state->grid.resize(4);

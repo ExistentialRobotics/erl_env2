@@ -1,4 +1,5 @@
 #include "erl_env/finite_state_automaton.hpp"
+#include <spot/twaalgos/complete.hh>
 
 namespace erl::env {
 
@@ -158,6 +159,8 @@ namespace erl::env {
         ERL_ASSERTM(pa->aut != nullptr, "spot error: pa->aut is nullptr");
         ERL_ASSERTM(pa->aut->num_sets() == 1, "only support single set of accepting states.");
 
+        complete_here(pa->aut);  // complete the automaton
+
         const spot::bdd_dict_ptr &bdd_dict = pa->aut->get_dict();
 
         num_states = pa->aut->num_states();
@@ -174,6 +177,9 @@ namespace erl::env {
             bdd_aps.emplace_back(spot::formula_to_bdd(ap, bdd_dict, this));
             ap_vars &= bdd_aps.back();
         }
+        // get sink states, they should not be added to the accepting states
+        std::vector<bool> sink_states(num_states);
+        for (uint32_t s = 0; s < num_states; ++s) { sink_states[s] = spot_helper::IsSink(pa->aut, s); }
         // extract transitions and accepting states
         std::unordered_set<uint32_t> accepting_set;
         std::vector<std::tuple<uint32_t, uint32_t, std::set<uint32_t>>> loaded_transitions;
@@ -181,7 +187,7 @@ namespace erl::env {
         for (uint32_t s = 0; s < num_states; ++s) {
             auto out_edges = pa->aut->out(s);
             for (auto &t: out_edges) {
-                if (t.acc.count() > 0) { accepting_set.insert(t.dst); }
+                if (t.acc.count() > 0 && !sink_states[t.dst]) { accepting_set.insert(t.dst); }
                 ERL_ASSERTM(spot::bdd_to_formula(t.cond, bdd_dict).is_ltl_formula(), "Only support LTL formula.");
                 auto &[from, to, labels] = loaded_transitions[s * num_states + t.dst];
                 from = t.src;

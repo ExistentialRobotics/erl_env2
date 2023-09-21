@@ -18,11 +18,12 @@ namespace erl::env {
 
     public:
         struct Setting : public common::Yamlable<Setting> {
-            std::string data_dir = {};           // folder to store scene graph data, actions, cost maps and so on
-            long num_threads = 64;               // number of threads to use
-            bool allow_diagonal = true;          // whether allow diagonal movement
-            double object_reach_distance = 0.5;  // distance (meter) to reach an object
-            Eigen::Matrix2Xd shape = {};         // shape of the robot, assume the shape center is at the origin
+            std::string data_dir = {};                                            // folder to store scene graph data, actions, cost maps and so on
+            long num_threads = 64;                                                // number of threads to use
+            bool allow_diagonal = true;                                           // whether allow diagonal movement
+            double object_reach_distance = 0.6;                                   // distance (meter) to reach an object
+            Eigen::Matrix2Xd shape = {};                                          // shape of the robot, assume the shape center is at the origin
+            scene_graph::Node::Type max_level = scene_graph::Node::Type::kFloor;  // maximum resolution level (inclusive)
         };
 
         struct AtomicAction {
@@ -67,10 +68,10 @@ namespace erl::env {
         friend class erl::search_planning::LLMSceneGraphHeuristic;
 
     public:
-        explicit EnvironmentSceneGraph(std::shared_ptr<scene_graph::Building> building, std::shared_ptr<Setting> setting = nullptr)
+        explicit EnvironmentSceneGraph(std::shared_ptr<scene_graph::Building> scene_graph, std::shared_ptr<Setting> setting = nullptr)
             : EnvironmentMultiResolution(),  // just use the interface of EnvironmentBase, no need to use the distance cost function
               m_setting_(std::move(setting)),
-              m_scene_graph_(std::move(building)) {
+              m_scene_graph_(std::move(scene_graph)) {
             ERL_ASSERTM(m_scene_graph_ != nullptr, "scene_graph should not be nullptr.");
             if (m_setting_ == nullptr) { m_setting_ = std::make_shared<Setting>(); }
             GenerateAtomicActions();
@@ -94,7 +95,7 @@ namespace erl::env {
             // 2: kObject
             // 3: kRoom
             // 4: kFloor
-            return 5;
+            return int(m_setting_->max_level) + 2;
         }
 
         [[nodiscard]] inline std::size_t
@@ -129,11 +130,12 @@ namespace erl::env {
             std::vector<Successor> successors;
             successors.reserve(m_scene_graph_->object_ids.size() + m_scene_graph_->room_ids.size());
             for (auto level: {
-                     scene_graph::Node::Type::kNA,
+                     scene_graph::Node::Type::kOcc,
                      scene_graph::Node::Type::kObject,
                      scene_graph::Node::Type::kRoom,
                      scene_graph::Node::Type::kFloor,
                  }) {
+                if (level > m_setting_->max_level) { break; }
                 std::vector<Successor> level_successors = GetSuccessorsAtLevel(env_state, std::size_t(level) + 1);
                 successors.insert(successors.end(), level_successors.begin(), level_successors.end());
             }
@@ -158,7 +160,7 @@ namespace erl::env {
                     return !m_object_reached_maps_.at(env_state->grid[2])(env_state->grid[0], env_state->grid[1]).empty();
                 case scene_graph::Node::Type::kRoom:
                     return m_room_maps_[env_state->grid[2]].at<int>(env_state->grid[0], env_state->grid[1]) > 0;
-                case scene_graph::Node::Type::kNA:
+                case scene_graph::Node::Type::kOcc:
                 case scene_graph::Node::Type::kFloor:
                 case scene_graph::Node::Type::kBuilding:
                     return true;
@@ -260,10 +262,16 @@ namespace erl::env {
         }
 
         inline std::vector<std::shared_ptr<EnvironmentState>>
-        GetPathToFloor(int x, int y, int floor_num, int next_floor_num) const {
+        GetPathToFloor(int xg, int yg, int floor_num, int next_floor_num) const {
             ERL_DEBUG_ASSERT(std::abs(floor_num - next_floor_num) == 1, "floor_num and next_floor_num should differ by 1.");
-            auto &path = m_up_stairs_path_maps_.at(floor_num)(x, y);
-            std::vector<std::shared_ptr<EnvironmentState>> next_env_states = ConvertPath(path, floor_num);
+            std::vector<std::shared_ptr<EnvironmentState>> next_env_states;
+            if (floor_num < next_floor_num) {  // go upstairs
+                auto &path = m_up_stairs_path_maps_.at(floor_num)(xg, yg);
+                next_env_states = ConvertPath(path, floor_num);
+            } else {  // go downstairs
+                auto &path = m_down_stairs_path_maps_.at(floor_num)(xg, yg);
+                next_env_states = ConvertPath(path, floor_num);
+            }
             auto next_env_state = std::make_shared<EnvironmentState>();
             auto &floor = m_scene_graph_->floors.at(next_floor_num);
             next_env_state->grid.resize(3);

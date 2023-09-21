@@ -10,19 +10,19 @@ namespace erl::env::scene_graph {
 
     public:
         enum class Type {
-            kNA = 0,
+            kOcc = 0,
             kObject = 1,
             kRoom = 2,
             kFloor = 3,
             kBuilding = 4,
         };
 
-        int uuid = -1;          // unique scene graph element id
-        int id = -1;            // unique id of the same type
-        int parent_id = -1;     // parent node id (not uuid)
-        int parent_uuid = -1;   // parent node uuid
-        Type type = Type::kNA;  // type of the node
-        std::string name = {};  // node name
+        int uuid = -1;           // unique scene graph element id
+        int id = -1;             // unique id of the same type
+        int parent_id = -1;      // parent node id (not uuid)
+        int parent_uuid = -1;    // parent node uuid
+        Type type = Type::kOcc;  // type of the node
+        std::string name = {};   // node name
 
         Node()
             : uuid(uuid_counter++) {}
@@ -160,7 +160,7 @@ namespace YAML {
         encode(const erl::env::scene_graph::Node::Type& rhs) {
             Node node;
             switch (rhs) {
-                case erl::env::scene_graph::Node::Type::kNA:
+                case erl::env::scene_graph::Node::Type::kOcc:
                     node = "kNA";
                     break;
                 case erl::env::scene_graph::Node::Type::kObject:
@@ -184,7 +184,7 @@ namespace YAML {
             if (!node.IsScalar()) { return false; }
             auto type = node.as<std::string>();
             if (type == "kNA") {
-                rhs = erl::env::scene_graph::Node::Type::kNA;
+                rhs = erl::env::scene_graph::Node::Type::kOcc;
             } else if (type == "kObject") {
                 rhs = erl::env::scene_graph::Node::Type::kObject;
             } else if (type == "kRoom") {
@@ -203,7 +203,7 @@ namespace YAML {
     inline Emitter&
     operator<<(Emitter& out, const erl::env::scene_graph::Node::Type& rhs) {
         switch (rhs) {
-            case erl::env::scene_graph::Node::Type::kNA:
+            case erl::env::scene_graph::Node::Type::kOcc:
                 out << "kNA";
                 break;
             case erl::env::scene_graph::Node::Type::kObject:

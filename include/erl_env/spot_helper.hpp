@@ -8,6 +8,21 @@ namespace erl::env::spot_helper {
     // binary decision diagram: https://en.wikipedia.org/wiki/Binary_decision_diagram
     // spot uses BuDDy: https://buddy.sourceforge.net/manual/main.html
 
+    /**
+     * @brief Check if a state is a sink state.
+     * @param aut
+     * @param n
+     * @return
+     * @note This function is based on spot/twaalgos/neverclaim.cc:92
+     */
+    inline bool
+    IsSink(const spot::twa_graph_ptr &aut, uint32_t n) {
+        auto ts = aut->out(n);
+        assert(ts.begin() != ts.end());
+        auto it = ts.begin();
+        return (it->cond == bddtrue) && (it->dst == n) && (++it == ts.end());
+    }
+
     inline int
     GetNumberOfAtomicPropositions() {
         return bdd_varnum();

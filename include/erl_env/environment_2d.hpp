@@ -105,7 +105,7 @@ namespace erl::env {
         ForwardAction(const std::shared_ptr<const EnvironmentState> &env_state, const std::vector<int> &action_coords) const override {
             ERL_ASSERTM(action_coords.size() == 1, "Invalid action_coords size: %lu.", action_coords.size());
             auto new_state = std::make_shared<EnvironmentState>();
-            new_state->grid = env_state->grid + m_grid_motion_primitive_.controls[action_coords[0]];
+            new_state->grid = env_state->grid + m_setting_->step_size * m_grid_motion_primitive_.controls[action_coords[0]];
             new_state->metric = GridToMetric(new_state->grid);
             return {new_state};
         }

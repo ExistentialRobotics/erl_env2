@@ -40,11 +40,11 @@ namespace erl::env {
         cv::Mat m_original_grid_map_;                             // original grid map, where each cell is a scaled cost value
         cv::Mat m_grid_map_;                                      // inflated grid map
         std::shared_ptr<common::GridMapInfo3D> m_grid_map_info_;  // grid map description (x, y, q), x to the bottom, y to the right, along y first
-        Eigen::MatrixX<uint64_t> m_label_map_;                    // each element is a |AP|-bit word representing the result of atomic propositions
+        Eigen::MatrixX<uint32_t> m_label_map_;                    // each element is a |AP|-bit word representing the result of atomic propositions
 
     public:
         EnvironmentLTL2D(
-            Eigen::MatrixX<uint64_t> label_map,
+            Eigen::MatrixX<uint32_t> label_map,
             const std::shared_ptr<common::GridMapUnsigned2D> &grid_map,
             std::shared_ptr<Setting> setting,
             std::shared_ptr<CostBase> distance_cost_func = nullptr);

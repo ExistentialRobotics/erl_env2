@@ -2,7 +2,11 @@ import importlib
 import os
 import subprocess
 import sys
-import tomllib
+
+if sys.version_info.major == 3 and sys.version_info.minor < 11:
+    import toml as tomllib
+else:
+    import tomllib
 
 from setuptools import Extension
 from setuptools import find_packages
@@ -73,8 +77,8 @@ for dependency in erl_dependencies:
         [
             cmake_path,
             src_dir,
-            "-DCMAKE_BUILD_TYPE=" + build_type,
-            "-DCMAKE_INSTALL_PREFIX=" + temp_install_dir,
+            f"-DCMAKE_BUILD_TYPE={build_type}",
+            f"-DCMAKE_INSTALL_PREFIX={temp_install_dir}",
             f"-DCMAKE_VERBOSE_MAKEFILE:BOOL=ON",
         ],
         cwd=temp_build_dir,
@@ -146,6 +150,14 @@ for i, require in enumerate(requires):
         left, pkg_name = require.split("=")
         pkg_name = pkg_name.strip()
         requires[i] = f"{pkg_name} @ {require.strip()}"
+
+# if os.path.exists("entry_points.txt"):
+#     with open("entry_points.txt", "r") as f:
+#         entry_points = f.readlines()
+# else:
+#     entry_points = []
+# for i, entry_point in enumerate(entry_points):
+#     entry_points[i] = entry_point.strip()
 
 setup(
     name=python_pkg_name,

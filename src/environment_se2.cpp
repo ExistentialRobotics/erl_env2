@@ -296,7 +296,8 @@ namespace erl::env {
                     auto &rel_grid = grid_rel_trajectory[i]->grid;
                     x_g = rel_grid[0] + env_state->grid[0];
                     y_g = rel_grid[1] + env_state->grid[1];
-                    theta_g = rel_grid[2];
+                    theta_g = rel_grid[2] + env_state->grid[2];
+                    if (theta_g >= m_setting_->num_orientations) { theta_g -= m_setting_->num_orientations; }
 
                     if (x_g < 0 || x_g >= x_len || y_g < 0 || y_g >= y_len) {  // out of grid map
                         collided = true;

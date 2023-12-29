@@ -58,6 +58,16 @@ namespace erl::env {
 
         virtual ~EnvironmentBase() = default;
 
+        [[nodiscard]] inline std::shared_ptr<CostBase>
+        GetDistanceCostFunc() const {
+            return m_distance_cost_func_;
+        }
+
+        [[nodiscard]] inline double
+        GetTimeStep() const {
+            return m_time_step_;
+        }
+
         [[nodiscard]] virtual std::size_t
         GetStateSpaceSize() const = 0;
 
@@ -72,16 +82,6 @@ namespace erl::env {
          */
         [[nodiscard]] virtual std::vector<std::shared_ptr<EnvironmentState>>
         ForwardAction(const std::shared_ptr<const EnvironmentState> &env_state, const std::vector<int> &action_coords) const = 0;
-
-        [[nodiscard]] inline std::shared_ptr<CostBase>
-        GetDistanceCostFunc() const {
-            return m_distance_cost_func_;
-        }
-
-        [[nodiscard]] inline double
-        GetTimeStep() const {
-            return m_time_step_;
-        }
 
         /**
          * Get reachable next environment states with the current state. Collision check is applied.

@@ -13,13 +13,13 @@ namespace erl::env {
     class EnvironmentLTLSceneGraph : public EnvironmentSceneGraph {
     public:
         struct Setting : public common::OverrideYamlable<EnvironmentSceneGraph::Setting, Setting> {
-            std::unordered_map<std::string, AtomicProposition> atomic_propositions;
+            std::unordered_map<std::string, std::shared_ptr<AtomicProposition>> atomic_propositions;
             std::shared_ptr<FiniteStateAutomaton::Setting> fsa;  // finite state automaton
 
             void
             LoadAtomicPropositions(const std::string &yaml_file) {
                 YAML::Node node = YAML::LoadFile(yaml_file);
-                YAML::convert<std::unordered_map<std::string, AtomicProposition>>::decode(node, atomic_propositions);
+                YAML::convert<std::unordered_map<std::string, std::shared_ptr<AtomicProposition>>>::decode(node, atomic_propositions);
             }
         };
 
@@ -123,7 +123,7 @@ namespace erl::env {
                 grid_state[3]);
         }
 
-        [[nodiscard]] cv::Mat
+        [[nodiscard]] inline cv::Mat
         ShowPaths(const std::map<int, Eigen::MatrixXd> &) const override {
             throw NotImplemented(__PRETTY_FUNCTION__);
         }
@@ -133,15 +133,15 @@ namespace erl::env {
         GenerateLabelMaps();
 
         inline bool
-        EvaluateAtomicProposition(int x, int y, int floor_num, const AtomicProposition &proposition) {
-            switch (proposition.type) {
+        EvaluateAtomicProposition(int x, int y, int floor_num, const std::shared_ptr<AtomicProposition> &proposition) {
+            switch (proposition->type) {
                 case AtomicProposition::Type::kNA:
                     return false;
                 case AtomicProposition::Type::kEnterRoom:
-                    return EvaluateEnterRoom(x, y, floor_num, proposition.uuid);
+                    return EvaluateEnterRoom(x, y, floor_num, proposition->uuid);
                 case AtomicProposition::Type::kReachObject: {
-                    double reach_distance = proposition.reach_distance > 0 ? proposition.reach_distance : m_setting_->object_reach_distance;
-                    return EvaluateReachObject(x, y, floor_num, proposition.uuid, reach_distance);
+                    double reach_distance = proposition->reach_distance > 0 ? proposition->reach_distance : m_setting_->object_reach_distance;
+                    return EvaluateReachObject(x, y, floor_num, proposition->uuid, reach_distance);
                 }
                 default:
                     throw std::runtime_error("Unknown atomic proposition type.");
@@ -154,87 +154,15 @@ namespace erl::env {
             return m_room_maps_[floor_num].at<int>(x, y) == room->id;
         }
 
-        inline bool
-        EvaluateReachObject(int x, int y, int floor_num, int uuid, double reach_distance) {
-            auto half_rows = int(reach_distance / m_grid_map_info_->Resolution(0));
-            if (half_rows == 0) { half_rows = 1; }
-            auto half_cols = int(reach_distance / m_grid_map_info_->Resolution(1));
-            if (half_cols == 0) { half_cols = 1; }
-
-            int object_id = m_scene_graph_->GetNode<scene_graph::Object>(uuid)->id;
-            auto &cat_map = m_cat_maps_[floor_num];
-            int roi_min_x = x - half_rows;
-            int roi_min_y = y - half_cols;
-            int roi_max_x = x + half_rows;
-            int roi_max_y = y + half_cols;
-            if (roi_min_x < 0) { roi_min_x = 0; }
-            if (roi_min_y < 0) { roi_min_y = 0; }
-            if (roi_max_x >= cat_map.rows) { roi_max_x = cat_map.rows - 1; }
-            if (roi_max_y >= cat_map.cols) { roi_max_y = cat_map.cols - 1; }
-            for (int r = roi_min_x; r <= roi_max_x; ++r) {
-                for (int c = roi_min_y; c <= roi_max_y; ++c) {
-                    if (cat_map.at<int>(r, c) == object_id) { return true; }
-                }
-            }
-            return false;
-        }
+        bool
+        EvaluateReachObject(int x, int y, int floor_num, int uuid, double reach_distance);
 
     private:
         std::vector<std::shared_ptr<EnvironmentState>>
-        ConvertPath(const std::vector<std::array<int, 2>> &path, int floor_num, int cur_q) const {
-            std::vector<std::shared_ptr<EnvironmentState>> next_env_states;
-            next_env_states.reserve(path.size() + 1);
-            for (auto &point: path) {
-                auto next_env_state = std::make_shared<EnvironmentState>();
-                next_env_state->grid.resize(4);
-                int &nx = next_env_state->grid[0];
-                int &ny = next_env_state->grid[1];
-                int &nz = next_env_state->grid[2];
-                int &nq = next_env_state->grid[3];
-                nx = point[0];
-                ny = point[1];
-                nz = floor_num;
-                nq = int(m_fsa_->GetNextState(cur_q, m_label_maps_.at(nz)(nx, ny)));
-                cur_q = nq;  // update cur_q
-                next_env_state->metric = GridToMetric(next_env_state->grid);
-                next_env_states.push_back(next_env_state);
-            }
-            return next_env_states;
-        }
+        ConvertPath(const std::vector<std::array<int, 2>> &path, int floor_num, int cur_q) const;
 
-        inline std::vector<std::shared_ptr<EnvironmentState>>
-        GetPathToFloor(int xg, int yg, int floor_num, int cur_q, int next_floor_num) const {
-            ERL_DEBUG_ASSERT(std::abs(floor_num - next_floor_num) == 1, "floor_num and next_floor_num should differ by 1.");
-            std::vector<std::shared_ptr<EnvironmentState>> next_env_states;
-            if (floor_num < next_floor_num) {  // go upstairs
-                auto &path = m_up_stairs_path_maps_.at(floor_num)(xg, yg);
-                next_env_states = ConvertPath(path, floor_num, cur_q);
-            } else {  // go downstairs
-                auto &path = m_down_stairs_path_maps_.at(floor_num)(xg, yg);
-                next_env_states = ConvertPath(path, floor_num, cur_q);
-            }
-            auto next_env_state = std::make_shared<EnvironmentState>();
-            auto &floor = m_scene_graph_->floors.at(next_floor_num);
-            next_env_state->grid.resize(4);
-            int &nx = next_env_state->grid[0];
-            int &ny = next_env_state->grid[1];
-            int &nz = next_env_state->grid[2];
-            int &nq = next_env_state->grid[3];
-            if (floor_num < next_floor_num) {  // go upstairs
-                nx = floor->down_stairs_portal.value()[0];
-                ny = floor->down_stairs_portal.value()[1];
-                nz = next_floor_num;
-            } else {  // go downstairs
-                nx = floor->up_stairs_portal.value()[0];
-                ny = floor->up_stairs_portal.value()[1];
-                nz = next_floor_num;
-            }
-            if (!next_env_states.empty()) { cur_q = next_env_states.back()->grid[3]; }
-            nq = int(m_fsa_->GetNextState(cur_q, m_label_maps_.at(next_floor_num)(nx, ny)));
-            next_env_state->metric = GridToMetric(next_env_state->grid);
-            next_env_states.push_back(next_env_state);
-            return next_env_states;
-        }
+        std::vector<std::shared_ptr<EnvironmentState>>
+        GetPathToFloor(int xg, int yg, int floor_num, int cur_q, int next_floor_num) const;
     };
 }  // namespace erl::env
 
@@ -252,7 +180,7 @@ namespace YAML {
         inline static bool
         decode(const Node &node, erl::env::EnvironmentLTLSceneGraph::Setting &rhs) {
             if (!convert<erl::env::EnvironmentSceneGraph::Setting>::decode(node, rhs)) { return false; }
-            rhs.atomic_propositions = node["atomic_propositions"].as<std::unordered_map<std::string, erl::env::AtomicProposition>>();
+            rhs.atomic_propositions = node["atomic_propositions"].as<std::unordered_map<std::string, std::shared_ptr<erl::env::AtomicProposition>>>();
             rhs.fsa = node["fsa"].as<std::shared_ptr<erl::env::FiniteStateAutomaton::Setting>>();
             return true;
         }

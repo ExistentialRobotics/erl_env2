@@ -10,7 +10,7 @@
 
 namespace erl::env {
 
-    class Environment2D : virtual public EnvironmentBase {  // virtual inheritance is used to avoid diamond problem
+    class Environment2D : public EnvironmentBase {
 
     public:
         enum class Action {

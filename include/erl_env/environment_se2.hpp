@@ -9,7 +9,7 @@
 
 namespace erl::env {
 
-    class EnvironmentSe2 : virtual public EnvironmentBase {
+    class EnvironmentSe2 : public EnvironmentBase {
 
     public:
         struct Setting : public common::Yamlable<Setting> {
@@ -116,7 +116,7 @@ namespace erl::env {
         [[nodiscard]] std::vector<Successor>
         GetSuccessors(const std::shared_ptr<EnvironmentState> &env_state) const override;
 
-        [[nodiscard]] bool
+        [[nodiscard]] inline bool
         InStateSpace(const std::shared_ptr<EnvironmentState> &env_state) const override {
             return m_grid_map_info_->InGrids(env_state->grid);
         }
@@ -161,7 +161,7 @@ namespace erl::env {
 namespace YAML {
     template<>
     struct convert<erl::env::EnvironmentSe2::Setting> {
-        static Node
+        inline static Node
         encode(const erl::env::EnvironmentSe2::Setting &rhs) {
             Node node;
             node["time_step"] = rhs.time_step;
@@ -174,7 +174,7 @@ namespace YAML {
             return node;
         }
 
-        static bool
+        inline static bool
         decode(const Node &node, erl::env::EnvironmentSe2::Setting &rhs) {
             rhs.time_step = node["time_step"].as<double>();
             rhs.motion_primitives = node["motion_primitives"].as<std::vector<erl::env::DdcMotionPrimitive>>();

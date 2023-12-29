@@ -1,7 +1,11 @@
-from erl_common.yaml import YamlableBase
-from erl_env.pyerl_env import *
+# import pybind dependencies
+import erl_common as common
+
+# import package modules
+from .pyerl_env import *
 
 __all__ = [
+    "common",
     "EnvironmentState",
     "Successor",
     "CostBase",

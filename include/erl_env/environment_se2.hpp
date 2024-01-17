@@ -16,6 +16,7 @@ namespace erl::env {
             double time_step = 0.05;
             std::vector<DdcMotionPrimitive> motion_primitives;
             int num_orientations = 16;
+            double cost_theta_weight = 0.0;
             uint8_t obstacle_threshold = 1;
             bool add_map_cost = false;
             double map_cost_factor = 1.0;
@@ -27,30 +28,15 @@ namespace erl::env {
         cv::Mat m_original_grid_map_;
         std::vector<cv::Mat> m_inflated_grid_maps_;
         std::shared_ptr<common::GridMapInfo3D> m_grid_map_info_;
-
-        // clang-format off
-        /*
-         * for each motion primitive:
-         *      for each control: matrix of relative metric trajectory starting from [0, 0, 0], where each column is a state vector.
-         */
-        std::vector<std::vector<Eigen::MatrixXd>> m_metric_rel_trajectories_;
-
-        /*
-         * for each orientation theta
-         *      for each motion primitive
-         *          for each control: matrix of relative grid trajectory starting from [x_center, y_center, theta], where each column is a state vector.
-         */
-        std::vector<std::vector<std::vector<std::vector<std::shared_ptr<EnvironmentState>>>>> m_grid_rel_trajectories_;
-        // ^^^^^^^^    ^^^^^^^^       ^^^^^      ^^^^^^
-        //  theta   motion primitive  control    trajectory
-        // clang-format on
+        // [theta][motion_primitive][control][trajectory_waypoint_index]
+        std::vector<std::vector<std::vector<std::vector<std::shared_ptr<EnvironmentState>>>>> m_rel_trajectories_;
 
         /*
          * for each orientation
          *     for each unique relative successor (distinguished by grid state hashing)
          *         controls that lead to the successor, sorted by cost (ascending)
          */
-        struct GridRelSuccessorInfo {
+        struct RelSuccessorInfo {
             std::shared_ptr<EnvironmentState> rel_state = nullptr;
             std::vector<std::size_t> orders;
             std::vector<int> motion_indices;
@@ -59,10 +45,7 @@ namespace erl::env {
             std::vector<double> costs;
         };
 
-        std::vector<std::vector<GridRelSuccessorInfo>> m_grid_rel_successors_;
-        // std::vector<std::map<std::size_t, GridRelSuccessorInfo>> m_grid_rel_successors_;
-        //                   ^^^^^^^^^^^
-        //            hashing of ref grid state
+        std::vector<std::vector<RelSuccessorInfo>> m_rel_successors_;
 
     public:
         /**
@@ -147,7 +130,7 @@ namespace erl::env {
         }
 
         [[nodiscard]] cv::Mat
-        ShowPaths(const std::map<int, Eigen::MatrixXd> &paths) const override;
+        ShowPaths(const std::map<int, Eigen::MatrixXd> &paths, bool block) const override;
 
     private:
         [[nodiscard]] inline std::size_t

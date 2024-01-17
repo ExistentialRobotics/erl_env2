@@ -26,8 +26,8 @@ namespace erl::env {
     DifferentialDriveKinematic(double x, double y, double theta, double linear_v, double angular_v, double t, double &new_x, double &new_y, double &new_theta) {
 
         auto w = angular_v * t;
-        new_theta = common::ClipAngle(theta + w);
-        if (std::abs(w) < 0.0001) {
+        new_theta = common::WrapAnglePi(theta + w);
+        if (std::abs(w) < 1.e-6) {
             new_x = x + t * linear_v * std::cos(new_theta);
             new_y = y + t * linear_v * std::sin(new_theta);
         } else {

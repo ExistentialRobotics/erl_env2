@@ -61,35 +61,24 @@ class EnvironmentBase:
     def state_hashing(self: EnvironmentBase, env_state: EnvironmentState) -> int: ...
     def metric_to_grid(self: EnvironmentBase, metric_state: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]: ...
     def grid_to_metric(self: EnvironmentBase, grid_state: npt.NDArray[np.int32]) -> npt.NDArray[np.int32]: ...
-    def show_paths(self: EnvironmentBase, paths: Dict[int, npt.NDArray[np.float]]) -> None: ...
+    def show_paths(self: EnvironmentBase, paths: Dict[int, npt.NDArray[np.float64]]) -> None: ...
 
 class Environment2D(EnvironmentBase):
-    class Action(IntEnum):
-        kForward = (0,)
-        kBack = (1,)
-        kRight = (2,)
-        kLeft = (3,)
-        kForwardRight = (4,)
-        kForwardLeft = (5,)
-        kBackRight = (6,)
-        kBackLeft = 7
-
     class Setting(YamlableBase):
-        allow_diagonal: bool
-        step_size: int
-        down_sampled: bool
+        controls: list[np.ndarray]
         obstacle_threshold: float
         add_map_cost: bool
         map_cost_factor: float
         shape: npt.NDArray[np.float64]
+
+        def set_grid_motion_primitive(self, max_axis_step: int, allow_diagonal: bool) -> None: ...
+
     def __init__(
         self: Environment2D,
         grid_map: GridMapUnsigned2D,
         setting: Setting = None,
         distance_cost_func: CostBase = None,
     ) -> None: ...
-    @staticmethod
-    def get_action_from_name(action_name: str) -> Action: ...
 
 class DifferentialDriveControl:
     @overload
@@ -162,8 +151,7 @@ class EnvironmentGridAnchor2D(EnvironmentAnchor):
         self: EnvironmentGridAnchor2D, environments: List[EnvironmentBase], grid_map_info: GridMapInfo2D
     ) -> None: ...
 
-
 class EnvironmentGridAnchor3D(EnvironmentAnchor):
     def __init__(
-            self: EnvironmentGridAnchor3D, environments: List[EnvironmentBase], grid_map_info: GridMapInfo3D
+        self: EnvironmentGridAnchor3D, environments: List[EnvironmentBase], grid_map_info: GridMapInfo3D
     ) -> None: ...

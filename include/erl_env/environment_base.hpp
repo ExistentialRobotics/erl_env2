@@ -104,7 +104,7 @@ namespace erl::env {
         GridToMetric(const Eigen::Ref<const Eigen::VectorXi> &grid_state) const = 0;
 
         [[nodiscard]] virtual cv::Mat
-        ShowPaths(const std::map<int, Eigen::MatrixXd> &) const = 0;
+        ShowPaths(const std::map<int, Eigen::MatrixXd> & paths, bool block) const = 0;
 
     protected:
         static void

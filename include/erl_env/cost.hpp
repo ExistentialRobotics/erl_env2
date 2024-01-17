@@ -20,10 +20,29 @@ namespace erl::env {
             long n = state1.metric.size();
             double distance = 0.0;
             for (long i = 0; i < n; ++i) {
-                double diff = std::abs(state1.metric[i] - state2.metric[i]);
+                double diff = state1.metric[i] - state2.metric[i];
                 distance += diff * diff;
             }
             distance = std::sqrt(distance);
+            return distance;
+        }
+    };
+
+    struct Se2Cost : public CostBase {
+        double w_theta = 0;
+
+        explicit Se2Cost(double w_theta_in = 1.0)
+            : w_theta(w_theta_in) {}
+
+        inline double operator()(const EnvironmentState& state1, const EnvironmentState& state2) const override {
+            ERL_ASSERTM(state1.metric.size() == 3, "state1 should be [x, y, theta].");
+            ERL_ASSERTM(state2.metric.size() == 3, "state2 should be [x, y, theta].");
+
+            double diff_x = state1.metric[0] - state2.metric[0];
+            double diff_y = state1.metric[1] - state2.metric[1];
+            double diff_theta = std::abs(state1.metric[2] - state2.metric[2]);
+            diff_theta = std::min(diff_theta, 2 * M_PI - diff_theta);
+            double distance = std::sqrt(diff_x * diff_x + diff_y * diff_y + w_theta * diff_theta * diff_theta);
             return distance;
         }
     };

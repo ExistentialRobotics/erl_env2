@@ -74,8 +74,8 @@ public:
     }
 
     [[nodiscard]] cv::Mat
-    ShowPaths(const std::map<int, Eigen::MatrixXd> &paths) const override {
-        PYBIND11_OVERRIDE_PURE_NAME(cv::Mat, EnvBase, "show_paths", ShowPaths, paths);
+    ShowPaths(const std::map<int, Eigen::MatrixXd> &paths, bool block) const override {
+        PYBIND11_OVERRIDE_PURE_NAME(cv::Mat, EnvBase, "show_paths", ShowPaths, paths, block);
     }
 };
 
@@ -243,30 +243,22 @@ BindEnvironments(py::module &m) {
         .def("state_hashing", &EnvironmentBase::StateHashing, py::arg("env_state").none(false))
         .def("metric_to_grid", &EnvironmentBase::MetricToGrid, py::arg("metric_state"))
         .def("grid_to_metric", &EnvironmentBase::GridToMetric, py::arg("grid_state"))
-        .def("show_paths", &EnvironmentBase::ShowPaths, py::arg("paths"));
+        .def("show_paths", &EnvironmentBase::ShowPaths, py::arg("paths"), py::arg("block"));
 
     auto env_2d = py::class_<Environment2D, EnvironmentBase, std::shared_ptr<Environment2D>>(m, "Environment2D");
-
-    py::enum_<Environment2D::Action>(env_2d, "Action", py::arithmetic(), "Action in 2D grid environment.")
-        .value(Environment2D::GetActionName(Environment2D::Action::kForward), Environment2D::Action::kForward)
-        .value(Environment2D::GetActionName(Environment2D::Action::kBack), Environment2D::Action::kBack)
-        .value(Environment2D::GetActionName(Environment2D::Action::kRight), Environment2D::Action::kRight)
-        .value(Environment2D::GetActionName(Environment2D::Action::kLeft), Environment2D::Action::kLeft)
-        .value(Environment2D::GetActionName(Environment2D::Action::kForwardRight), Environment2D::Action::kForwardRight)
-        .value(Environment2D::GetActionName(Environment2D::Action::kForwardLeft), Environment2D::Action::kForwardLeft)
-        .value(Environment2D::GetActionName(Environment2D::Action::kBackRight), Environment2D::Action::kBackRight)
-        .value(Environment2D::GetActionName(Environment2D::Action::kBackLeft), Environment2D::Action::kBackLeft)
-        .export_values();
-
     py::class_<Environment2D::Setting, YamlableBase, std::shared_ptr<Environment2D::Setting>>(env_2d, "Setting")
         .def(py::init<>())
-        .def_readwrite("allow_diagonal", &Environment2D::Setting::allow_diagonal)
-        .def_readwrite("step_size", &Environment2D::Setting::step_size)
-        .def_readwrite("down_sampled", &Environment2D::Setting::down_sampled)
+        .def_readwrite("motions", &Environment2D::Setting::motions)
+        .def_readwrite("grid_stride", &Environment2D::Setting::grid_stride)
         .def_readwrite("obstacle_threshold", &Environment2D::Setting::obstacle_threshold)
         .def_readwrite("add_map_cost", &Environment2D::Setting::add_map_cost)
         .def_readwrite("map_cost_factor", &Environment2D::Setting::map_cost_factor)
-        .def_readwrite("shape", &Environment2D::Setting::shape);
+        .def_readwrite("shape", &Environment2D::Setting::shape)
+        .def(
+            "set_grid_motion_primitive",
+            &Environment2D::Setting::SetGridMotionPrimitive,
+            py::arg("max_axis_step"),
+            py::arg("allow_diagonal"));
 
     env_2d
         .def(
@@ -274,9 +266,7 @@ BindEnvironments(py::module &m) {
             py::arg("grid_map"),
             py::arg("setting") = nullptr,
             py::arg("distance_cost_func") = nullptr)
-        .def_property_readonly("setting", &Environment2D::GetSetting)
-        .def_static("get_action_name", &Environment2D::GetActionName, py::arg("action"))
-        .def_static("get_action_from_name", &Environment2D::GetActionFromName, py::arg("action_name"));
+        .def_property_readonly("setting", &Environment2D::GetSetting);
 
     auto env_se2 = py::class_<EnvironmentSe2, EnvironmentBase, std::shared_ptr<EnvironmentSe2>>(m, "EnvironmentSe2");
 
@@ -315,7 +305,7 @@ BindEnvironments(py::module &m) {
             py::arg("environments"),
             py::arg("grid_map_info").none(false));
 
-    py::class_<EnvironmentGridAnchor3D, EnvironmentAnchor, std::shared_ptr<EnvironmentGridAnchor3D>>(m, ERL_AS_STRING(EnvironmentGridAnchor3D))
+    py::class_<EnvironmentGridAnchor3D, EnvironmentAnchor, std::shared_ptr<EnvironmentGridAnchor3D>>(m, "EnvironmentGridAnchor3D")
         .def(
             py::init<std::vector<std::shared_ptr<EnvironmentBase>>, std::shared_ptr<GridMapInfo3D>>(),
             py::arg("environments"),

@@ -195,7 +195,7 @@ namespace erl::env {
         }
 
         [[nodiscard]] cv::Mat
-        ShowPaths(const std::map<int, Eigen::MatrixXd> &) const override {
+        ShowPaths(const std::map<int, Eigen::MatrixXd> &, bool) const override {
             throw NotImplemented(__PRETTY_FUNCTION__);
         }
 

@@ -11,6 +11,12 @@ namespace erl::env {
 
         EnvironmentState() = default;
 
+        explicit EnvironmentState(Eigen::VectorXd metric_state)
+            : metric(std::move(metric_state)) {}
+
+        explicit EnvironmentState(Eigen::VectorXi grid_state)
+            : grid(std::move(grid_state)) {}
+
         EnvironmentState(Eigen::VectorXd metric_state, Eigen::VectorXi grid_state)
             : metric(std::move(metric_state)),
               grid(std::move(grid_state)) {}

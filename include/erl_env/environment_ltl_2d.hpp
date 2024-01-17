@@ -19,24 +19,47 @@ namespace erl::env {
      */
     class EnvironmentLTL2D : public EnvironmentBase {
     public:
-        typedef MotionPrimitive<Eigen::Vector2i> GridMotionPrimitive;  // control signal is 2D-grid movement
-
         struct Setting : public common::Yamlable<Setting> {
-            bool allow_diagonal = true;                          // allow diagonal movement
-            int step_size = 1;                                   // step size in grid space
-            bool down_sampled = false;                           // indicate whether the state space is down sampled by step_size
+            std::vector<Eigen::Vector2i> motions;                // 2d grid motions
+            int grid_stride = 1;                                 // grid stride in grid space
             uint8_t obstacle_threshold = 1;                      // minimum map value to be considered as obstacle
             bool add_map_cost = false;                           // indicate whether to add map cost to the successor cost
             double map_cost_factor = 1.0;                        // map cost = map_cost_factor * map_cost
             Eigen::Matrix2Xd shape = {};                         // assume the shape center is at the origin
             std::shared_ptr<FiniteStateAutomaton::Setting> fsa;  // finite state automaton
+
+            inline void
+            SetGridMotionPrimitive(int max_axis_step, bool allow_diagonal) {
+                motions.clear();
+                ERL_ASSERTM(max_axis_step > 0, "max_axis_step must be positive.");
+                int num_controls = max_axis_step * 2 + 1;
+                if (allow_diagonal) {
+                    num_controls = num_controls * num_controls - 1;
+                    motions.reserve(num_controls);
+                    for (int i = -max_axis_step; i <= max_axis_step; ++i) {
+                        for (int j = -max_axis_step; j <= max_axis_step; ++j) {
+                            if (i == 0 && j == 0) { continue; }
+                            motions.emplace_back(i, j);
+                        }
+                    }
+                } else {
+                    num_controls = num_controls * 2 - 2;
+                    motions.reserve(num_controls);
+                    for (int i = -max_axis_step; i <= max_axis_step; ++i) {
+                        if (i == 0) { continue; }
+                        motions.emplace_back(i, 0);
+                        motions.emplace_back(0, i);
+                    }
+                }
+            }
         };
 
     private:
         std::shared_ptr<Setting> m_setting_;
         std::shared_ptr<FiniteStateAutomaton> m_fsa_;
-        GridMotionPrimitive m_grid_motion_primitive_;             // motion primitives in grid space
-        std::vector<double> m_motion_cost_;                       // cost of each motion primitive
+        std::vector<Eigen::Matrix2Xi> m_rel_trajectories_;        // relative trajectories of motion primitives
+        std::vector<double> m_motion_costs_;                      // cost of each control
+        Eigen::MatrixX<std::vector<int>> m_reachable_motions_;   // reachable controls for each grid
         cv::Mat m_original_grid_map_;                             // original grid map, where each cell is a scaled cost value
         cv::Mat m_grid_map_;                                      // inflated grid map
         std::shared_ptr<common::GridMapInfo3D> m_grid_map_info_;  // grid map description (x, y, q), x to the bottom, y to the right, along y first
@@ -71,7 +94,7 @@ namespace erl::env {
 
         [[nodiscard]] inline std::size_t
         GetActionSpaceSize() const override {
-            return m_grid_motion_primitive_.controls.size();
+            return m_setting_->motions.size();
         }
 
         [[nodiscard]] inline std::vector<std::shared_ptr<EnvironmentState>>
@@ -83,7 +106,7 @@ namespace erl::env {
         [[nodiscard]] inline bool
         InStateSpace(const std::shared_ptr<EnvironmentState> &env_state) const override {
             return m_grid_map_info_->InGrids(env_state->grid) &&
-                   (!m_setting_->down_sampled || (env_state->grid[0] % m_setting_->step_size == 0 && env_state->grid[1] % m_setting_->step_size == 0));
+                   (m_setting_->grid_stride == 1 || (env_state->grid[0] % m_setting_->grid_stride == 0 && env_state->grid[1] % m_setting_->grid_stride == 0));
         }
 
         [[nodiscard]] inline uint32_t
@@ -115,7 +138,7 @@ namespace erl::env {
         }
 
         [[nodiscard]] cv::Mat
-        ShowPaths(const std::map<int, Eigen::MatrixXd> &paths) const override;
+        ShowPaths(const std::map<int, Eigen::MatrixXd> &paths, bool block) const override;
     };
 }  // namespace erl::env
 
@@ -125,9 +148,8 @@ namespace YAML {
         inline static Node
         encode(const erl::env::EnvironmentLTL2D::Setting &rhs) {
             Node node;
-            node["allow_diagonal"] = rhs.allow_diagonal;
-            node["step_size"] = rhs.step_size;
-            node["down_sampled"] = rhs.down_sampled;
+            node["motions"] = rhs.motions;
+            node["grid_stride"] = rhs.grid_stride;
             node["obstacle_threshold"] = rhs.obstacle_threshold;
             node["add_map_cost"] = rhs.add_map_cost;
             node["map_cost_factor"] = rhs.map_cost_factor;
@@ -138,9 +160,8 @@ namespace YAML {
 
         inline static bool
         decode(const Node &node, erl::env::EnvironmentLTL2D::Setting &rhs) {
-            rhs.allow_diagonal = node["allow_diagonal"].as<bool>();
-            rhs.step_size = node["step_size"].as<int>();
-            rhs.down_sampled = node["down_sampled"].as<bool>();
+            rhs.motions = node["motions"].as<std::vector<Eigen::Vector2i>>();
+            rhs.grid_stride = node["grid_stride"].as<int>();
             rhs.obstacle_threshold = node["obstacle_threshold"].as<uint8_t>();
             rhs.add_map_cost = node["add_map_cost"].as<bool>();
             rhs.map_cost_factor = node["map_cost_factor"].as<double>();
@@ -153,9 +174,8 @@ namespace YAML {
     inline Emitter &
     operator<<(Emitter &out, const erl::env::EnvironmentLTL2D::Setting &rhs) {
         out << BeginMap;
-        out << Key << "allow_diagonal" << Value << rhs.allow_diagonal;
-        out << Key << "step_size" << Value << rhs.step_size;
-        out << Key << "down_sampled" << Value << rhs.down_sampled;
+        out << Key << "motions" << Value << rhs.motions;
+        out << Key << "grid_stride" << Value << rhs.grid_stride;
         out << Key << "obstacle_threshold" << Value << rhs.obstacle_threshold;
         out << Key << "add_map_cost" << Value << rhs.add_map_cost;
         out << Key << "map_cost_factor" << Value << rhs.map_cost_factor;

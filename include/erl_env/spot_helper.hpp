@@ -98,7 +98,7 @@ namespace erl::env::spot_helper {
                         label |= (1 << i);
                         continue;
                     }
-                    ERL_ASSERTM(flags[i] != kDONT_CARE, "current bdd is not a minterm?!");
+                    ERL_DEBUG_ASSERT(flags[i] != kDONT_CARE, "current bdd is not a minterm?!");
                 }
                 labels.emplace_back(label);
             }

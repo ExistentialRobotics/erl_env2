@@ -1,6 +1,7 @@
 #pragma once
 
 #include <bitset>
+#include <absl/container/flat_hash_map.h>
 #include "erl_common/yaml.hpp"
 #include "erl_common/grid_map_info.hpp"
 #include "environment_scene_graph.hpp"
@@ -27,11 +28,10 @@ namespace erl::env {
         std::shared_ptr<Setting> m_setting_ = nullptr;
         std::shared_ptr<FiniteStateAutomaton> m_fsa_ = nullptr;
         std::unordered_map<int, Eigen::MatrixX<uint32_t>> m_label_maps_ = {};
-
-        std::unordered_map<int, Eigen::MatrixX<std::vector<int>>> m_up_stairs_path_q_maps_ = {};
-        std::unordered_map<int, Eigen::MatrixX<std::vector<int>>> m_down_stairs_path_q_maps_ = {};
-        std::unordered_map<int, Eigen::MatrixX<std::vector<int>>> m_object_path_q_maps_ = {};
-        std::unordered_map<int, std::unordered_map<int, Eigen::MatrixX<std::vector<int>>>> m_room_path_q_maps_ = {};
+        absl::flat_hash_map<int, Eigen::MatrixX<std::vector<int>>> m_up_stairs_path_q_maps_ = {};
+        absl::flat_hash_map<int, Eigen::MatrixX<std::vector<int>>> m_down_stairs_path_q_maps_ = {};
+        absl::flat_hash_map<int, Eigen::MatrixX<std::vector<int>>> m_object_path_q_maps_ = {};
+        absl::flat_hash_map<int, absl::flat_hash_map<int, Eigen::MatrixX<std::vector<int>>>> m_room_path_q_maps_ = {};
 
         friend class erl::search_planning::LLMSceneGraphHeuristic;
 

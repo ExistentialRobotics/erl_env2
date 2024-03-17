@@ -1,5 +1,6 @@
 #pragma once
 
+#include <absl/container/flat_hash_map.h>
 #include "erl_common/yaml.hpp"
 #include "erl_common/grid_map_info.hpp"
 #include "environment_multi_resolution.hpp"
@@ -49,21 +50,21 @@ namespace erl::env {
 
         std::shared_ptr<Setting> m_setting_ = nullptr;
         std::shared_ptr<scene_graph::Building> m_scene_graph_ = nullptr;
-        std::shared_ptr<common::GridMapInfo3D> m_grid_map_info_ = nullptr;                             // (x, y, floor_num), for hashing
-        std::vector<cv::Mat> m_room_maps_ = {};                                                        // room maps for each floor
-        std::vector<cv::Mat> m_cat_maps_ = {};                                                         // category maps for each floor
-        std::vector<cv::Mat> m_ground_masks_ = {};                                                     // ground masks for each floor, 0: is ground
-        std::vector<cv::Mat> m_obstacle_maps_ = {};                                                    // obstacle space maps, 0: free, >=1: obstacle
-        std::unordered_map<int, Eigen::MatrixXd> m_up_stairs_cost_maps_ = {};                          // cost maps to go upstairs for each floor
-        std::unordered_map<int, PathMatrix> m_up_stairs_path_maps_ = {};                               // path maps to go upstairs for each floor
-        std::unordered_map<int, Eigen::MatrixXd> m_down_stairs_cost_maps_ = {};                        // cost maps to go downstairs for each floor
-        std::unordered_map<int, PathMatrix> m_down_stairs_path_maps_ = {};                             // path maps to go downstairs for each floor
-        std::unordered_map<int, std::unordered_map<int, LocalCostMap>> m_room_cost_maps_ = {};         // cost maps to go to each room, key: room id
-        std::unordered_map<int, Eigen::MatrixX<std::unordered_set<int>>> m_object_reached_maps_ = {};  // object reached maps for each floor
-        std::unordered_map<int, LocalCostMap> m_object_cost_maps_ = {};                                // cost maps to reach each object, key: object id
-        std::vector<AtomicAction> m_atomic_actions_ = {};                                              // atomic actions
-        int m_floor_up_action_id_ = 0;                                                                 // atomic action id to go upstairs
-        int m_floor_down_action_id_ = 0;                                                               // atomic action id to go downstairs
+        std::shared_ptr<common::GridMapInfo3D> m_grid_map_info_ = nullptr;                              // (x, y, floor_num), for hashing
+        std::vector<cv::Mat> m_room_maps_ = {};                                                         // room maps for each floor
+        std::vector<cv::Mat> m_cat_maps_ = {};                                                          // category maps for each floor
+        std::vector<cv::Mat> m_ground_masks_ = {};                                                      // ground masks for each floor, 0: is ground
+        std::vector<cv::Mat> m_obstacle_maps_ = {};                                                     // obstacle space maps, 0: free, >=1: obstacle
+        absl::flat_hash_map<int, Eigen::MatrixXd> m_up_stairs_cost_maps_ = {};                          // cost maps to go upstairs for each floor
+        absl::flat_hash_map<int, PathMatrix> m_up_stairs_path_maps_ = {};                               // path maps to go upstairs for each floor
+        absl::flat_hash_map<int, Eigen::MatrixXd> m_down_stairs_cost_maps_ = {};                        // cost maps to go downstairs for each floor
+        absl::flat_hash_map<int, PathMatrix> m_down_stairs_path_maps_ = {};                             // path maps to go downstairs for each floor
+        absl::flat_hash_map<int, absl::flat_hash_map<int, LocalCostMap>> m_room_cost_maps_ = {};        // cost maps to go to each room, key: room id
+        absl::flat_hash_map<int, Eigen::MatrixX<std::unordered_set<int>>> m_object_reached_maps_ = {};  // object reached maps for each floor
+        absl::flat_hash_map<int, LocalCostMap> m_object_cost_maps_ = {};                                // cost maps to reach each object, key: object id
+        std::vector<AtomicAction> m_atomic_actions_ = {};                                               // atomic actions
+        int m_floor_up_action_id_ = 0;                                                                  // atomic action id to go upstairs
+        int m_floor_down_action_id_ = 0;                                                                // atomic action id to go downstairs
 
         friend class erl::search_planning::LLMSceneGraphHeuristic;
 

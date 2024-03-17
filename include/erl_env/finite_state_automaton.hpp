@@ -4,7 +4,7 @@
 #include <memory>
 #include <string>
 #include <vector>
-#include <unordered_map>
+#include <absl/container/flat_hash_map.h>
 #include <numeric>
 #include <boost/graph/graph_traits.hpp>
 #include <boost/graph/adjacency_list.hpp>
@@ -89,14 +89,14 @@ namespace erl::env {
         };
 
     protected:
-        std::shared_ptr<Setting> m_setting_;                                       // setting
-        uint32_t m_alphabet_size_ = 0;                                             // alphabet size
-        std::unordered_map<uint32_t, std::vector<uint32_t>> m_transition_labels_;  // given key of p->q, return the edge labels
-        std::unordered_map<uint32_t, uint32_t> m_transition_next_state_;           // given hashing of state p and label a, return the next state q
-        std::vector<std::vector<uint32_t>> m_levels_;                              // states in each level
-        std::vector<std::vector<bool>> m_levels_b_;                                // states in each level (boolean version)
-        std::vector<bool> m_sink_states_;                                          // sink states
-        std::vector<bool> m_accepting_states_;                                     // accepting states
+        std::shared_ptr<Setting> m_setting_;                                        // setting
+        uint32_t m_alphabet_size_ = 0;                                              // alphabet size
+        absl::flat_hash_map<uint32_t, std::vector<uint32_t>> m_transition_labels_;  // given key of p->q, return the edge labels
+        absl::flat_hash_map<uint32_t, uint32_t> m_transition_next_state_;           // given hashing of state p and label a, return the next state q
+        std::vector<std::vector<uint32_t>> m_levels_;                               // states in each level
+        std::vector<std::vector<bool>> m_levels_b_;                                 // states in each level (boolean version)
+        std::vector<bool> m_sink_states_;                                           // sink states
+        std::vector<bool> m_accepting_states_;                                      // accepting states
 
     public:
         explicit FiniteStateAutomaton(std::shared_ptr<Setting> setting);

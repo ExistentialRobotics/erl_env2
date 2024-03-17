@@ -449,19 +449,20 @@ namespace erl::env {
 
         for (int i = 0; i < m_scene_graph_->num_floors; ++i) {  // each floor
             int rows = m_grid_map_info_->Shape(0);
-#pragma omp parallel for default(none) shared(rows, label_maps, i)
-            for (int r = 0; r < rows; ++r) {  // each row of the map
-                int cols = m_grid_map_info_->Shape(1);
+            int cols = m_grid_map_info_->Shape(1);
+            std::size_t num_propositions = m_setting_->fsa->atomic_propositions.size();
+            Eigen::MatrixX<std::bitset<32>> &label_map = label_maps[i];
+#pragma omp parallel for collapse(2) default(none) shared(rows, cols, num_propositions, label_map, i)
+            for (int r = 0; r < rows; ++r) {      // each row of the map
                 for (int c = 0; c < cols; ++c) {  // each column of the map
-                    std::size_t num_propositions = m_setting_->fsa->atomic_propositions.size();
-                    auto &bitset = label_maps[i](r, c);
+                    auto &bitset = label_map(r, c);
                     for (std::size_t j = 0; j < num_propositions; ++j) {  // each atomic proposition
                         std::shared_ptr<AtomicProposition> &proposition = m_setting_->atomic_propositions[m_setting_->fsa->atomic_propositions[j]];
                         bitset.set(j, EvaluateAtomicProposition(r, c, i, proposition));
                     }
                 }
             }
-            m_label_maps_[i] = label_maps[i].cast<uint32_t>();
+            m_label_maps_[i] = label_map.cast<uint32_t>();
         }
 
         auto t1 = std::chrono::high_resolution_clock::now();

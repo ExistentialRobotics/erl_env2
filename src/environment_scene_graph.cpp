@@ -261,35 +261,6 @@ namespace erl::env {
         }
     }
 
-    // bool
-    // EnvironmentSceneGraph::LoadFromCache(const std::filesystem::path &cache_dir) {
-    //     if (!std::filesystem::exists(cache_dir)) { return false; }
-    //     for (int i = 0; i < m_scene_graph_->num_floors; ++i) {
-    //         std::filesystem::path room_map_path = cache_dir / erl::common::AsString("room_map_", i, ".bin");
-    //         if (!std::filesystem::exists(room_map_path)) { return false; }
-    //         std::filesystem::path cat_map_path = cache_dir / erl::common::AsString("cat_map_", i, ".bin");
-    //         if (!std::filesystem::exists(cat_map_path)) { return false; }
-    //         std::filesystem::path ground_mask_path = cache_dir / erl::common::AsString("ground_mask_", i, ".bin");
-    //         if (!std::filesystem::exists(ground_mask_path)) { return false; }
-    //         std::filesystem::path obstacle_map_path = cache_dir / erl::common::AsString("obstacle_map_", i, ".bin");
-    //         if (!std::filesystem::exists(obstacle_map_path)) { return false; }
-    //         std::filesystem::path up_stairs_cost_map_path = cache_dir / erl::common::AsString("up_stairs_cost_map_", i, ".bin");
-    //         if (!std::filesystem::exists(up_stairs_cost_map_path)) { return false; }
-    //         std::filesystem::path up_stairs_path_map_path = cache_dir / erl::common::AsString("up_stairs_path_map_", i, ".bin");
-    //         if (!std::filesystem::exists(up_stairs_path_map_path)) { return false; }
-    //         std::filesystem::path down_stairs_cost_map_path = cache_dir / erl::common::AsString("down_stairs_cost_map_", i, ".bin");
-    //         if (!std::filesystem::exists(down_stairs_cost_map_path)) { return false; }
-    //         std::filesystem::path down_stairs_path_map_path = cache_dir / erl::common::AsString("down_stairs_path_map_", i, ".bin");
-    //         if (!std::filesystem::exists(down_stairs_path_map_path)) { return false; }
-    //
-    //     }
-    // }
-    //
-    // bool
-    // EnvironmentSceneGraph::SaveToCache(const std::filesystem::path &cache_dir) {
-    //
-    // }
-
     void
     EnvironmentSceneGraph::LoadMaps() {
         // prepare some variables
@@ -393,7 +364,7 @@ namespace erl::env {
 
         auto t0 = std::chrono::high_resolution_clock::now();
 #pragma omp parallel for default(none) \
-    shared(m_scene_graph_, m_obstacle_maps_, m_up_stairs_cost_maps_, m_up_stairs_path_maps_, m_down_stairs_cost_maps_, m_down_stairs_path_maps_)
+    shared(m_scene_graph_, m_obstacle_maps_, m_up_stairs_cost_maps_, m_up_stairs_path_maps_, m_down_stairs_cost_maps_, m_down_stairs_path_maps_, Eigen::Dynamic)
         for (int floor_num = 1; floor_num < m_scene_graph_->num_floors; ++floor_num) {  // initialize cost maps
             int n1 = floor_num - 1;
             auto &floor1 = m_scene_graph_->floors[n1];
@@ -428,12 +399,6 @@ namespace erl::env {
         }
         auto t1 = std::chrono::high_resolution_clock::now();
         ERL_INFO("GenerateFloorCostMaps: %f ms", std::chrono::duration<double, std::milli>(t1 - t0).count());
-
-        // uncomment the following lines to show the cost maps
-        // for (int floor_num = 1; floor_num < m_scene_graph_->num_floors; ++floor_num) {
-        //     common::ShowEigenMatrix<double>(m_up_stairs_cost_maps_[floor_num - 1], -1, -2, common::AsString("up_stairs_cost_map_", floor_num - 1));
-        //     common::ShowEigenMatrix<double>(m_down_stairs_cost_maps_[floor_num], -1, -2, common::AsString("down_stairs_cost_map_", floor_num));
-        // }
     }
 
     void
@@ -506,18 +471,6 @@ namespace erl::env {
                         }
                     }
                 }
-
-                // uncomment the following lines to show the cost maps
-                // common::ShowCvMat(obstacle_map, "obstacle_map");
-                // common::ShowCvMat(obstacle_map_roi, "obstacle_map_roi");
-                // cv::Mat img = common::ShowEigenMatrix<double>(local_cost_map.cost_map, -1, -2, "room_cost_map", 1);
-                // for (long j = 0; j < num_goals; ++j) {
-                //     int rr = goals(0, j);
-                //     int cc = goals(1, j);
-                //     cv::drawMarker(img, cv::Point2i(cc, rr), cv::Scalar(255, 255, 255), cv::MARKER_CROSS, 2, 1);
-                // }
-                // common::ShowCvMat(img, "room_cost_map");
-                // common::ShowEigenMatrix<int>(local_cost_map.arg_min_map, -1, -2, "room_arg_min_map");
             }
         }
         auto t1 = std::chrono::high_resolution_clock::now();
@@ -633,30 +586,9 @@ namespace erl::env {
                     }
                 }
             }
-
-            // // uncomment the following lines to show the cost maps (omp should be disabled)
-            // ERL_INFO("object id: %d, name: %s, floor id: %d, room id: %d", object_id, object->name.c_str(), floor_id, room->id);
-            // common::ShowCvMat(obstacle_map, "obstacle_map");
-            // cv::Mat obstacle_map_roi_img;
-            // cv::cvtColor(obstacle_map_roi, obstacle_map_roi_img, cv::COLOR_GRAY2BGR);
-            // cv::Mat obj_cost_map_img = common::ShowEigenMatrix<double>(local_cost_map.cost_map, -1, -2, "obj_cost_map", 1);
-            // for (long j = 0; j < num_goals; ++j) {
-            //     int rr = goals(0, j);
-            //     int cc = goals(1, j);
-            //     cv::drawMarker(obstacle_map_roi_img, cv::Point2i(cc, rr), cv::Scalar(255, 255, 255), cv::MARKER_CROSS, 2, 1);
-            //     cv::drawMarker(obj_cost_map_img, cv::Point2i(cc, rr), cv::Scalar(255, 255, 255), cv::MARKER_CROSS, 2, 1);
-            // }
-            // common::ShowCvMat(obj_cost_map_img, "obj_cost_map");
-            // common::ShowCvMat(obstacle_map_roi_img, "obstacle_map_roi");
         }
         auto t1 = std::chrono::high_resolution_clock::now();
         ERL_INFO("GenerateObjectCostMaps: %f ms", std::chrono::duration<double, std::milli>(t1 - t0).count());
-
-        // uncomment the following lines to show the object reach maps
-        // for (int i = 0; i < m_scene_graph_->num_floors; ++i) {
-        //     Eigen::MatrixX<std::size_t> reach_map = m_object_reached_maps_[i].cast<std::size_t>();
-        //     common::ShowEigenMatrix<std::size_t>(reach_map, -1, -2, common::AsString("object_reach_map_", i));
-        // }
     }
 
     void
@@ -837,35 +769,5 @@ namespace erl::env {
                 if (get_goal_index) { goal_index_map(r, c) = int(node->action_id); }
             }
         }
-
-        // uncomment the following code to visualize the path
-        // for (int r = 0; r < obstacle_map.rows; r += 10) {
-        //     for (int c = 0; c < obstacle_map.cols; c += 10) {
-        //         std::shared_ptr<Node> &node = nodes(r, c);
-        //         if (node == nullptr) { continue; }
-        //         std::vector<cv::Point2i> path;
-        //         while (node->parent != nullptr) {
-        //             path.emplace_back(node->y_grid, node->x_grid);
-        //             node = node->parent;
-        //         }
-        //         std::reverse(path.begin(), path.end());
-        //         cv::Mat img;
-        //         obstacle_map.convertTo(img, CV_32SC1);
-        //         img = common::ColorGrayCustom(img);
-        //         cv::polylines(img, path, false, cv::Scalar(0, 0, 0), 2);
-        //         common::ShowCvMat(img, "path");
-        //     }
-        // }
     }
 }  // namespace erl::env
-
-//
-// namespace Eigen::internal {
-//    template<>
-//    struct cast_impl<std::unordered_set<int>, std::size_t> {
-//        static inline std::size_t
-//        run(std::unordered_set<int> const &x) {
-//            return x.size();
-//        }
-//    };
-//}  // namespace Eigen::internal

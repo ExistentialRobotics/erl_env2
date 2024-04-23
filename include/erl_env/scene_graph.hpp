@@ -200,28 +200,6 @@ namespace YAML {
         }
     };
 
-    inline Emitter&
-    operator<<(Emitter& out, const erl::env::scene_graph::Node::Type& rhs) {
-        switch (rhs) {
-            case erl::env::scene_graph::Node::Type::kOcc:
-                out << "kNA";
-                break;
-            case erl::env::scene_graph::Node::Type::kObject:
-                out << "kObject";
-                break;
-            case erl::env::scene_graph::Node::Type::kRoom:
-                out << "kRoom";
-                break;
-            case erl::env::scene_graph::Node::Type::kFloor:
-                out << "kFloor";
-                break;
-            case erl::env::scene_graph::Node::Type::kBuilding:
-                out << "kBuilding";
-                break;
-        }
-        return out;
-    }
-
     template<>
     struct convert<erl::env::scene_graph::Node> {
         inline static Node
@@ -248,19 +226,6 @@ namespace YAML {
             return true;
         }
     };
-
-    inline Emitter&
-    operator<<(Emitter& out, const erl::env::scene_graph::Node& rhs) {
-        out << BeginMap;
-        out << Key << "uuid" << Value << rhs.uuid;
-        out << Key << "id" << Value << rhs.id;
-        out << Key << "parent_id" << Value << rhs.parent_id;
-        out << Key << "parent_uuid" << Value << rhs.parent_uuid;
-        out << Key << "type" << Value << rhs.type;
-        out << Key << "name" << Value << rhs.name;
-        out << EndMap;
-        return out;
-    }
 
     template<>
     struct convert<erl::env::scene_graph::Object> {
@@ -291,19 +256,6 @@ namespace YAML {
             return true;
         }
     };
-
-    inline Emitter&
-    operator<<(Emitter& out, const erl::env::scene_graph::Object& rhs) {
-        out << static_cast<const erl::env::scene_graph::Node&>(rhs);
-        out << BeginMap;
-        out << Key << "action_affordance" << Value << rhs.action_affordance;
-        out << Key << "grid_map_min" << Value << rhs.grid_map_min;
-        out << Key << "grid_map_max" << Value << rhs.grid_map_max;
-        out << Key << "location" << Value << rhs.location;
-        out << Key << "size" << Value << rhs.size;
-        out << EndMap;
-        return out;
-    }
 
     template<>
     struct convert<erl::env::scene_graph::Room> {
@@ -346,23 +298,6 @@ namespace YAML {
             return true;
         }
     };
-
-    inline Emitter&
-    operator<<(Emitter& out, const erl::env::scene_graph::Room& rhs) {
-        out << static_cast<const erl::env::scene_graph::Node&>(rhs);
-        out << BeginMap;
-        out << Key << "objects" << Value << rhs.objects;
-        out << Key << "num_objects" << Value << rhs.num_objects;
-        out << Key << "connected_room_ids" << Value << rhs.connected_room_ids;
-        out << Key << "connected_room_uuids" << Value << rhs.connected_room_uuids;
-        out << Key << "door_grids" << Value << rhs.door_grids;
-        out << Key << "grid_map_min" << Value << rhs.grid_map_min;
-        out << Key << "grid_map_max" << Value << rhs.grid_map_max;
-        out << Key << "location" << Value << rhs.location;
-        out << Key << "size" << Value << rhs.size;
-        out << EndMap;
-        return out;
-    }
 
     template<>
     struct convert<erl::env::scene_graph::Floor> {
@@ -420,30 +355,6 @@ namespace YAML {
         }
     };
 
-    inline Emitter&
-    operator<<(Emitter& out, const erl::env::scene_graph::Floor& rhs) {
-        out << static_cast<const erl::env::scene_graph::Node&>(rhs);
-        out << BeginMap;
-        out << Key << "down_stairs_id" << Value << rhs.down_stairs_id;
-        out << Key << "up_stairs_id" << Value << rhs.up_stairs_id;
-        out << Key << "down_stairs_uuid" << Value << rhs.down_stairs_uuid;
-        out << Key << "up_stairs_uuid" << Value << rhs.up_stairs_uuid;
-        out << Key << "down_stairs_cost" << Value << rhs.down_stairs_cost;
-        out << Key << "up_stairs_cost" << Value << rhs.up_stairs_cost;
-        out << Key << "up_stairs_portal" << Value << rhs.up_stairs_portal;
-        out << Key << "down_stairs_portal" << Value << rhs.down_stairs_portal;
-        out << Key << "ground_z" << Value << rhs.ground_z;
-        out << Key << "room_map" << Value << rhs.room_map;
-        out << Key << "cat_map" << Value << rhs.cat_map;
-        out << Key << "rooms" << Value << rhs.rooms;
-        out << Key << "num_rooms" << Value << rhs.num_rooms;
-        out << Key << "grid_map_origin" << Value << rhs.grid_map_origin;
-        out << Key << "grid_map_resolution" << Value << rhs.grid_map_resolution;
-        out << Key << "grid_map_size" << Value << rhs.grid_map_size;
-        out << EndMap;
-        return out;
-    }
-
     template<>
     struct convert<erl::env::scene_graph::Building> {
         inline static Node
@@ -477,16 +388,4 @@ namespace YAML {
             return true;
         }
     };
-
-    inline Emitter&
-    operator<<(Emitter& out, const erl::env::scene_graph::Building& rhs) {
-        out << static_cast<const erl::env::scene_graph::Node&>(rhs);
-        out << BeginMap;
-        out << Key << "floors" << Value << rhs.floors;
-        out << Key << "num_floors" << Value << rhs.num_floors;
-        out << Key << "reference_point" << Value << rhs.reference_point;
-        out << Key << "size" << Value << rhs.size;
-        out << EndMap;
-        return out;
-    }
 }  // namespace YAML

@@ -170,18 +170,4 @@ namespace YAML {
             return true;
         }
     };
-
-    inline Emitter &
-    operator<<(Emitter &out, const erl::env::EnvironmentLTL2D::Setting &rhs) {
-        out << BeginMap;
-        out << Key << "motions" << Value << rhs.motions;
-        out << Key << "grid_stride" << Value << rhs.grid_stride;
-        out << Key << "obstacle_threshold" << Value << rhs.obstacle_threshold;
-        out << Key << "add_map_cost" << Value << rhs.add_map_cost;
-        out << Key << "map_cost_factor" << Value << rhs.map_cost_factor;
-        out << Key << "shape" << Value << rhs.shape;
-        out << Key << "fsa" << Value << rhs.fsa;
-        out << EndMap;
-        return out;
-    }
 }  // namespace YAML

@@ -317,16 +317,4 @@ namespace YAML {
             return true;
         }
     };
-
-    inline Emitter &
-    operator<<(Emitter &out, const erl::env::EnvironmentSceneGraph::Setting &rhs) {
-        out << BeginMap;
-        out << Key << "data_dir" << Value << rhs.data_dir;
-        out << Key << "num_threads" << Value << rhs.num_threads;
-        out << Key << "allow_diagonal" << Value << rhs.allow_diagonal;
-        out << Key << "object_reach_distance" << Value << rhs.object_reach_distance;
-        out << Key << "shape" << Value << rhs.shape;
-        out << EndMap;
-        return out;
-    }
 }  // namespace YAML

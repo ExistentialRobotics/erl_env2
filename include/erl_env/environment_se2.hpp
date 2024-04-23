@@ -169,18 +169,4 @@ namespace YAML {
             return true;
         }
     };
-
-    inline Emitter &
-    operator<<(Emitter &out, const erl::env::EnvironmentSe2::Setting &rhs) {
-        out << BeginMap;
-        out << Key << "time_step" << Value << rhs.time_step;
-        out << Key << "motion_primitives" << Value << rhs.motion_primitives;
-        out << Key << "num_orientations" << Value << rhs.num_orientations;
-        out << Key << "obstacle_threshold" << Value << rhs.obstacle_threshold;
-        out << Key << "add_map_cost" << Value << rhs.add_map_cost;
-        out << Key << "map_cost_factor" << Value << rhs.map_cost_factor;
-        out << Key << "shape" << Value << rhs.shape;
-        out << EndMap;
-        return out;
-    }
 }  // namespace YAML

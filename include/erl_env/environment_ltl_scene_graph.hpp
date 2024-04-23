@@ -185,14 +185,4 @@ namespace YAML {
             return true;
         }
     };
-
-    inline Emitter &
-    operator<<(Emitter &out, const erl::env::EnvironmentLTLSceneGraph::Setting &rhs) {
-        out << static_cast<const erl::env::EnvironmentSceneGraph::Setting &>(rhs);
-        out << BeginMap;
-        out << Key << "atomic_propositions" << Value << rhs.atomic_propositions;
-        out << Key << "fsa" << Value << rhs.fsa;
-        out << EndMap;
-        return out;
-    }
 }  // namespace YAML

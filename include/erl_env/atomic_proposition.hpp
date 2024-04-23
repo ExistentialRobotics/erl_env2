@@ -64,24 +64,6 @@ namespace YAML {
         }
     };
 
-    inline Emitter &
-    operator<<(Emitter &out, const erl::env::AtomicProposition::Type &rhs) {
-        switch (rhs) {
-            case erl::env::AtomicProposition::Type::kNA:
-                out << "kNA";
-                break;
-            case erl::env::AtomicProposition::Type::kEnterRoom:
-                out << "kEnterRoom";
-                break;
-            case erl::env::AtomicProposition::Type::kReachObject:
-                out << "kReachObject";
-                break;
-            default:
-                throw std::runtime_error("Unknown AtomicProposition::Type");
-        }
-        return out;
-    }
-
     template<>
     struct convert<erl::env::AtomicProposition> {
         inline static Node
@@ -102,14 +84,4 @@ namespace YAML {
             return true;
         }
     };
-
-    inline Emitter &
-    operator<<(Emitter &out, const erl::env::AtomicProposition &rhs) {
-        out << BeginMap;
-        out << Key << "type" << Value << rhs.type;
-        out << Key << "uuid" << Value << rhs.uuid;
-        if (rhs.type == erl::env::AtomicProposition::Type::kReachObject) { out << Key << "reach_distance" << Value << rhs.reach_distance; }
-        out << EndMap;
-        return out;
-    }
 }  // namespace YAML

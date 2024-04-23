@@ -203,15 +203,6 @@ namespace YAML {
         }
     };
 
-    inline Emitter &
-    operator<<(Emitter &out, const erl::env::FiniteStateAutomaton::Setting::Transition &rhs) {
-        out << Flow << BeginSeq << Flow;
-        out << BeginSeq << rhs.from << rhs.to << EndSeq;
-        out << Flow << rhs.labels;
-        out << EndSeq;
-        return out;
-    }
-
     template<>
     struct convert<erl::env::FiniteStateAutomaton::Setting> {
         static Node
@@ -237,16 +228,4 @@ namespace YAML {
             return true;
         }
     };
-
-    inline Emitter &
-    operator<<(Emitter &out, const erl::env::FiniteStateAutomaton::Setting &rhs) {
-        out << BeginMap;
-        out << Key << "num_states" << Value << rhs.num_states;
-        out << Key << "initial_state" << Value << rhs.initial_state;
-        out << Key << "accepting_states" << Value << Flow << rhs.accepting_states;
-        out << Key << "atomic_propositions" << Value << Flow << rhs.atomic_propositions;
-        out << Key << "transitions" << Value << rhs.transitions;
-        out << EndMap;
-        return out;
-    }
 }  // namespace YAML

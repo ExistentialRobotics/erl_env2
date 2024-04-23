@@ -57,12 +57,4 @@ namespace YAML {
             return true;
         }
     };
-
-    inline Emitter & operator<<(Emitter &out, const erl::env::DifferentialDriveControl &control) {
-        out << BeginMap;
-        out << Key << "linear_v" << Value << control.linear_v;
-        out << Key << "angular_v" << Value << control.angular_v;
-        out << EndMap;
-        return out;
-    }
 }

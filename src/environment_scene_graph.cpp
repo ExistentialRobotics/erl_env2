@@ -9,11 +9,11 @@ namespace erl::env {
         const int &cur_x = env_state->grid[0];
         const int &cur_y = env_state->grid[1];
         const int &cur_z = env_state->grid[2];
-        ERL_DEBUG("forward action, x: %d, y: %d, floor_num: %d, cur_room_id: %d", cur_x, cur_y, cur_z, m_room_maps_[cur_z].at<int>(cur_x, cur_y));
+        ERL_DEBUG("forward action, x: {}, y: {}, floor_num: {}, cur_room_id: {}", cur_x, cur_y, cur_z, m_room_maps_[cur_z].at<int>(cur_x, cur_y));
         switch (level) {
             case scene_graph::Node::Type::kOcc: {  // atomic action
                 const int &atomic_action_id = action_coords[1];
-                ERL_DEBUG("kNA action id: %d", atomic_action_id);
+                ERL_DEBUG("kNA action id: {}", atomic_action_id);
                 ERL_DEBUG_ASSERT(atomic_action_id >= 0 && std::size_t(atomic_action_id) < m_atomic_actions_.size(), "atomic_action_id is out of range.");
                 if (std::size_t(atomic_action_id) < m_atomic_actions_.size() - 2) {
                     auto next_env_state = std::make_shared<EnvironmentState>();
@@ -50,19 +50,19 @@ namespace erl::env {
             }
             case scene_graph::Node::Type::kObject: {  // reach object
                 const int &goal_object_id = action_coords[1];
-                ERL_DEBUG("kObject action id: %d", goal_object_id);
+                ERL_DEBUG("kObject action id: {}", goal_object_id);
                 const LocalCostMap &local_cost_map = m_object_cost_maps_.at(goal_object_id);
 #ifndef NDEBUG
                 auto &object = m_scene_graph_->id_to_object[goal_object_id];
                 const int &room_id = object->parent_id;
                 auto &room = m_scene_graph_->id_to_room[room_id];
-                ERL_ASSERTM(room->parent_id == cur_z, "On %d floor but action is to reach object on %d floor.", cur_z, room->parent_id);
+                ERL_ASSERTM(room->parent_id == cur_z, "On {} floor but action is to reach object on {} floor.", cur_z, room->parent_id);
                 const int &at_room_id = m_room_maps_[cur_z].at<int>(cur_x, cur_y);
-                ERL_ASSERTM(at_room_id == room_id, "In room %d but action is to reach object in room %d.", at_room_id, room_id);
+                ERL_ASSERTM(at_room_id == room_id, "In room {} but action is to reach object in room {}.", at_room_id, room_id);
                 ERL_ASSERTM(
                     (cur_x >= local_cost_map.grid_min_x && cur_x <= local_cost_map.grid_max_x) &&
                         (cur_y >= local_cost_map.grid_min_y && cur_y <= local_cost_map.grid_max_y),
-                    "Not in the local cost map of object (id: %d) to reach.",
+                    "Not in the local cost map of object (id: {}) to reach.",
                     goal_object_id);
 #endif
                 auto &path = local_cost_map.path_map(cur_x - local_cost_map.grid_min_x, cur_y - local_cost_map.grid_min_y);
@@ -71,15 +71,15 @@ namespace erl::env {
             case scene_graph::Node::Type::kRoom: {  // reach room
                 const int &goal_room_id = action_coords[1];
                 const int &at_room_id = m_room_maps_[cur_z].at<int>(cur_x, cur_y);
-                ERL_DEBUG("kRoom action id: %d, at_room_id: %d", goal_room_id, at_room_id);
+                ERL_DEBUG("kRoom action id: {}, at_room_id: {}", goal_room_id, at_room_id);
                 const LocalCostMap &local_cost_map = m_room_cost_maps_.at(at_room_id).at(goal_room_id);
 #ifndef NDEBUG
                 auto &room = m_scene_graph_->id_to_room[goal_room_id];
-                ERL_ASSERTM(room->parent_id == cur_z, "On %d floor but action is to reach room on %d floor.", cur_z, room->parent_id);
+                ERL_ASSERTM(room->parent_id == cur_z, "On {} floor but action is to reach room on {} floor.", cur_z, room->parent_id);
                 ERL_ASSERTM(
                     (cur_x >= local_cost_map.grid_min_x && cur_x < local_cost_map.grid_max_x) &&
                         (cur_y >= local_cost_map.grid_min_y && cur_y < local_cost_map.grid_max_y),
-                    "Not in the local cost map of room (id: %d) to take the action.",
+                    "Not in the local cost map of room (id: {}) to take the action.",
                     goal_room_id);
 #endif
                 auto &path = local_cost_map.path_map(cur_x - local_cost_map.grid_min_x, cur_y - local_cost_map.grid_min_y);
@@ -87,7 +87,7 @@ namespace erl::env {
             }
             case scene_graph::Node::Type::kFloor: {  // floor up or down
                 const int &goal_floor_num = action_coords[1];
-                ERL_DEBUG("kFloor action id: %d", goal_floor_num);
+                ERL_DEBUG("kFloor action id: {}", goal_floor_num);
                 return GetPathToFloor(cur_x, cur_y, cur_z, goal_floor_num);
             }
             case scene_graph::Node::Type::kBuilding:
@@ -196,12 +196,12 @@ namespace erl::env {
                 if (connected_room_cost_maps_itr == m_room_cost_maps_.end()) { return successors; }  // no action for this room
                 auto &connected_room_cost_maps = connected_room_cost_maps_itr->second;
                 auto &room = m_scene_graph_->id_to_room.at(at_room_id);
-                ERL_DEBUG_ASSERT(room->parent_id == cur_z, "On %d floor but action is to reach room on %d floor.", cur_z, room->parent_id);
-                ERL_DEBUG_ASSERT(room->id == at_room_id, "In room %d but action is to reach room %d.", at_room_id, room->id);
+                ERL_DEBUG_ASSERT(room->parent_id == cur_z, "On {} floor but action is to reach room on {} floor.", cur_z, room->parent_id);
+                ERL_DEBUG_ASSERT(room->id == at_room_id, "In room {} but action is to reach room {}.", at_room_id, room->id);
                 successors.reserve(room->connected_room_ids.size());
                 for (int &connected_room_id: room->connected_room_ids) {
                     ERL_DEBUG_ASSERT(m_room_maps_.at(cur_z).at<int>(cur_x, cur_y) != connected_room_id, "The current state is in the connected room.");
-                    ERL_DEBUG_ASSERT(connected_room_id != room->id, "Room %d is connected to itself.", room->id);  // self-connected (loop)
+                    ERL_DEBUG_ASSERT(connected_room_id != room->id, "Room {} is connected to itself.", room->id);  // self-connected (loop)
                     auto local_cost_map_itr = connected_room_cost_maps.find(connected_room_id);
                     if (local_cost_map_itr == connected_room_cost_maps.end()) { continue; }  // no action to go to this room
                     auto &local_cost_map = local_cost_map_itr->second;
@@ -263,15 +263,15 @@ namespace erl::env {
 
     void
     EnvironmentSceneGraph::LoadMaps() {
-        // prepare some variables
-        int max_room_id = 0;
-        for (auto &itr: m_scene_graph_->id_to_room) {
-            if (itr.first > max_room_id) { max_room_id = itr.first; }
-        }
-        int max_object_id = 0;
-        for (auto &itr: m_scene_graph_->id_to_object) {
-            if (itr.first > max_object_id) { max_object_id = itr.first; }
-        }
+        // // prepare some variables
+        // int max_room_id = 0;
+        // for (auto &itr: m_scene_graph_->id_to_room) {
+        //     if (itr.first > max_room_id) { max_room_id = itr.first; }
+        // }
+        // int max_object_id = 0;
+        // for (auto &itr: m_scene_graph_->id_to_object) {
+        //     if (itr.first > max_object_id) { max_object_id = itr.first; }
+        // }
 
         auto &floor = m_scene_graph_->floors[0];
         auto floor_grid_map_info = std::make_shared<common::GridMapInfo2D>(floor->grid_map_origin, floor->grid_map_resolution, floor->grid_map_size);
@@ -354,8 +354,8 @@ namespace erl::env {
         for (int floor_num = 1; floor_num < m_scene_graph_->num_floors; ++floor_num) {  // initialize cost maps
             int n1 = floor_num - 1;
             int n2 = floor_num;
-            ERL_ASSERTM(m_scene_graph_->floors[n1]->up_stairs_portal.has_value(), "Floor %d does not have up stairs portal.", n1);
-            ERL_ASSERTM(m_scene_graph_->floors[n2]->down_stairs_portal.has_value(), "Floor %d does not have down stairs portal.", n2);
+            ERL_ASSERTM(m_scene_graph_->floors[n1]->up_stairs_portal.has_value(), "Floor {} does not have up stairs portal.", n1);
+            ERL_ASSERTM(m_scene_graph_->floors[n2]->down_stairs_portal.has_value(), "Floor {} does not have down stairs portal.", n2);
             m_up_stairs_cost_maps_[floor_num - 1].resize(grid_map_rows, grid_map_cols);
             m_up_stairs_path_maps_[floor_num - 1].resize(grid_map_rows, grid_map_cols);
             m_down_stairs_cost_maps_[floor_num].resize(grid_map_rows, grid_map_cols);
@@ -398,7 +398,7 @@ namespace erl::env {
             }
         }
         auto t1 = std::chrono::high_resolution_clock::now();
-        ERL_INFO("GenerateFloorCostMaps: %f ms", std::chrono::duration<double, std::milli>(t1 - t0).count());
+        ERL_INFO("GenerateFloorCostMaps: {:f} ms", std::chrono::duration<double, std::milli>(t1 - t0).count());
     }
 
     void
@@ -474,7 +474,7 @@ namespace erl::env {
             }
         }
         auto t1 = std::chrono::high_resolution_clock::now();
-        ERL_INFO("GenerateRoomCostMaps: %f ms", std::chrono::duration<double, std::milli>(t1 - t0).count());
+        ERL_INFO("GenerateRoomCostMaps: {:f} ms", std::chrono::duration<double, std::milli>(t1 - t0).count());
     }
 
     void
@@ -588,7 +588,7 @@ namespace erl::env {
             }
         }
         auto t1 = std::chrono::high_resolution_clock::now();
-        ERL_INFO("GenerateObjectCostMaps: %f ms", std::chrono::duration<double, std::milli>(t1 - t0).count());
+        ERL_INFO("GenerateObjectCostMaps: {:f} ms", std::chrono::duration<double, std::milli>(t1 - t0).count());
     }
 
     void

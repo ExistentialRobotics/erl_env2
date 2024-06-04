@@ -187,7 +187,8 @@ namespace erl::env {
         for (uint32_t s = 0; s < num_states; ++s) {
             auto out_edges = pa->aut->out(s);
             for (auto &t: out_edges) {
-                if (t.acc.count() > 0 && !sink_states[t.dst]) { accepting_set.insert(t.dst); }
+                // if (t.acc.count() > 0 && !sink_states[t.dst]) { accepting_set.insert(t.dst); }
+                if (t.src == t.dst && t.acc.count() > 0) { accepting_set.insert(t.dst); }
                 ERL_ASSERTM(spot::bdd_to_formula(t.cond, bdd_dict).is_ltl_formula(), "Only support LTL formula.");
                 auto &[from, to, labels] = loaded_transitions[s * num_states + t.dst];
                 from = t.src;

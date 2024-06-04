@@ -81,7 +81,7 @@ namespace erl::env {
 
     std::vector<std::shared_ptr<EnvironmentState>>
     EnvironmentLTL2D::ForwardAction(const std::shared_ptr<const EnvironmentState> &env_state, const std::vector<int> &action_coords) const {
-        ERL_ASSERTM(action_coords.size() == 1, "Invalid action_coords size: %lu.", action_coords.size());
+        ERL_ASSERTM(action_coords.size() == 1, "Invalid action_coords size: {}.", action_coords.size());
         auto new_state = std::make_shared<EnvironmentState>();
         new_state->grid.resize(3);
         int &nx_grid = new_state->grid[0];
@@ -138,7 +138,7 @@ namespace erl::env {
         successors.reserve(reachable_motions.size());
         int &cur_q = env_state->grid[2];
         for (auto &motion_idx: reachable_motions) {
-            ERL_DEBUG_ASSERT(motion_idx >= 0 && motion_idx < num_motions, "Invalid motion index: %d.", motion_idx);
+            ERL_DEBUG_ASSERT(motion_idx >= 0 && motion_idx < num_motions, "Invalid motion index: {}.", motion_idx);
             auto &rel_trajectory = m_rel_trajectories_[motion_idx];
             bool is_reachable = true;
             auto next_state = std::make_shared<EnvironmentState>();

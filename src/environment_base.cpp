@@ -38,8 +38,8 @@ namespace erl::env {
         // Otherwise, anchor (col, row) should be within the dilation_kernel.
         int kernel_height = row_max - row_min + 1;
         int kernel_width = col_max - col_min + 1;
-        ERL_ASSERTM(kernel_height > 0, "kernel_height %d is negative.", kernel_height);
-        ERL_ASSERTM(kernel_width > 0, "kernel_width %d is negative.", kernel_width);
+        ERL_ASSERTM(kernel_height > 0, "kernel_height {} is negative.", kernel_height);
+        ERL_ASSERTM(kernel_width > 0, "kernel_width {} is negative.", kernel_width);
         cv::Mat dilation_kernel(kernel_height, kernel_width, CV_8UC1, cv::Scalar(0));
         for (auto &point: contour) {
             point.x -= col_min;

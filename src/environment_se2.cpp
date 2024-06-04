@@ -101,12 +101,12 @@ namespace erl::env {
                 Eigen::Vector3i(0, 0, 0));                                                                               // padding
             ERL_DEBUG_ASSERT(
                 hashing_grid_map_info->Center().x() == x_center,
-                "Grid map center changed! x_center: %f, grid_map_info->Center().x(): %f",
+                "Grid map center changed! x_center: {:f}, grid_map_info->Center().x(): {:f}",
                 x_center,
                 hashing_grid_map_info->Center().x());
             ERL_DEBUG_ASSERT(
                 hashing_grid_map_info->Center().y() == y_center,
-                "Grid map center changed! y_center: %f, grid_map_info->Center().y(): %f",
+                "Grid map center changed! y_center: {:f}, grid_map_info->Center().y(): {:f}",
                 y_center,
                 hashing_grid_map_info->Center().y());
         }
@@ -173,7 +173,7 @@ namespace erl::env {
                             Eigen::Vector3i diff = (state1 - state2).cwiseAbs();
                             ERL_WARN_ONCE_COND(
                                 diff[0] > 1 || diff[1] > 1 || std::min(diff[2], m_setting_->num_orientations - diff[2]) > 1,
-                                "grid trajectory segment [%d, %d, %d] -> [%d, %d, %d] has a step larger than 1. Collision checking may be compromised.",
+                                "grid trajectory segment [{}, {}, {}] -> [{}, {}, {}] has a step larger than 1. Collision checking may be compromised.",
                                 state1[0],
                                 state1[1],
                                 state1[2],
@@ -187,7 +187,7 @@ namespace erl::env {
                     if (grid_trajectory.empty()) {
                         auto &control = motion.controls[control_idx];
                         ERL_WARN_ONCE(
-                            "Empty trajectory for control %d of motion %d: v=%f, w=%f.",
+                            "Empty trajectory for control {} of motion {}: v={:f}, w={:f}.",
                             control_idx,
                             motion_idx,
                             control.linear_v,
@@ -199,7 +199,7 @@ namespace erl::env {
                     // hashing will be wrong if there are negative values!
                     ERL_DEBUG_ASSERT(
                         (grid_trajectory.back()->grid.array() >= 0).all(),
-                        "Grid state has negative value: [%d, %d, %d].\n",
+                        "Grid state has negative value: [{}, {}, {}].",
                         grid_trajectory.back()->grid[0],
                         grid_trajectory.back()->grid[1],
                         grid_trajectory.back()->grid[2]);
@@ -403,7 +403,7 @@ namespace erl::env {
                 double cost = kRelSuccessor.costs[index];
                 if (m_setting_->add_map_cost) { cost += double(m_inflated_grid_maps_[theta_g].at<uint8_t>(x_g, y_g)) * m_setting_->map_cost_factor; }
                 successors.emplace_back(metric_state, grid_state, cost, kRelSuccessor.action_coords[index]);
-                ERL_DEBUG_ASSERT((grid_state.array() >= 0).all(), "Grid state is negative: [%d, %d, %d].\n", grid_state[0], grid_state[1], grid_state[2]);
+                ERL_DEBUG_ASSERT((grid_state.array() >= 0).all(), "Grid state is negative: [{}, {}, {}].\n", grid_state[0], grid_state[1], grid_state[2]);
             }
         }
         return successors;

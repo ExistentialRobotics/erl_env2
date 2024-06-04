@@ -75,7 +75,7 @@ namespace erl::env {
         successors.clear();
         successors.reserve(reachable_motions.size());
         for (auto &motion_idx: reachable_motions) {
-            ERL_DEBUG_ASSERT(motion_idx >= 0 && motion_idx < num_motions, "Invalid motion index: %d.", motion_idx);
+            ERL_DEBUG_ASSERT(motion_idx >= 0 && motion_idx < num_motions, "Invalid motion index: {}.", motion_idx);
             auto next_state = std::make_shared<EnvironmentState>();
             next_state->grid = env_state->grid + m_setting_->motions[motion_idx];
             next_state->metric = GridToMetric(next_state->grid);

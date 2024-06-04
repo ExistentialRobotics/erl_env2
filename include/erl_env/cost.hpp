@@ -1,6 +1,6 @@
 #pragma once
 
-#include "erl_common/assert.hpp"
+#include "erl_common/logging.hpp"
 #include "erl_common/grid_map.hpp"
 #include "environment_state.hpp"
 

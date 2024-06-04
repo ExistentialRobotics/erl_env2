@@ -1,4 +1,4 @@
-#include "erl_common/assert.hpp"
+#include "erl_common/logging.hpp"
 #include "erl_env/spot_helper.hpp"
 
 namespace erl::env::spot_helper {

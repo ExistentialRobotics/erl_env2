@@ -12,7 +12,7 @@
 #include <spot/twaalgos/hoa.hh>
 #include <spot/twa/twagraph.hh>
 #include <spot/parseaut/public.hh>
-#include "erl_common/assert.hpp"
+#include "erl_common/logging.hpp"
 #include "erl_common/yaml.hpp"
 #include "spot_helper.hpp"
 

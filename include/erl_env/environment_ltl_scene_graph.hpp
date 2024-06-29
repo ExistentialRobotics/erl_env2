@@ -33,7 +33,7 @@ namespace erl::env {
         absl::flat_hash_map<int, Eigen::MatrixX<std::vector<int>>> m_object_path_q_maps_ = {};
         absl::flat_hash_map<int, absl::flat_hash_map<int, Eigen::MatrixX<std::vector<int>>>> m_room_path_q_maps_ = {};
 
-        friend class erl::search_planning::LLMSceneGraphHeuristic;
+        friend class erl::search_planning::LlmSceneGraphHeuristic;
 
     public:
         EnvironmentLTLSceneGraph(std::shared_ptr<scene_graph::Building> building, const std::shared_ptr<EnvironmentLTLSceneGraph::Setting> &setting)
@@ -53,17 +53,17 @@ namespace erl::env {
             }
         }
 
-        [[nodiscard]] inline std::shared_ptr<Setting>
+        [[nodiscard]] std::shared_ptr<Setting>
         GetSetting() const {
             return m_setting_;
         }
 
-        [[nodiscard]] inline std::shared_ptr<FiniteStateAutomaton>
+        [[nodiscard]] std::shared_ptr<FiniteStateAutomaton>
         GetFiniteStateAutomaton() const {
             return m_fsa_;
         }
 
-        [[nodiscard]] inline std::unordered_map<int, Eigen::MatrixX<uint32_t>>
+        [[nodiscard]] std::unordered_map<int, Eigen::MatrixX<uint32_t>>
         GetLabelMaps() const {
             return m_label_maps_;
         }
@@ -74,17 +74,16 @@ namespace erl::env {
         [[nodiscard]] std::vector<Successor>
         GetSuccessorsAtLevel(const std::shared_ptr<EnvironmentState> &env_state, std::size_t resolution_level) const override;
 
-        [[nodiscard]] inline bool
+        [[nodiscard]] bool
         InStateSpace(const std::shared_ptr<EnvironmentState> &env_state) const override {
             return m_grid_map_info_->InGrids(env_state->grid.head<3>());
         }
 
-        [[nodiscard]] inline bool
-        InStateSpaceAtLevel(const std::shared_ptr<EnvironmentState> &env_state, std::size_t resolution_level) const override {
+        [[nodiscard]] bool
+        InStateSpaceAtLevel(const std::shared_ptr<EnvironmentState> &env_state, const std::size_t resolution_level) const override {
             if (resolution_level == 0) { return m_grid_map_info_->InGrids(env_state->grid.head<3>()); }
-            auto level = scene_graph::Node::Type(resolution_level - 1);
             if (!m_grid_map_info_->InGrids(env_state->grid.head<3>())) { return false; }
-            switch (level) {
+            switch (static_cast<scene_graph::Node::Type>(resolution_level - 1)) {
                 case scene_graph::Node::Type::kObject:
                     return !m_object_reached_maps_.at(env_state->grid[2])(env_state->grid[0], env_state->grid[1]).empty();
                 case scene_graph::Node::Type::kRoom:
@@ -98,14 +97,14 @@ namespace erl::env {
             }
         }
 
-        [[nodiscard]] inline uint32_t
-        StateHashing(const std::shared_ptr<env::EnvironmentState> &env_state) const override {
+        [[nodiscard]] uint32_t
+        StateHashing(const std::shared_ptr<EnvironmentState> &env_state) const override {
             uint32_t hashing = m_grid_map_info_->GridToIndex(env_state->grid.head<3>(), true);
             hashing = hashing * m_setting_->fsa->num_states + env_state->grid[3];
             return hashing;
         }
 
-        [[nodiscard]] inline Eigen::VectorXi
+        [[nodiscard]] Eigen::VectorXi
         MetricToGrid(const Eigen::Ref<const Eigen::VectorXd> &metric_state) const override {
             return Eigen::Vector4i(
                 m_grid_map_info_->MeterToGridForValue(metric_state[0], 0),
@@ -114,7 +113,7 @@ namespace erl::env {
                 int(metric_state[3]));
         }
 
-        [[nodiscard]] inline Eigen::VectorXd
+        [[nodiscard]] Eigen::VectorXd
         GridToMetric(const Eigen::Ref<const Eigen::VectorXi> &grid_state) const override {
             return Eigen::Vector4d(
                 m_grid_map_info_->GridToMeterForValue(grid_state[0], 0),
@@ -123,7 +122,7 @@ namespace erl::env {
                 grid_state[3]);
         }
 
-        [[nodiscard]] inline cv::Mat
+        [[nodiscard]] cv::Mat
         ShowPaths(const std::map<int, Eigen::MatrixXd> &, bool) const override {
             throw NotImplemented(__PRETTY_FUNCTION__);
         }
@@ -132,7 +131,7 @@ namespace erl::env {
         void
         GenerateLabelMaps();
 
-        inline bool
+        bool
         EvaluateAtomicProposition(int x, int y, int floor_num, const std::shared_ptr<AtomicProposition> &proposition) {
             switch (proposition->type) {
                 case AtomicProposition::Type::kNA:
@@ -148,7 +147,7 @@ namespace erl::env {
             }
         }
 
-        inline bool
+        bool
         EvaluateEnterRoom(int x, int y, int floor_num, int uuid) {
             auto room = m_scene_graph_->GetNode<scene_graph::Room>(uuid);
             return m_room_maps_[floor_num].at<int>(x, y) == room->id;
@@ -169,7 +168,7 @@ namespace erl::env {
 namespace YAML {
     template<>
     struct convert<erl::env::EnvironmentLTLSceneGraph::Setting> {
-        inline static Node
+        static Node
         encode(const erl::env::EnvironmentLTLSceneGraph::Setting &rhs) {
             Node node = convert<erl::env::EnvironmentSceneGraph::Setting>::encode(rhs);
             node["atomic_propositions"] = rhs.atomic_propositions;
@@ -177,7 +176,7 @@ namespace YAML {
             return node;
         }
 
-        inline static bool
+        static bool
         decode(const Node &node, erl::env::EnvironmentLTLSceneGraph::Setting &rhs) {
             if (!convert<erl::env::EnvironmentSceneGraph::Setting>::decode(node, rhs)) { return false; }
             rhs.atomic_propositions = node["atomic_propositions"].as<std::unordered_map<std::string, std::shared_ptr<erl::env::AtomicProposition>>>();

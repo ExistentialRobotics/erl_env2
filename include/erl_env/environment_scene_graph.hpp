@@ -1,13 +1,15 @@
 #pragma once
 
-#include <absl/container/flat_hash_map.h>
-#include "erl_common/yaml.hpp"
-#include "erl_common/grid_map_info.hpp"
 #include "environment_multi_resolution.hpp"
 #include "scene_graph.hpp"
 
+#include "erl_common/grid_map_info.hpp"
+#include "erl_common/yaml.hpp"
+
+#include <absl/container/flat_hash_map.h>
+
 namespace erl::search_planning {
-    class LLMSceneGraphHeuristic;  // forward declaration
+    class LlmSceneGraphHeuristic;  // forward declaration
 }
 
 namespace erl::env {
@@ -66,11 +68,11 @@ namespace erl::env {
         int m_floor_up_action_id_ = 0;                                                                  // atomic action id to go upstairs
         int m_floor_down_action_id_ = 0;                                                                // atomic action id to go downstairs
 
-        friend class erl::search_planning::LLMSceneGraphHeuristic;
+        friend class search_planning::LlmSceneGraphHeuristic;
 
     public:
         explicit EnvironmentSceneGraph(std::shared_ptr<scene_graph::Building> scene_graph, std::shared_ptr<Setting> setting = nullptr)
-            : EnvironmentMultiResolution(),  // just use the interface of EnvironmentBase, no need to use the distance cost function
+            :  // just use the interface of EnvironmentBase, no need to use the distance cost function
               m_setting_(std::move(setting)),
               m_scene_graph_(std::move(scene_graph)) {
             ERL_ASSERTM(m_scene_graph_ != nullptr, "scene_graph should not be nullptr.");
@@ -79,17 +81,17 @@ namespace erl::env {
             LoadMaps();
         }
 
-        [[nodiscard]] inline std::shared_ptr<Setting>
+        [[nodiscard]] std::shared_ptr<Setting>
         GetSetting() const {
             return m_setting_;
         }
 
-        [[nodiscard]] inline std::shared_ptr<common::GridMapInfo3D>
+        [[nodiscard]] std::shared_ptr<common::GridMapInfo3D>
         GetGridMapInfo() const {
             return m_grid_map_info_;
         }
 
-        [[nodiscard]] inline std::size_t
+        [[nodiscard]] std::size_t
         GetNumResolutionLevels() const override {
             // 0: anchor
             // 1: kNA
@@ -99,12 +101,12 @@ namespace erl::env {
             return int(m_setting_->max_level) + 2;
         }
 
-        [[nodiscard]] inline std::size_t
+        [[nodiscard]] std::size_t
         GetStateSpaceSize() const override {
             return m_grid_map_info_->Size();
         }
 
-        [[nodiscard]] inline std::size_t
+        [[nodiscard]] std::size_t
         GetActionSpaceSize() const override {
             /**
              * (level, goal_id)
@@ -126,7 +128,7 @@ namespace erl::env {
         [[nodiscard]] std::vector<std::shared_ptr<EnvironmentState>>
         ForwardAction(const std::shared_ptr<const EnvironmentState> &env_state, const std::vector<int> &action_coords) const override;
 
-        [[nodiscard]] inline std::vector<Successor>
+        [[nodiscard]] std::vector<Successor>
         GetSuccessors(const std::shared_ptr<EnvironmentState> &env_state) const override {  // NOLINT(*-no-recursion)
             std::vector<Successor> successors;
             successors.reserve(m_scene_graph_->object_ids.size() + m_scene_graph_->room_ids.size());
@@ -151,7 +153,7 @@ namespace erl::env {
             return m_grid_map_info_->InGrids(env_state->grid);
         }
 
-        [[nodiscard]] inline bool
+        [[nodiscard]] bool
         InStateSpaceAtLevel(const std::shared_ptr<EnvironmentState> &env_state, std::size_t resolution_level) const override {
             if (resolution_level == 0) { return m_grid_map_info_->InGrids(env_state->grid); }
             auto level = scene_graph::Node::Type(resolution_level - 1);
@@ -170,12 +172,12 @@ namespace erl::env {
             }
         }
 
-        [[nodiscard]] inline uint32_t
+        [[nodiscard]] uint32_t
         StateHashing(const std::shared_ptr<env::EnvironmentState> &env_state) const override {
             return m_grid_map_info_->GridToIndex(env_state->grid, true);
         }
 
-        [[nodiscard]] inline Eigen::VectorXi
+        [[nodiscard]] Eigen::VectorXi
         MetricToGrid(const Eigen::Ref<const Eigen::VectorXd> &metric_state) const override {
             Eigen::VectorXi grid;
             grid.resize(3);
@@ -185,7 +187,7 @@ namespace erl::env {
             return grid;
         }
 
-        [[nodiscard]] inline Eigen::VectorXd
+        [[nodiscard]] Eigen::VectorXd
         GridToMetric(const Eigen::Ref<const Eigen::VectorXi> &grid_state) const override {
             Eigen::VectorXd metric;
             metric.resize(3);
@@ -197,6 +199,11 @@ namespace erl::env {
 
         [[nodiscard]] cv::Mat
         ShowPaths(const std::map<int, Eigen::MatrixXd> &, bool) const override {
+            throw NotImplemented(__PRETTY_FUNCTION__);
+        }
+
+        [[nodiscard]] std::vector<std::shared_ptr<EnvironmentState>>
+        SampleValidStates(int num_samples) const override {
             throw NotImplemented(__PRETTY_FUNCTION__);
         }
 
@@ -222,7 +229,7 @@ namespace erl::env {
         void
         GenerateObjectCostMaps();
 
-        inline void
+        void
         ReverseAStar(const Eigen::Ref<Eigen::Matrix2Xi> &goals, const cv::Mat &obstacle_map, Eigen::MatrixXd &cost_map, PathMatrix &path_map) const {
             Eigen::MatrixX<std::vector<uint32_t>> action_map;  // empty
             Eigen::MatrixXi goal_index_map;                    // empty
@@ -231,9 +238,12 @@ namespace erl::env {
 
         /**
          * @brief reverse A* search to compute the cost of a composite action
-         * @param x0
-         * @param y0
+         * @param goals
          * @param obstacle_map
+         * @param cost_map
+         * @param path_map
+         * @param action_map
+         * @param goal_index_map
          * @return
          */
         void
@@ -246,7 +256,7 @@ namespace erl::env {
             Eigen::MatrixXi &goal_index_map) const;
 
     private:
-        inline std::vector<std::shared_ptr<EnvironmentState>>
+        std::vector<std::shared_ptr<EnvironmentState>>
         ConvertPath(const std::vector<std::array<int, 2>> &path, int floor_num) const {
             std::vector<std::shared_ptr<EnvironmentState>> next_env_states;
             next_env_states.reserve(path.size() + 1);
@@ -262,7 +272,7 @@ namespace erl::env {
             return next_env_states;
         }
 
-        inline std::vector<std::shared_ptr<EnvironmentState>>
+        std::vector<std::shared_ptr<EnvironmentState>>
         GetPathToFloor(int xg, int yg, int floor_num, int next_floor_num) const {
             ERL_DEBUG_ASSERT(std::abs(floor_num - next_floor_num) == 1, "floor_num and next_floor_num should differ by 1.");
             std::vector<std::shared_ptr<EnvironmentState>> next_env_states;
@@ -295,7 +305,7 @@ namespace erl::env {
 namespace YAML {
     template<>
     struct convert<erl::env::EnvironmentSceneGraph::Setting> {
-        inline static Node
+        static Node
         encode(const erl::env::EnvironmentSceneGraph::Setting &rhs) {
             Node node;
             node["data_dir"] = rhs.data_dir;
@@ -306,7 +316,7 @@ namespace YAML {
             return node;
         }
 
-        inline static bool
+        static bool
         decode(const Node &node, erl::env::EnvironmentSceneGraph::Setting &rhs) {
             if (!node.IsMap()) { return false; }
             rhs.data_dir = node["data_dir"].as<std::string>();

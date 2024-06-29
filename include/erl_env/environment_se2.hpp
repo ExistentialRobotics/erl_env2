@@ -1,11 +1,12 @@
 #pragma once
 
-#include <map>
-
 #include "ddc_motion_primitive.hpp"
 #include "environment_base.hpp"
+
 #include "erl_common/grid_map.hpp"
 #include "erl_common/grid_map_info.hpp"
+
+#include <map>
 
 namespace erl::env {
 
@@ -131,6 +132,11 @@ namespace erl::env {
 
         [[nodiscard]] cv::Mat
         ShowPaths(const std::map<int, Eigen::MatrixXd> &paths, bool block) const override;
+
+        [[nodiscard]] std::vector<std::shared_ptr<EnvironmentState>>
+        SampleValidStates(int num_samples) const override {
+            throw NotImplemented(__PRETTY_FUNCTION__);
+        }
 
     private:
         [[nodiscard]] inline std::size_t

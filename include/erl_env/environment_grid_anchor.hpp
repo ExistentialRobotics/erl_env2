@@ -1,7 +1,8 @@
 #pragma once
 
-#include "erl_common/grid_map_info.hpp"
 #include "environment_anchor.hpp"
+
+#include "erl_common/grid_map_info.hpp"
 
 namespace erl::env {
 
@@ -50,6 +51,11 @@ namespace erl::env {
 
         [[nodiscard]] cv::Mat
         ShowPaths(const std::map<int, Eigen::MatrixXd> &, bool) const override {
+            throw NotImplemented(__PRETTY_FUNCTION__);
+        }
+
+        [[nodiscard]] std::vector<std::shared_ptr<EnvironmentState>>
+        SampleValidStates(int num_samples) const override {
             throw NotImplemented(__PRETTY_FUNCTION__);
         }
     };

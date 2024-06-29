@@ -1,15 +1,15 @@
 #include "erl_common/pybind11.hpp"
 #include "erl_common/string_utils.hpp"
-#include "erl_env/environment_state.hpp"
 #include "erl_env/cost.hpp"
-#include "erl_env/environment_base.hpp"
 #include "erl_env/environment_2d.hpp"
-#include "erl_env/environment_se2.hpp"
-#include "erl_env/environment_multi_resolution.hpp"
 #include "erl_env/environment_anchor.hpp"
+#include "erl_env/environment_base.hpp"
 #include "erl_env/environment_grid_anchor.hpp"
-#include "erl_env/environment_scene_graph.hpp"
 #include "erl_env/environment_ltl_scene_graph.hpp"
+#include "erl_env/environment_multi_resolution.hpp"
+#include "erl_env/environment_scene_graph.hpp"
+#include "erl_env/environment_se2.hpp"
+#include "erl_env/environment_state.hpp"
 
 using namespace erl::common;
 using namespace erl::env;
@@ -76,6 +76,11 @@ public:
     [[nodiscard]] cv::Mat
     ShowPaths(const std::map<int, Eigen::MatrixXd> &paths, bool block) const override {
         PYBIND11_OVERRIDE_PURE_NAME(cv::Mat, EnvBase, "show_paths", ShowPaths, paths, block);
+    }
+
+    [[nodiscard]] std::vector<std::shared_ptr<EnvironmentState>>
+    SampleValidStates(int num_samples) const override {
+        PYBIND11_OVERRIDE_PURE_NAME(std::vector<std::shared_ptr<EnvironmentState>>, EnvBase, "sample_valid_states", SampleValidStates, num_samples);
     }
 };
 
@@ -254,11 +259,7 @@ BindEnvironments(py::module &m) {
         .def_readwrite("add_map_cost", &Environment2D::Setting::add_map_cost)
         .def_readwrite("map_cost_factor", &Environment2D::Setting::map_cost_factor)
         .def_readwrite("shape", &Environment2D::Setting::shape)
-        .def(
-            "set_grid_motion_primitive",
-            &Environment2D::Setting::SetGridMotionPrimitive,
-            py::arg("max_axis_step"),
-            py::arg("allow_diagonal"));
+        .def("set_grid_motion_primitive", &Environment2D::Setting::SetGridMotionPrimitive, py::arg("max_axis_step"), py::arg("allow_diagonal"));
 
     env_2d
         .def(

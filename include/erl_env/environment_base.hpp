@@ -1,17 +1,17 @@
 #pragma once
 
+#include "cost.hpp"
+#include "environment_state.hpp"
+
 #include "erl_common/exception.hpp"
 #include "erl_common/grid_map.hpp"
-#include "environment_state.hpp"
-#include "cost.hpp"
 
-#include <functional>
-#include <memory>
 #include <opencv2/core.hpp>
-#include <opencv2/highgui.hpp>
-#include <vector>
+
 #include <list>
 #include <map>
+#include <memory>
+#include <vector>
 
 namespace erl::env {
 
@@ -22,14 +22,14 @@ namespace erl::env {
 
         Successor() = default;
 
-        Successor(std::shared_ptr<EnvironmentState> state, double cost, std::vector<int> action_coords)
+        Successor(std::shared_ptr<EnvironmentState> state, const double cost, std::vector<int> action_coords)
             : env_state(std::move(state)),
               cost(cost),
               action_coords(std::move(action_coords)) {
             ERL_ASSERTM(env_state != nullptr, "state is nullptr");
         }
 
-        Successor(Eigen::VectorXd env_metric_state, Eigen::VectorXi env_grid_state, double cost, std::vector<int> action_coords)
+        Successor(Eigen::VectorXd env_metric_state, Eigen::VectorXi env_grid_state, const double cost, std::vector<int> action_coords)
             : env_state(std::make_shared<EnvironmentState>(std::move(env_metric_state), std::move(env_grid_state))),
               cost(cost),
               action_coords(std::move(action_coords)) {}
@@ -47,7 +47,7 @@ namespace erl::env {
         double m_time_step_ = 0.01;  // 10ms
 
     public:
-        explicit EnvironmentBase(std::shared_ptr<CostBase> distance_cost_func = nullptr, double time_step = 0.01)
+        explicit EnvironmentBase(std::shared_ptr<CostBase> distance_cost_func = nullptr, const double time_step = 0.01)
             : m_distance_cost_func_(std::move(distance_cost_func)),
               m_time_step_(time_step) {
             if (m_distance_cost_func_ == nullptr) {
@@ -58,12 +58,12 @@ namespace erl::env {
 
         virtual ~EnvironmentBase() = default;
 
-        [[nodiscard]] inline std::shared_ptr<CostBase>
+        [[nodiscard]] std::shared_ptr<CostBase>
         GetDistanceCostFunc() const {
             return m_distance_cost_func_;
         }
 
-        [[nodiscard]] inline double
+        [[nodiscard]] double
         GetTimeStep() const {
             return m_time_step_;
         }
@@ -95,7 +95,7 @@ namespace erl::env {
         InStateSpace(const std::shared_ptr<EnvironmentState> &env_state) const = 0;
 
         [[nodiscard]] virtual uint32_t
-        StateHashing(const std::shared_ptr<env::EnvironmentState> &env_state) const = 0;
+        StateHashing(const std::shared_ptr<EnvironmentState> &env_state) const = 0;
 
         [[nodiscard]] virtual Eigen::VectorXi
         MetricToGrid(const Eigen::Ref<const Eigen::VectorXd> &metric_state) const = 0;
@@ -104,16 +104,19 @@ namespace erl::env {
         GridToMetric(const Eigen::Ref<const Eigen::VectorXi> &grid_state) const = 0;
 
         [[nodiscard]] virtual cv::Mat
-        ShowPaths(const std::map<int, Eigen::MatrixXd> & paths, bool block) const = 0;
+        ShowPaths(const std::map<int, Eigen::MatrixXd> &paths, bool block) const = 0;
+
+        [[nodiscard]] virtual std::vector<std::shared_ptr<EnvironmentState>>
+        SampleValidStates(int num_samples) const = 0;
 
     protected:
         static void
         InitializeGridMap2D(const std::shared_ptr<common::GridMapUnsigned2D> &grid_map, cv::Mat &initialized_grid_map) {
             // x to the bottom, y to the right, along y first
             initialized_grid_map = cv::Mat(grid_map->info->Shape(0), grid_map->info->Shape(1), CV_8UC1, cv::Scalar(0));
-            int size = grid_map->info->Size();
-            auto begin = grid_map->data.GetDataPtr();
-            auto end = begin + size;
+            const int size = grid_map->info->Size();
+            const auto begin = grid_map->data.GetDataPtr();
+            const auto end = begin + size;
             std::copy(begin, end, initialized_grid_map.data);  // both erl::common::GridMapUnsigned2D and cv::Mat are row-major.
         }
 

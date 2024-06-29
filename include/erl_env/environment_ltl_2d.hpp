@@ -4,13 +4,15 @@
 // https://github.com/ExistentialRobotics/erl_env/blob/master/include/erl_env/ltl/fsa.h
 // https://github.com/ExistentialRobotics/erl_astar/blob/master/data/maps/ltl/mapjie_2d.yaml
 
-#include <numeric>
+#include "cost.hpp"
+#include "environment_base.hpp"
+#include "finite_state_automaton.hpp"
+#include "motion_primitive.hpp"
+
 #include "erl_common/grid_map.hpp"
 #include "erl_common/random.hpp"
-#include "cost.hpp"
-#include "finite_state_automaton.hpp"
-#include "environment_base.hpp"
-#include "motion_primitive.hpp"
+
+#include <numeric>
 
 namespace erl::env {
 
@@ -59,7 +61,7 @@ namespace erl::env {
         std::shared_ptr<FiniteStateAutomaton> m_fsa_;
         std::vector<Eigen::Matrix2Xi> m_rel_trajectories_;        // relative trajectories of motion primitives
         std::vector<double> m_motion_costs_;                      // cost of each control
-        Eigen::MatrixX<std::vector<int>> m_reachable_motions_;   // reachable controls for each grid
+        Eigen::MatrixX<std::vector<int>> m_reachable_motions_;    // reachable controls for each grid
         cv::Mat m_original_grid_map_;                             // original grid map, where each cell is a scaled cost value
         cv::Mat m_grid_map_;                                      // inflated grid map
         std::shared_ptr<common::GridMapInfo3D> m_grid_map_info_;  // grid map description (x, y, q), x to the bottom, y to the right, along y first
@@ -139,6 +141,11 @@ namespace erl::env {
 
         [[nodiscard]] cv::Mat
         ShowPaths(const std::map<int, Eigen::MatrixXd> &paths, bool block) const override;
+
+        [[nodiscard]] std::vector<std::shared_ptr<EnvironmentState>>
+        SampleValidStates(int num_samples) const override {
+            throw NotImplemented(__PRETTY_FUNCTION__);
+        }
     };
 }  // namespace erl::env
 

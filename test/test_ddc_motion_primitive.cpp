@@ -1,6 +1,6 @@
-#include <gtest/gtest.h>
-
 #include "erl_env/ddc_motion_primitive.hpp"
+
+#include <gtest/gtest.h>
 
 TEST(DDCMotionPrimitiveTest, LoadFromFile) {
     auto motion_primitives = erl::env::LoadDdcMotionPrimitivesFromYaml(DDC_MOTION_PRIMITIVES_YAML_PATH);

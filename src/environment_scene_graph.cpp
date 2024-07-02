@@ -1,5 +1,6 @@
-#include <boost/heap/d_ary_heap.hpp>
 #include "erl_env/environment_scene_graph.hpp"
+
+#include <boost/heap/d_ary_heap.hpp>
 
 namespace erl::env {
 
@@ -363,8 +364,14 @@ namespace erl::env {
         }
 
         auto t0 = std::chrono::high_resolution_clock::now();
-#pragma omp parallel for default(none) \
-    shared(m_scene_graph_, m_obstacle_maps_, m_up_stairs_cost_maps_, m_up_stairs_path_maps_, m_down_stairs_cost_maps_, m_down_stairs_path_maps_, Eigen::Dynamic)
+#pragma omp parallel for default(none)   \
+    shared(m_scene_graph_,               \
+               m_obstacle_maps_,         \
+               m_up_stairs_cost_maps_,   \
+               m_up_stairs_path_maps_,   \
+               m_down_stairs_cost_maps_, \
+               m_down_stairs_path_maps_, \
+               Eigen::Dynamic)
         for (int floor_num = 1; floor_num < m_scene_graph_->num_floors; ++floor_num) {  // initialize cost maps
             int n1 = floor_num - 1;
             auto &floor1 = m_scene_graph_->floors[n1];

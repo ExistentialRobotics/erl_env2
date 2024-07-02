@@ -1,13 +1,16 @@
 #pragma once
 
-#include <bitset>
-#include <absl/container/flat_hash_map.h>
-#include "erl_common/yaml.hpp"
-#include "erl_common/grid_map_info.hpp"
-#include "environment_scene_graph.hpp"
-#include "scene_graph.hpp"
-#include "finite_state_automaton.hpp"
 #include "atomic_proposition.hpp"
+#include "environment_scene_graph.hpp"
+#include "finite_state_automaton.hpp"
+#include "scene_graph.hpp"
+
+#include "erl_common/grid_map_info.hpp"
+#include "erl_common/yaml.hpp"
+
+#include <absl/container/flat_hash_map.h>
+
+#include <bitset>
 
 namespace erl::env {
 

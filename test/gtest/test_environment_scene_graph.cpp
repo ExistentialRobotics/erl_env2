@@ -1,6 +1,7 @@
-#include <filesystem>
 #include "erl_common/test_helper.hpp"
 #include "erl_env/environment_scene_graph.hpp"
+
+#include <filesystem>
 
 TEST(ERL_ENV, EnvironmentSceneGraph) {
 

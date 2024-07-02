@@ -1,8 +1,9 @@
 #pragma once
 
-#include "erl_common/logging.hpp"
-#include "erl_common/grid_map.hpp"
 #include "environment_state.hpp"
+
+#include "erl_common/grid_map.hpp"
+#include "erl_common/logging.hpp"
 
 namespace erl::env {
 
@@ -34,7 +35,8 @@ namespace erl::env {
         explicit Se2Cost(double w_theta_in = 1.0)
             : w_theta(w_theta_in) {}
 
-        inline double operator()(const EnvironmentState& state1, const EnvironmentState& state2) const override {
+        inline double
+        operator()(const EnvironmentState& state1, const EnvironmentState& state2) const override {
             ERL_ASSERTM(state1.metric.size() == 3, "state1 should be [x, y, theta].");
             ERL_ASSERTM(state2.metric.size() == 3, "state2 should be [x, y, theta].");
 

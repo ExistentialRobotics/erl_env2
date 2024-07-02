@@ -1,6 +1,7 @@
-#include <filesystem>
 #include "erl_common/test_helper.hpp"
 #include "erl_env/scene_graph.hpp"
+
+#include <filesystem>
 
 TEST(ERL_ENV, SceneGraph) {
     std::filesystem::path path = __FILE__;
@@ -99,9 +100,9 @@ TEST(ERL_ENV, SceneGraph) {
     std::cout << "mask(10, 10): " << int(mask.at<uint8_t>(10, 10)) << std::endl;
     std::cout << "sub mask(0, 0): " << int(sub_mask.at<uint8_t>(0, 0)) << std::endl;
     cv::Mat mask2 = mask;  // not copy data
-    std::cout << "mask data addr: " << (void*)(mask.data) << std::endl;
-    std::cout << "mask2 data addr: " << (void*)(mask2.data) << std::endl;
-    std::cout << "sub mask data addr: " << (void*)(sub_mask.data) << std::endl;
+    std::cout << "mask data addr: " << (void *) (mask.data) << std::endl;
+    std::cout << "mask2 data addr: " << (void *) (mask2.data) << std::endl;
+    std::cout << "sub mask data addr: " << (void *) (sub_mask.data) << std::endl;
     cv::imshow("ground mask", mask);
     cv::waitKey(10000);
 

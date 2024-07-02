@@ -1,10 +1,12 @@
-#include <opencv2/highgui.hpp>
-#include <utility>
-#include <iomanip>
+#include "erl_env/environment_se2.hpp"
 
 #include "erl_common/random.hpp"
-#include "erl_env/environment_se2.hpp"
 #include "erl_env/differential_drive_model.hpp"
+
+#include <opencv2/highgui.hpp>
+
+#include <iomanip>
+#include <utility>
 
 // #define DEBUG_ENVIRONMENT_SE2_1
 // #define DEBUG_ENVIRONMENT_SE2_2
@@ -291,16 +293,16 @@ namespace erl::env {
             }
             local_maps.push_back(local_map);
         }
-//        std::cout << std::endl
-//                  << "num_orientations: " << m_setting_->num_orientations << std::endl
-//                  << "max_dx: " << max_dx << ", max_dy: " << max_dy << std::endl
-//                  << "total local map:" << std::endl
-//                  << total_local_map << std::endl
-//                  << "local map:" << std::endl;
-//        for (int theta_g = 0; theta_g < m_setting_->num_orientations; ++theta_g) {
-//            double theta = m_grid_map_info_->GridToMeterForValue(theta_g, 2);
-//            std::cout << "theta_g: " << theta_g << ", theta: " << theta * 180 / M_PI << std::endl << local_maps[theta_g] << std::endl;
-//        }
+        // std::cout << std::endl
+        //           << "num_orientations: " << m_setting_->num_orientations << std::endl
+        //           << "max_dx: " << max_dx << ", max_dy: " << max_dy << std::endl
+        //           << "total local map:" << std::endl
+        //           << total_local_map << std::endl
+        //           << "local map:" << std::endl;
+        // for (int theta_g = 0; theta_g < m_setting_->num_orientations; ++theta_g) {
+        //     double theta = m_grid_map_info_->GridToMeterForValue(theta_g, 2);
+        //     std::cout << "theta_g: " << theta_g << ", theta: " << theta * 180 / M_PI << std::endl << local_maps[theta_g] << std::endl;
+        // }
 
         m_inflated_grid_maps_.resize(m_setting_->num_orientations);
         for (int theta_g = 0; theta_g < m_setting_->num_orientations; ++theta_g) { m_original_grid_map_.copyTo(m_inflated_grid_maps_[theta_g]); }

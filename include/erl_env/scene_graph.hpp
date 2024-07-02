@@ -1,8 +1,9 @@
 #pragma once
 
-#include "erl_common/yaml.hpp"
-#include "erl_common/opencv.hpp"
 #include "atomic_proposition.hpp"
+
+#include "erl_common/opencv.hpp"
+#include "erl_common/yaml.hpp"
 
 namespace erl::env::scene_graph {
     struct Node : public common::Yamlable<Node> {

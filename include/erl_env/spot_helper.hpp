@@ -1,7 +1,7 @@
 #pragma once
+#include <spot/misc/minato.hh>
 #include <spot/twa/formula2bdd.hh>
 #include <spot/twa/twagraph.hh>
-#include <spot/misc/minato.hh>
 
 namespace erl::env::spot_helper {
 

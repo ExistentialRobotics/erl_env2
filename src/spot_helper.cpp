@@ -1,12 +1,13 @@
-#include "erl_common/logging.hpp"
 #include "erl_env/spot_helper.hpp"
+
+#include "erl_common/logging.hpp"
 
 namespace erl::env::spot_helper {
 
     // inspired by bdd_printset_rec in buddy/src/cppext.cxx
     static void
-    bdd_to_vec_rec(std::vector<int> &vec, const bdd& r, std::vector<int> &set) { // NOLINT(*-no-recursion)
-        if (r == bddfalse) {  // false terminal
+    bdd_to_vec_rec(std::vector<int> &vec, const bdd &r, std::vector<int> &set) {  // NOLINT(*-no-recursion)
+        if (r == bddfalse) {                                                      // false terminal
             return;
         } else if (r == bddtrue) {  // true terminal, dump to vec
             for (int n = 0; n < bdd_varnum(); ++n) {

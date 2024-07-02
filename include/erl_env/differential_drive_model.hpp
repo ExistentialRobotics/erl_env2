@@ -1,9 +1,10 @@
 #pragma once
 
-#include <memory>
-#include <cmath>
 #include "erl_common/angle_utils.hpp"
 #include "erl_common/yaml.hpp"
+
+#include <cmath>
+#include <memory>
 
 namespace erl::env {
 
@@ -17,7 +18,8 @@ namespace erl::env {
             : linear_v(linear_v),
               angular_v(angular_v) {}
 
-        bool operator==(const DifferentialDriveControl &other) const {
+        bool
+        operator==(const DifferentialDriveControl &other) const {
             return linear_v == other.linear_v && angular_v == other.angular_v;
         }
     };
@@ -41,14 +43,16 @@ namespace YAML {
 
     template<>
     struct convert<erl::env::DifferentialDriveControl> {
-        static Node encode(const erl::env::DifferentialDriveControl &control) {
+        static Node
+        encode(const erl::env::DifferentialDriveControl &control) {
             Node node;
             node["linear_v"] = control.linear_v;
             node["angular_v"] = control.angular_v;
             return node;
         }
 
-        static bool decode(const Node &node, erl::env::DifferentialDriveControl &control) {
+        static bool
+        decode(const Node &node, erl::env::DifferentialDriveControl &control) {
             if (!node.IsMap()) { return false; }
             if (!node["linear_v"]) { return false; }
             if (!node["angular_v"]) { return false; }
@@ -57,4 +61,4 @@ namespace YAML {
             return true;
         }
     };
-}
+}  // namespace YAML

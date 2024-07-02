@@ -122,7 +122,8 @@ namespace erl::env {
         [[nodiscard]] cv::Mat
         ShowPaths(const std::map<int, Eigen::MatrixXd> &paths, bool block) const override;
 
-        std::vector<std::shared_ptr<EnvironmentState>> SampleValidStates(int num_samples) const override;
+        std::vector<std::shared_ptr<EnvironmentState>>
+        SampleValidStates(int num_samples) const override;
 
     private:
         void

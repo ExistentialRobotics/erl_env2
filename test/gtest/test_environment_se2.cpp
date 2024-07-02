@@ -1,5 +1,5 @@
-#include "erl_common/test_helper.hpp"
 #include "erl_common/grid_map.hpp"
+#include "erl_common/test_helper.hpp"
 #include "erl_env/environment_se2.hpp"
 
 TEST(ERL_ENV, EnvironmentSe2) {

@@ -1,20 +1,24 @@
 #pragma once
 
-#include <cstdint>
-#include <memory>
-#include <string>
-#include <vector>
-#include <absl/container/flat_hash_map.h>
-#include <numeric>
-#include <boost/graph/graph_traits.hpp>
-#include <boost/graph/adjacency_list.hpp>
-#include <boost/graph/graphviz.hpp>
-#include <spot/twaalgos/hoa.hh>
-#include <spot/twa/twagraph.hh>
-#include <spot/parseaut/public.hh>
+#include "spot_helper.hpp"
+
 #include "erl_common/logging.hpp"
 #include "erl_common/yaml.hpp"
-#include "spot_helper.hpp"
+
+#include <absl/container/flat_hash_map.h>
+#include <boost/graph/adjacency_list.hpp>
+#include <boost/graph/graph_traits.hpp>
+#include <boost/graph/graphviz.hpp>
+
+#include <cstdint>
+#include <memory>
+#include <numeric>
+#include <string>
+#include <vector>
+
+#include <spot/parseaut/public.hh>
+#include <spot/twa/twagraph.hh>
+#include <spot/twaalgos/hoa.hh>
 
 namespace erl::env {
 

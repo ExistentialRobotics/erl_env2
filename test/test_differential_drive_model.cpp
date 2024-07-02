@@ -1,7 +1,8 @@
-#include <gtest/gtest.h>
-#include <cmath>
-
 #include "erl_env/differential_drive_model.hpp"
+
+#include <gtest/gtest.h>
+
+#include <cmath>
 
 inline double
 RestrictAngle(double phi, double minrange = -M_PI, double maxrange = M_PI) {

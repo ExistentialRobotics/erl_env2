@@ -1,4 +1,5 @@
 #include "erl_env/finite_state_automaton.hpp"
+
 #include <spot/twaalgos/complete.hh>
 
 namespace erl::env {

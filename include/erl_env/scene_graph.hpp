@@ -29,7 +29,7 @@ namespace erl::env::scene_graph {
             : uuid(uuid_counter++) {}
     };
 
-    struct Object : public common::OverrideYamlable<Node, Object> {
+    struct Object : public common::Yamlable<Object, Node> {
 
         enum class SOC {  // special object category
             kGround = 0,
@@ -47,7 +47,7 @@ namespace erl::env::scene_graph {
         Eigen::Vector3d size = {};                        // object size
     };
 
-    struct Room : public common::OverrideYamlable<Node, Room> {
+    struct Room : public common::Yamlable<Room, Node> {
         std::unordered_map<int, std::shared_ptr<Object>> objects = {};  // objects
         uint32_t num_objects = 0;                                       // number of objects
         std::vector<int> connected_room_ids = {};                       // neighbor room ids
@@ -59,7 +59,7 @@ namespace erl::env::scene_graph {
         Eigen::Vector3d size = {};                                      // room size
     };
 
-    struct Floor : public common::OverrideYamlable<Node, Floor> {
+    struct Floor : public common::Yamlable<Floor, Node> {
         int down_stairs_id = -1;                                            // down stairs id
         int up_stairs_id = -1;                                              // up stairs id
         int down_stairs_uuid = -1;                                          // down stairs uuid
@@ -78,7 +78,7 @@ namespace erl::env::scene_graph {
         Eigen::Vector2i grid_map_size = {};                                 // grid_map size
     };
 
-    struct Building : public common::OverrideYamlable<Node, Building> {
+    struct Building : public common::Yamlable<Building, Node> {
         std::unordered_map<int, std::shared_ptr<Floor>> floors = {};  // floors
         int num_floors = 0;                                           // number of floors
         Eigen::Vector3d reference_point = {};                         // reference 3d coordinate
@@ -157,7 +157,7 @@ namespace YAML {
 
     template<>
     struct convert<erl::env::scene_graph::Node::Type> {
-        inline static Node
+        static Node
         encode(const erl::env::scene_graph::Node::Type& rhs) {
             Node node;
             switch (rhs) {
@@ -180,7 +180,7 @@ namespace YAML {
             return node;
         }
 
-        inline static bool
+        static bool
         decode(const Node& node, erl::env::scene_graph::Node::Type& rhs) {
             if (!node.IsScalar()) { return false; }
             auto type = node.as<std::string>();
@@ -203,7 +203,7 @@ namespace YAML {
 
     template<>
     struct convert<erl::env::scene_graph::Node> {
-        inline static Node
+        static Node
         encode(const erl::env::scene_graph::Node& rhs) {
             Node node;
             node["uuid"] = rhs.uuid;
@@ -215,7 +215,7 @@ namespace YAML {
             return node;
         }
 
-        inline static bool
+        static bool
         decode(const Node& node, erl::env::scene_graph::Node& rhs) {
             if (!node.IsMap()) { return false; }
             rhs.uuid = node["uuid"].as<int>();
@@ -230,7 +230,7 @@ namespace YAML {
 
     template<>
     struct convert<erl::env::scene_graph::Object> {
-        inline static Node
+        static Node
         encode(const erl::env::scene_graph::Object& rhs) {
             Node node = convert<erl::env::scene_graph::Node>::encode(rhs);
             node["action_affordance"] = rhs.action_affordance;
@@ -241,7 +241,7 @@ namespace YAML {
             return node;
         }
 
-        inline static bool
+        static bool
         decode(const Node& node, erl::env::scene_graph::Object& rhs) {
             if (!node.IsMap()) { return false; }
             if (!convert<erl::env::scene_graph::Node>::decode(node, rhs)) { return false; }
@@ -260,7 +260,7 @@ namespace YAML {
 
     template<>
     struct convert<erl::env::scene_graph::Room> {
-        inline static Node
+        static Node
         encode(const erl::env::scene_graph::Room& rhs) {
             Node node = convert<erl::env::scene_graph::Node>::encode(rhs);
             node["objects"] = rhs.objects;
@@ -275,7 +275,7 @@ namespace YAML {
             return node;
         }
 
-        inline static bool
+        static bool
         decode(const Node& node, erl::env::scene_graph::Room& rhs) {
             if (!node.IsMap()) { return false; }
             if (!convert<erl::env::scene_graph::Node>::decode(node, rhs)) { return false; }
@@ -302,7 +302,7 @@ namespace YAML {
 
     template<>
     struct convert<erl::env::scene_graph::Floor> {
-        inline static Node
+        static Node
         encode(const erl::env::scene_graph::Floor& rhs) {
             Node node = convert<erl::env::scene_graph::Node>::encode(rhs);
             node["down_stairs_id"] = rhs.down_stairs_id;
@@ -324,7 +324,7 @@ namespace YAML {
             return node;
         }
 
-        inline static bool
+        static bool
         decode(const Node& node, erl::env::scene_graph::Floor& rhs) {
             if (!node.IsMap()) { return false; }
             if (!convert<erl::env::scene_graph::Node>::decode(node, rhs)) { return false; }
@@ -358,7 +358,7 @@ namespace YAML {
 
     template<>
     struct convert<erl::env::scene_graph::Building> {
-        inline static Node
+        static Node
         encode(const erl::env::scene_graph::Building& rhs) {
             Node node = convert<erl::env::scene_graph::Node>::encode(rhs);
             node["floors"] = rhs.floors;
@@ -368,7 +368,7 @@ namespace YAML {
             return node;
         }
 
-        inline static bool
+        static bool
         decode(const Node& node, erl::env::scene_graph::Building& rhs) {
             if (!node.IsMap()) { return false; }
             if (!convert<erl::env::scene_graph::Node>::decode(node, rhs)) { return false; }

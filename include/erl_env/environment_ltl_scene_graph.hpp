@@ -16,7 +16,7 @@ namespace erl::env {
 
     class EnvironmentLTLSceneGraph : public EnvironmentSceneGraph {
     public:
-        struct Setting : public common::OverrideYamlable<EnvironmentSceneGraph::Setting, Setting> {
+        struct Setting : public common::Yamlable<Setting, EnvironmentSceneGraph::Setting> {
             std::unordered_map<std::string, std::shared_ptr<AtomicProposition>> atomic_propositions;
             std::shared_ptr<FiniteStateAutomaton::Setting> fsa;  // finite state automaton
 

@@ -24,6 +24,8 @@ namespace erl::env {
             Eigen::Matrix2Xd shape = {};
         };
 
+        inline static const volatile bool kSettingRegistered = common::YamlableBase::Register<Setting>();
+
     protected:
         std::shared_ptr<Setting> m_setting_;
         cv::Mat m_original_grid_map_;

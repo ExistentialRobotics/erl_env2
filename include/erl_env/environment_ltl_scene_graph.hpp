@@ -27,6 +27,8 @@ namespace erl::env {
             }
         };
 
+        inline static const volatile bool kSettingRegistered = common::YamlableBase::Register<Setting>();
+
     protected:
         std::shared_ptr<Setting> m_setting_ = nullptr;
         std::shared_ptr<FiniteStateAutomaton> m_fsa_ = nullptr;

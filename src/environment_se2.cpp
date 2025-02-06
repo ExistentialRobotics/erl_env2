@@ -5,7 +5,6 @@
 
 #include <opencv2/highgui.hpp>
 
-#include <iomanip>
 #include <utility>
 
 // #define DEBUG_ENVIRONMENT_SE2_1
@@ -90,17 +89,17 @@ namespace erl::env {
             (x_center + max_distance > m_grid_map_info_->Max(0)) || (y_center + max_distance > m_grid_map_info_->Max(1))) {
             // create a new grid map info
             max_distance *= 1.1;  // add 10% to the max distance to avoid edge cases
-            auto num_cells_x = int(max_distance / m_grid_map_info_->Resolution(0)) + 1;
-            auto num_cells_y = int(max_distance / m_grid_map_info_->Resolution(1)) + 1;
+            auto num_cells_x = static_cast<int>(max_distance / m_grid_map_info_->Resolution(0)) + 1;
+            auto num_cells_y = static_cast<int>(max_distance / m_grid_map_info_->Resolution(1)) + 1;
             const double &kXRes = m_grid_map_info_->Resolution(0);
             const double &kYRes = m_grid_map_info_->Resolution(1);
             const double &kThetaRes = m_grid_map_info_->Resolution(2);
 
             hashing_grid_map_info = std::make_shared<common::GridMapInfo3D>(
-                Eigen::Vector3d(x_center - double(num_cells_x) * kXRes, y_center - double(num_cells_y) * kYRes, -M_PI),  // min
-                Eigen::Vector3d(x_center + double(num_cells_x) * kXRes, y_center + double(num_cells_y) * kYRes, M_PI),   // max
-                Eigen::Vector3d(kXRes, kYRes, kThetaRes),                                                                // resolution
-                Eigen::Vector3i(0, 0, 0));                                                                               // padding
+                Eigen::Vector3d(x_center - static_cast<double>(num_cells_x) * kXRes, y_center - static_cast<double>(num_cells_y) * kYRes, -M_PI),  // min
+                Eigen::Vector3d(x_center + static_cast<double>(num_cells_x) * kXRes, y_center + static_cast<double>(num_cells_y) * kYRes, M_PI),   // max
+                Eigen::Vector3d(kXRes, kYRes, kThetaRes),                                                                                          // resolution
+                Eigen::Vector3i(0, 0, 0));                                                                                                         // padding
             ERL_DEBUG_ASSERT(
                 hashing_grid_map_info->Center().x() == x_center,
                 "Grid map center changed! x_center: {:f}, grid_map_info->Center().x(): {:f}",
@@ -114,7 +113,7 @@ namespace erl::env {
         }
 
         // init discrete relative trajectories
-        auto num_motions = int(m_setting_->motion_primitives.size());
+        auto num_motions = static_cast<int>(m_setting_->motion_primitives.size());
         int x_center_g = hashing_grid_map_info->CenterGrid().x();
         int y_center_g = hashing_grid_map_info->CenterGrid().y();
         m_rel_trajectories_.clear();
@@ -142,7 +141,7 @@ namespace erl::env {
                 // grid trajectories starts from [0, 0, theta_g]
                 auto &motion_metric_rel_trajectories = metric_rel_trajectories[motion_idx];
                 auto &motion_rel_trajectories = rel_trajectories[motion_idx];
-                auto num_controls = int(motion.controls.size());
+                auto num_controls = static_cast<int>(motion.controls.size());
                 motion_rel_trajectories.reserve(num_controls);
 
                 long max_num_trajectory_states = 0;
@@ -230,7 +229,7 @@ namespace erl::env {
 
                 // all state's reference state is still [x_center, y_center, theta]
                 // m_grid_map_info_ and hashing_grid_map_info_ share the same map center.
-                for (auto &state: grid_trajectory) {
+                for (const auto &state: grid_trajectory) {
                     state->grid[0] -= x_center_g;
                     state->grid[1] -= y_center_g;
                     state->grid[2] -= theta_g;
@@ -258,10 +257,10 @@ namespace erl::env {
                     successor_info.orders.end(),
                     [&motion_indices, &control_indices, &costs, &trajectory_costs](std::size_t i, std::size_t j) {
                         if (costs[i] == costs[j]) {  // identical control_cost + trajectory_length, prefer shorter trajectory
-                            auto &motion_idx_i = motion_indices[i];
-                            auto &motion_idx_j = motion_indices[j];
-                            auto &control_idx_i = control_indices[i];
-                            auto &control_idx_j = control_indices[j];
+                            const int &motion_idx_i = motion_indices[i];
+                            const int &motion_idx_j = motion_indices[j];
+                            const int &control_idx_i = control_indices[i];
+                            const int &control_idx_j = control_indices[j];
                             return trajectory_costs[motion_idx_i][control_idx_i] < trajectory_costs[motion_idx_j][control_idx_j];
                         }
                         return costs[i] < costs[j];
@@ -272,7 +271,7 @@ namespace erl::env {
 
         int max_dx = 0, max_dy = 0;
         for (int theta_g = 0; theta_g < m_setting_->num_orientations; ++theta_g) {
-            for (auto &successor_info: m_rel_successors_[theta_g]) {
+            for (const auto &successor_info: m_rel_successors_[theta_g]) {
                 int dx = std::abs(successor_info.rel_state->grid[0]);
                 int dy = std::abs(successor_info.rel_state->grid[1]);
                 if (dx > max_dx) { max_dx = dx; }
@@ -285,7 +284,7 @@ namespace erl::env {
         for (int theta_g = 0; theta_g < m_setting_->num_orientations; ++theta_g) {
             Eigen::MatrixXi local_map(2 * max_dx + 1, 2 * max_dy + 1);
             local_map.setConstant(0);
-            for (auto &successor_info: m_rel_successors_[theta_g]) {
+            for (const auto &successor_info: m_rel_successors_[theta_g]) {
                 int dx = successor_info.rel_state->grid[0] + max_dx;
                 int dy = successor_info.rel_state->grid[1] + max_dy;
                 local_map(dx, dy) += 1;
@@ -293,16 +292,6 @@ namespace erl::env {
             }
             local_maps.push_back(local_map);
         }
-        // std::cout << std::endl
-        //           << "num_orientations: " << m_setting_->num_orientations << std::endl
-        //           << "max_dx: " << max_dx << ", max_dy: " << max_dy << std::endl
-        //           << "total local map:" << std::endl
-        //           << total_local_map << std::endl
-        //           << "local map:" << std::endl;
-        // for (int theta_g = 0; theta_g < m_setting_->num_orientations; ++theta_g) {
-        //     double theta = m_grid_map_info_->GridToMeterForValue(theta_g, 2);
-        //     std::cout << "theta_g: " << theta_g << ", theta: " << theta * 180 / M_PI << std::endl << local_maps[theta_g] << std::endl;
-        // }
 
         m_inflated_grid_maps_.resize(m_setting_->num_orientations);
         for (int theta_g = 0; theta_g < m_setting_->num_orientations; ++theta_g) { m_original_grid_map_.copyTo(m_inflated_grid_maps_[theta_g]); }
@@ -359,24 +348,21 @@ namespace erl::env {
 
         for (const RelSuccessorInfo &kRelSuccessor: kRelSuccessors) {
             // for each successor, we pick the one with the lowest cost
-            for (std::size_t index: kRelSuccessor.orders) {  // iterate over controls that lead to the successor
+            for (const std::size_t index: kRelSuccessor.orders) {  // iterate over controls that lead to the successor
                 const int &kMotionIdx = kRelSuccessor.motion_indices[index];
                 const int &kControlIdx = kRelSuccessor.control_indices[index];
                 const std::vector<std::shared_ptr<EnvironmentState>> &kRelTrajectory = kRelTrajectories[kMotionIdx][kControlIdx];
 
                 // check collision
                 bool collided = false;
-                std::size_t num_steps = kRelTrajectory.size();
+                const std::size_t num_steps = kRelTrajectory.size();
 
-                Eigen::Vector3i grid_state;
+                Eigen::Vector3i grid_state = {0, 0, 0};
                 int &x_g = grid_state[0];
                 int &y_g = grid_state[1];
                 int &theta_g = grid_state[2];
 
-                Eigen::Vector3d metric_state;
-                double &x = metric_state[0];
-                double &y = metric_state[1];
-                double &theta = metric_state[2];
+                Eigen::Vector3d metric_state = {0.0, 0.0, 0.0};
 
                 for (std::size_t i = 0; i < num_steps; ++i) {
                     const Eigen::VectorXi &kRelGrid = kRelTrajectory[i]->grid;
@@ -396,14 +382,14 @@ namespace erl::env {
                     }
 
                     const Eigen::VectorXd &kRelMetric = kRelTrajectory[i]->metric;
-                    x = kRelMetric[0] + env_state->metric[0];
-                    y = kRelMetric[1] + env_state->metric[1];
-                    theta = kRelMetric[2] + env_state->metric[2];
+                    metric_state = kRelMetric.head<3>() + env_state->metric.head<3>();  // (x, y, theta)
                 }
                 if (collided) { continue; }  // this control is invalid, try next one
 
                 double cost = kRelSuccessor.costs[index];
-                if (m_setting_->add_map_cost) { cost += double(m_inflated_grid_maps_[theta_g].at<uint8_t>(x_g, y_g)) * m_setting_->map_cost_factor; }
+                if (m_setting_->add_map_cost) {
+                    cost += static_cast<double>(m_inflated_grid_maps_[theta_g].at<uint8_t>(x_g, y_g)) * m_setting_->map_cost_factor;
+                }
                 successors.emplace_back(metric_state, grid_state, cost, kRelSuccessor.action_coords[index]);
                 ERL_DEBUG_ASSERT((grid_state.array() >= 0).all(), "Grid state is negative: [{}, {}, {}].\n", grid_state[0], grid_state[1], grid_state[2]);
             }
@@ -418,15 +404,11 @@ namespace erl::env {
         std::uniform_int_distribution<int> dist(0, 255);
         for (const auto &[kGoalIndex, kPath]: paths) {
             std::vector<cv::Point> points;
-            auto num_points = kPath.cols();
+            const auto num_points = kPath.cols();
             points.reserve(num_points);
             for (long i = 0; i < num_points; ++i) {
                 auto grid_point = MetricToGrid(kPath.col(i));
                 points.emplace_back(grid_point[1], grid_point[0]);
-                // cv::Point2i arrow_point(
-                //     m_grid_map_info_->MeterToGridForValue(kPath(1, i) + 0.1 * std::cos(kPath(2, i)), 1),
-                //     m_grid_map_info_->MeterToGridForValue(kPath(0, i) + 0.1 * std::sin(kPath(2, i)), 0));
-                // cv::arrowedLine(img, points.back(), arrow_point, cv::Scalar(0, 255, 255), 1, cv::LINE_AA, 0, 0.01);
             }
             cv::Scalar color(dist(common::g_random_engine), dist(common::g_random_engine), dist(common::g_random_engine));
             cv::polylines(img, points, false, color, 1);

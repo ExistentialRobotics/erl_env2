@@ -19,6 +19,15 @@ erl_find_package(
         COMMANDS ARCH_LINUX "try `paru -S spot`"
         COMMANDS GENERAL "visit https://spot.lrde.epita.fr/install.html"
 )
+erl_find_package(
+        PACKAGE absl
+        REQUIRED GLOBAL
+        COMMANDS APPLE "try `brew install abseil`"
+        COMMANDS UBUNTU_LINUX "try `sudo apt install libabseil-dev`"
+        COMMANDS ARCH_LINUX "try `sudo pacman -S abseil-cpp`")
+get_target_property(absl::flat_hash_map_location absl::flat_hash_map LOCATION)
+list(APPEND absl_LIBRARIES ${absl_flat_hash_map_location})
+
 erl_setup_ros(
         CATKIN_COMPONENTS ${${PROJECT_NAME}_CATKIN_COMPONENTS}
 )
@@ -48,7 +57,10 @@ if (catkin_LIBRARIES)
 else ()
     target_link_libraries(${PROJECT_NAME} PUBLIC ${${PROJECT_NAME}_ERL_PACKAGES})
 endif ()
-target_link_libraries(${PROJECT_NAME} PUBLIC ${spot_LIBRARIES})
+target_link_libraries(${PROJECT_NAME}
+        PUBLIC ${spot_LIBRARIES}
+        PUBLIC absl::flat_hash_map
+)
 
 ###################
 # Python bindings #

@@ -1,4 +1,7 @@
 #pragma once
+
+#include "erl_common/logging.hpp"
+
 #include <spot/misc/minato.hh>
 #include <spot/twa/formula2bdd.hh>
 #include <spot/twa/twagraph.hh>
@@ -107,7 +110,7 @@ namespace erl::env::spot_helper {
     }
 
     inline bdd
-    LabelToBdd(uint32_t label, const std::vector<bdd> &atomic_propositions) {
+    LabelToBdd(const uint32_t label, const std::vector<bdd> &atomic_propositions) {
         bdd result = bddtrue;
         for (std::size_t i = 0; i < atomic_propositions.size(); ++i) {
             if ((label >> i) & 1) {

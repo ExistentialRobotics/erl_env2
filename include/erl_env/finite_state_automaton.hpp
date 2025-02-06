@@ -1,13 +1,10 @@
 #pragma once
 
-#include "spot_helper.hpp"
-
 #include "erl_common/logging.hpp"
 #include "erl_common/yaml.hpp"
 
 #include <absl/container/flat_hash_map.h>
 #include <boost/graph/adjacency_list.hpp>
-#include <boost/graph/graph_traits.hpp>
 #include <boost/graph/graphviz.hpp>
 
 #include <cstdint>
@@ -105,41 +102,41 @@ namespace erl::env {
     public:
         explicit FiniteStateAutomaton(std::shared_ptr<Setting> setting);
 
-        [[nodiscard]] inline std::shared_ptr<Setting>
+        [[nodiscard]] std::shared_ptr<Setting>
         GetSetting() const {
             return m_setting_;
         }
 
-        [[nodiscard]] inline uint32_t
+        [[nodiscard]] uint32_t
         GetAlphabetSize() const {
             return m_alphabet_size_;
         }
 
-        [[nodiscard]] inline std::vector<std::vector<uint32_t>>
+        [[nodiscard]] const std::vector<std::vector<uint32_t>> &
         GetLevels() const {
             return m_levels_;
         }
 
-        [[nodiscard]] inline std::vector<std::vector<bool>>
+        [[nodiscard]] const std::vector<std::vector<bool>> &
         GetLevelsB() const {
             return m_levels_b_;
         }
 
-        [[nodiscard]] inline std::vector<bool>
+        [[nodiscard]] const std::vector<bool> &
         GetSinkStates() const {
             return m_sink_states_;
         }
 
-        [[nodiscard]] inline std::vector<uint32_t>
-        GetTransitionLabels(uint32_t from, uint32_t to) const {
-            auto result = m_transition_labels_.find(HashingTransition(from, to));
+        [[nodiscard]] std::vector<uint32_t>
+        GetTransitionLabels(const uint32_t from, const uint32_t to) const {
+            const auto result = m_transition_labels_.find(HashingTransition(from, to));
             if (result == m_transition_labels_.end()) { return {}; }
             return result->second;
         }
 
-        [[nodiscard]] inline uint32_t
-        GetNextState(uint32_t state, uint32_t label) const {
-            auto result = m_transition_next_state_.find(HashingStateLabelPair(state, label));
+        [[nodiscard]] uint32_t
+        GetNextState(const uint32_t state, const uint32_t label) const {
+            const auto result = m_transition_next_state_.find(HashingStateLabelPair(state, label));
             if (result == m_transition_next_state_.end()) { return state; }
             return result->second;
         }
@@ -149,22 +146,22 @@ namespace erl::env {
          * @param state
          * @return
          */
-        [[nodiscard]] inline int
-        GetLevelIndex(uint32_t state) const {
+        [[nodiscard]] int
+        GetLevelIndex(const uint32_t state) const {
             if (m_sink_states_[state]) { return -1; }
             for (std::size_t i = 0; i < m_levels_.size(); ++i) {
-                if (m_levels_b_[i][state]) { return int(i); }
+                if (m_levels_b_[i][state]) { return static_cast<int>(i); }
             }
             throw std::runtime_error("state is not in any level and is not a sink state!");
         }
 
-        [[nodiscard]] inline bool
-        IsSinkState(uint32_t state) const {
+        [[nodiscard]] bool
+        IsSinkState(const uint32_t state) const {
             return m_sink_states_[state];
         }
 
-        [[nodiscard]] inline bool
-        IsAcceptingState(uint32_t state) const {
+        [[nodiscard]] bool
+        IsAcceptingState(const uint32_t state) const {
             return m_accepting_states_[state];
         }
 
@@ -172,13 +169,13 @@ namespace erl::env {
         void
         Init();
 
-        [[nodiscard]] inline uint32_t
-        HashingTransition(uint32_t from, uint32_t to) const {
+        [[nodiscard]] uint32_t
+        HashingTransition(const uint32_t from, const uint32_t to) const {
             return from + to * m_setting_->num_states;  // column-major
         }
 
-        [[nodiscard]] inline uint32_t
-        HashingStateLabelPair(uint32_t state, uint32_t label) const {
+        [[nodiscard]] uint32_t
+        HashingStateLabelPair(const uint32_t state, const uint32_t label) const {
             return state + label * m_setting_->num_states;  // column-major
         }
     };

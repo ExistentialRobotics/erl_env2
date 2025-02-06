@@ -9,7 +9,7 @@ TEST(ERL_ENV, EnvironmentSceneGraph) {
     auto data_dir = path.parent_path();
     path = data_dir / "building.yaml";
     auto building = std::make_shared<erl::env::scene_graph::Building>();
-    building->FromYamlFile(path.string());
+    ASSERT_TRUE(building->FromYamlFile(path.string()));
 
     auto setting = std::make_shared<erl::env::EnvironmentSceneGraph::Setting>();
     setting->data_dir = data_dir.string();

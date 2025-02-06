@@ -1,5 +1,7 @@
 #include "erl_env/finite_state_automaton.hpp"
 
+#include "erl_env/spot_helper.hpp"
+
 #include <spot/twaalgos/complete.hh>
 
 namespace erl::env {
@@ -7,7 +9,7 @@ namespace erl::env {
     FiniteStateAutomaton::Setting::Setting(const std::string &filepath, FileType file_type) {
         switch (file_type) {
             case FileType::kYaml:
-                FromYamlFile(filepath);
+                ERL_ASSERTM(FromYamlFile(filepath), "failed to load the setting from the yaml file: {}", filepath);
                 break;
             case FileType::kSpotHoa:
                 FromSpotGraphHoaFile(filepath);
@@ -89,7 +91,7 @@ namespace erl::env {
         bool initial_state_found = false;
         for (auto v = boost::vertices(graph); v.first != v.second; ++v.first) {
             uint32_t state = vertex_index[*v.first];
-            std::string label = vertex_label[*v.first];
+            const std::string &label = vertex_label[*v.first];
             if (label.find("initial") != std::string::npos) {
                 ERL_ASSERTM(!initial_state_found, "multiple initial states");
                 initial_state = state;
@@ -238,13 +240,13 @@ namespace erl::env {
 
         // set accepting states
         m_accepting_states_.resize(m_setting_->num_states, false);
-        for (auto &state: m_setting_->accepting_states) { m_accepting_states_[state] = true; }
+        for (const auto &state: m_setting_->accepting_states) { m_accepting_states_[state] = true; }
 
         // compute levels
         m_levels_.emplace_back(m_setting_->accepting_states.begin(), m_setting_->accepting_states.end());  // level 0
         m_levels_b_.emplace_back(m_setting_->num_states, false);                                           // level 0
         m_sink_states_.resize(m_setting_->num_states, true);
-        for (auto &state: m_setting_->accepting_states) {
+        for (const auto &state: m_setting_->accepting_states) {
             m_sink_states_[state] = false;
             m_levels_b_[0][state] = true;
         }

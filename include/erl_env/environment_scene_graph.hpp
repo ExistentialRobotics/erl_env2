@@ -203,7 +203,7 @@ namespace erl::env {
         }
 
         [[nodiscard]] std::vector<std::shared_ptr<EnvironmentState>>
-        SampleValidStates(int num_samples) const override {
+        SampleValidStates(int /*num_samples*/) const override {
             throw NotImplemented(__PRETTY_FUNCTION__);
         }
 

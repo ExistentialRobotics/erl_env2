@@ -15,7 +15,7 @@ TEST(ERL_ENV, FiniteStateAutomaton) {
     std::filesystem::path fsa_yaml_path = data_dir / "fsa.yaml";
 
     auto setting = std::make_shared<FiniteStateAutomaton::Setting>();
-    setting->FromYamlFile(fsa_yaml_path);
+    ASSERT_TRUE(setting->FromYamlFile(fsa_yaml_path));
     std::cout << *setting << std::endl;
 
     EXPECT_EQ(setting->num_states, 9);

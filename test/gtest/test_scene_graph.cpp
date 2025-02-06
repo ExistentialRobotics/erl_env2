@@ -9,7 +9,7 @@ TEST(ERL_ENV, SceneGraph) {
     path = data_dir / "building.yaml";
 
     erl::env::scene_graph::Building building;
-    building.FromYamlFile(path.string());
+    ASSERT_TRUE(building.FromYamlFile(path.string()));
 
     EXPECT_EQ(building.uuid, 1);
     EXPECT_EQ(building.id, 4);

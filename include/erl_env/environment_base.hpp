@@ -22,23 +22,33 @@ namespace erl::env {
 
         Successor() = default;
 
-        Successor(std::shared_ptr<EnvironmentState> state, const double cost, std::vector<int> action_coords)
+        Successor(
+            std::shared_ptr<EnvironmentState> state,
+            const double cost,
+            std::vector<int> action_coords)
             : env_state(std::move(state)),
               cost(cost),
               action_coords(std::move(action_coords)) {
             ERL_ASSERTM(env_state != nullptr, "state is nullptr");
         }
 
-        Successor(Eigen::VectorXd env_metric_state, Eigen::VectorXi env_grid_state, const double cost, std::vector<int> action_coords)
-            : env_state(std::make_shared<EnvironmentState>(std::move(env_metric_state), std::move(env_grid_state))),
+        Successor(
+            Eigen::VectorXd env_metric_state,
+            Eigen::VectorXi env_grid_state,
+            const double cost,
+            std::vector<int> action_coords)
+            : env_state(
+                  std::make_shared<EnvironmentState>(
+                      std::move(env_metric_state),
+                      std::move(env_grid_state))),
               cost(cost),
               action_coords(std::move(action_coords)) {}
     };
 
     /**
-     * @brief EnvironmentBase is a virtual interface for search-based planning on a metric space. Thus, the
-     * EnvironmentBase includes a set of map parameters such as grid cell resolution, and a collision checker. The
-     * internal state representation is discrete grid coordinate.
+     * @brief EnvironmentBase is a virtual interface for search-based planning on a metric space.
+     * Thus, the EnvironmentBase includes a set of map parameters such as grid cell resolution, and
+     * a collision checker. The internal state representation is discrete grid coordinate.
      */
     class EnvironmentBase {
 
@@ -47,11 +57,15 @@ namespace erl::env {
         double m_time_step_ = 0.01;  // 10ms
 
     public:
-        explicit EnvironmentBase(std::shared_ptr<CostBase> distance_cost_func = nullptr, const double time_step = 0.01)
+        explicit EnvironmentBase(
+            std::shared_ptr<CostBase> distance_cost_func = nullptr,
+            const double time_step = 0.01)
             : m_distance_cost_func_(std::move(distance_cost_func)),
               m_time_step_(time_step) {
             if (m_distance_cost_func_ == nullptr) {
-                ERL_INFO("distance_cost_func is nullptr, use Euclidean distance as default cost function.");
+                ERL_INFO(
+                    "distance_cost_func is nullptr, use Euclidean distance as default cost "
+                    "function.");
                 m_distance_cost_func_ = std::make_shared<EuclideanDistanceCost>();
             }
         }
@@ -75,13 +89,16 @@ namespace erl::env {
         GetActionSpaceSize() const = 0;
 
         /**
-         * Apply an action on the given environment state to get the next state. No collision check guarantee!
+         * Apply an action on the given environment state to get the next state. No collision check
+         * guarantee!
          * @param env_state
          * @param action_coords
          * @return
          */
         [[nodiscard]] virtual std::vector<std::shared_ptr<EnvironmentState>>
-        ForwardAction(const std::shared_ptr<const EnvironmentState> &env_state, const std::vector<int> &action_coords) const = 0;
+        ForwardAction(
+            const std::shared_ptr<const EnvironmentState> &env_state,
+            const std::vector<int> &action_coords) const = 0;
 
         /**
          * Get reachable next environment states with the current state. Collision check is applied.
@@ -111,13 +128,20 @@ namespace erl::env {
 
     protected:
         static void
-        InitializeGridMap2D(const std::shared_ptr<common::GridMapUnsigned2D> &grid_map, cv::Mat &initialized_grid_map) {
+        InitializeGridMap2D(
+            const std::shared_ptr<common::GridMapUnsigned2D> &grid_map,
+            cv::Mat &initialized_grid_map) {
             // x to the bottom, y to the right, along y first
-            initialized_grid_map = cv::Mat(grid_map->info->Shape(0), grid_map->info->Shape(1), CV_8UC1, cv::Scalar(0));
+            initialized_grid_map =
+                cv::Mat(grid_map->info->Shape(0), grid_map->info->Shape(1), CV_8UC1, cv::Scalar(0));
             const int size = grid_map->info->Size();
             const auto begin = grid_map->data.GetDataPtr();
             const auto end = begin + size;
-            std::copy(begin, end, initialized_grid_map.data);  // both erl::common::GridMapUnsigned2D and cv::Mat are row-major.
+            std::copy(
+                begin,
+                end,
+                initialized_grid_map
+                    .data);  // both erl::common::GridMapUnsigned2D and cv::Mat are row-major.
         }
 
         static void

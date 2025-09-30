@@ -6,8 +6,11 @@ namespace erl::env::spot_helper {
 
     // inspired by bdd_printset_rec in buddy/src/cppext.cxx
     static void
-    bdd_to_vec_rec(std::vector<int> &vec, const bdd &r, std::vector<int> &set) {  // NOLINT(*-no-recursion)
-        if (r == bddfalse) {                                                      // false terminal
+    bdd_to_vec_rec(
+        std::vector<int> &vec,
+        const bdd &r,
+        std::vector<int> &set) {  // NOLINT(*-no-recursion)
+        if (r == bddfalse) {      // false terminal
             return;
         } else if (r == bddtrue) {  // true terminal, dump to vec
             for (int n = 0; n < bdd_varnum(); ++n) {
@@ -17,7 +20,8 @@ namespace erl::env::spot_helper {
                 }
             }
         } else {
-            int level = bdd_var2level(bdd_var(r));  // position of the variable in the current variable order
+            int level = bdd_var2level(
+                bdd_var(r));  // position of the variable in the current variable order
             set[level] = 1;
             bdd_to_vec_rec(vec, bdd_low(r), set);
             set[level] = 2;

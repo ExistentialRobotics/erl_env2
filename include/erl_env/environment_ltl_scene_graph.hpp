@@ -23,11 +23,13 @@ namespace erl::env {
             void
             LoadAtomicPropositions(const std::string &yaml_file) {
                 YAML::Node node = YAML::LoadFile(yaml_file);
-                YAML::convert<std::unordered_map<std::string, std::shared_ptr<AtomicProposition>>>::decode(node, atomic_propositions);
+                YAML::convert<std::unordered_map<std::string, std::shared_ptr<AtomicProposition>>>::
+                    decode(node, atomic_propositions);
             }
         };
 
-        inline static const volatile bool kSettingRegistered = common::YamlableBase::Register<Setting>();
+        inline static const volatile bool kSettingRegistered =
+            common::YamlableBase::Register<Setting>();
 
     protected:
         std::shared_ptr<Setting> m_setting_ = nullptr;
@@ -36,24 +38,37 @@ namespace erl::env {
         absl::flat_hash_map<int, Eigen::MatrixX<std::vector<int>>> m_up_stairs_path_q_maps_ = {};
         absl::flat_hash_map<int, Eigen::MatrixX<std::vector<int>>> m_down_stairs_path_q_maps_ = {};
         absl::flat_hash_map<int, Eigen::MatrixX<std::vector<int>>> m_object_path_q_maps_ = {};
-        absl::flat_hash_map<int, absl::flat_hash_map<int, Eigen::MatrixX<std::vector<int>>>> m_room_path_q_maps_ = {};
+        absl::flat_hash_map<int, absl::flat_hash_map<int, Eigen::MatrixX<std::vector<int>>>>
+            m_room_path_q_maps_ = {};
 
         friend class erl::search_planning::LlmSceneGraphHeuristic;
 
     public:
-        EnvironmentLTLSceneGraph(std::shared_ptr<scene_graph::Building> building, const std::shared_ptr<EnvironmentLTLSceneGraph::Setting> &setting)
+        EnvironmentLTLSceneGraph(
+            std::shared_ptr<scene_graph::Building> building,
+            const std::shared_ptr<EnvironmentLTLSceneGraph::Setting> &setting)
             : EnvironmentSceneGraph(std::move(building), setting),
               m_setting_(setting) {
             m_fsa_ = std::make_shared<FiniteStateAutomaton>(m_setting_->fsa);
             GenerateLabelMaps();
 
             // initialize path_q maps
-            for (auto &[floor_id, cost_map]: m_up_stairs_cost_maps_) { m_up_stairs_path_q_maps_[floor_id].resize(cost_map.rows(), cost_map.cols()); }
-            for (auto &[floor_id, cost_map]: m_down_stairs_cost_maps_) { m_down_stairs_path_q_maps_[floor_id].resize(cost_map.rows(), cost_map.cols()); }
-            for (auto &[obj_id, cost_map]: m_object_cost_maps_) { m_object_path_q_maps_[obj_id].resize(cost_map.cost_map.rows(), cost_map.cost_map.cols()); }
+            for (auto &[floor_id, cost_map]: m_up_stairs_cost_maps_) {
+                m_up_stairs_path_q_maps_[floor_id].resize(cost_map.rows(), cost_map.cols());
+            }
+            for (auto &[floor_id, cost_map]: m_down_stairs_cost_maps_) {
+                m_down_stairs_path_q_maps_[floor_id].resize(cost_map.rows(), cost_map.cols());
+            }
+            for (auto &[obj_id, cost_map]: m_object_cost_maps_) {
+                m_object_path_q_maps_[obj_id].resize(
+                    cost_map.cost_map.rows(),
+                    cost_map.cost_map.cols());
+            }
             for (auto &[room1_id, cost_maps]: m_room_cost_maps_) {
                 for (auto &[room2_id, cost_map]: cost_maps) {
-                    m_room_path_q_maps_[room1_id][room2_id].resize(cost_map.cost_map.rows(), cost_map.cost_map.cols());
+                    m_room_path_q_maps_[room1_id][room2_id].resize(
+                        cost_map.cost_map.rows(),
+                        cost_map.cost_map.cols());
                 }
             }
         }
@@ -74,10 +89,14 @@ namespace erl::env {
         }
 
         [[nodiscard]] std::vector<std::shared_ptr<EnvironmentState>>
-        ForwardAction(const std::shared_ptr<const EnvironmentState> &env_state, const std::vector<int> &action_coords) const override;
+        ForwardAction(
+            const std::shared_ptr<const EnvironmentState> &env_state,
+            const std::vector<int> &action_coords) const override;
 
         [[nodiscard]] std::vector<Successor>
-        GetSuccessorsAtLevel(const std::shared_ptr<EnvironmentState> &env_state, std::size_t resolution_level) const override;
+        GetSuccessorsAtLevel(
+            const std::shared_ptr<EnvironmentState> &env_state,
+            std::size_t resolution_level) const override;
 
         [[nodiscard]] bool
         InStateSpace(const std::shared_ptr<EnvironmentState> &env_state) const override {
@@ -85,14 +104,22 @@ namespace erl::env {
         }
 
         [[nodiscard]] bool
-        InStateSpaceAtLevel(const std::shared_ptr<EnvironmentState> &env_state, const std::size_t resolution_level) const override {
-            if (resolution_level == 0) { return m_grid_map_info_->InGrids(env_state->grid.head<3>()); }
+        InStateSpaceAtLevel(
+            const std::shared_ptr<EnvironmentState> &env_state,
+            const std::size_t resolution_level) const override {
+            if (resolution_level == 0) {
+                return m_grid_map_info_->InGrids(env_state->grid.head<3>());
+            }
             if (!m_grid_map_info_->InGrids(env_state->grid.head<3>())) { return false; }
             switch (static_cast<scene_graph::Node::Type>(resolution_level - 1)) {
                 case scene_graph::Node::Type::kObject:
-                    return !m_object_reached_maps_.at(env_state->grid[2])(env_state->grid[0], env_state->grid[1]).empty();
+                    return !m_object_reached_maps_
+                                .at(env_state->grid[2])(env_state->grid[0], env_state->grid[1])
+                                .empty();
                 case scene_graph::Node::Type::kRoom:
-                    return m_room_maps_[env_state->grid[2]].at<int>(env_state->grid[0], env_state->grid[1]) > 0;
+                    return m_room_maps_[env_state->grid[2]].at<int>(
+                               env_state->grid[0],
+                               env_state->grid[1]) > 0;
                 case scene_graph::Node::Type::kOcc:
                 case scene_graph::Node::Type::kFloor:
                 case scene_graph::Node::Type::kBuilding:
@@ -137,14 +164,20 @@ namespace erl::env {
         GenerateLabelMaps();
 
         bool
-        EvaluateAtomicProposition(int x, int y, int floor_num, const std::shared_ptr<AtomicProposition> &proposition) {
+        EvaluateAtomicProposition(
+            int x,
+            int y,
+            int floor_num,
+            const std::shared_ptr<AtomicProposition> &proposition) {
             switch (proposition->type) {
                 case AtomicProposition::Type::kNA:
                     return false;
                 case AtomicProposition::Type::kEnterRoom:
                     return EvaluateEnterRoom(x, y, floor_num, proposition->uuid);
                 case AtomicProposition::Type::kReachObject: {
-                    double reach_distance = proposition->reach_distance > 0 ? proposition->reach_distance : m_setting_->object_reach_distance;
+                    double reach_distance = proposition->reach_distance > 0
+                                                ? proposition->reach_distance
+                                                : m_setting_->object_reach_distance;
                     return EvaluateReachObject(x, y, floor_num, proposition->uuid, reach_distance);
                 }
                 default:
@@ -183,8 +216,13 @@ namespace YAML {
 
         static bool
         decode(const Node &node, erl::env::EnvironmentLTLSceneGraph::Setting &rhs) {
-            if (!convert<erl::env::EnvironmentSceneGraph::Setting>::decode(node, rhs)) { return false; }
-            rhs.atomic_propositions = node["atomic_propositions"].as<std::unordered_map<std::string, std::shared_ptr<erl::env::AtomicProposition>>>();
+            if (!convert<erl::env::EnvironmentSceneGraph::Setting>::decode(node, rhs)) {
+                return false;
+            }
+            rhs.atomic_propositions = node["atomic_propositions"]
+                                          .as<std::unordered_map<
+                                              std::string,
+                                              std::shared_ptr<erl::env::AtomicProposition>>>();
             rhs.fsa = node["fsa"].as<std::shared_ptr<erl::env::FiniteStateAutomaton::Setting>>();
             return true;
         }

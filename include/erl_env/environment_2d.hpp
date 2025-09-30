@@ -14,13 +14,13 @@ namespace erl::env {
     class Environment2D : public EnvironmentBase {
 
     public:
-        struct Setting : common::Yamlable<Setting> {
+        struct Setting : public common::Yamlable<Setting> {
             std::vector<Eigen::Vector2i> motions;  // 2d grid motions
             int grid_stride = 1;                   // grid stride in grid space
             uint8_t obstacle_threshold = 1;        // minimum map value to be considered as obstacle
-            bool add_map_cost = false;             // indicate whether to add map cost to the successor cost
-            double map_cost_factor = 1.0;          // map cost = map_cost_factor * map_cost
-            Eigen::Matrix2Xd shape = {};           // assume the shape center is at the origin
+            bool add_map_cost = false;     // indicate whether to add map cost to the successor cost
+            double map_cost_factor = 1.0;  // map cost = map_cost_factor * map_cost
+            Eigen::Matrix2Xd shape = {};   // assume the shape center is at the origin
 
             void
             SetGridMotionPrimitive(const int max_axis_step, const bool allow_diagonal) {
@@ -49,17 +49,21 @@ namespace erl::env {
         };
 
     protected:
-        std::shared_ptr<Setting> m_setting_;                      // environment setting
-        std::vector<Eigen::Matrix2Xi> m_rel_trajectories_;        // relative trajectories of motion primitives
-        std::vector<double> m_motion_costs_;                      // cost of each motion
-        Eigen::MatrixX<std::vector<int>> m_reachable_motions_;    // reachable controls for each grid
-        cv::Mat m_original_grid_map_;                             // original grid map, where each cell is a scaled cost value
-        cv::Mat m_grid_map_;                                      // inflated grid map
-        std::shared_ptr<common::GridMapInfo2D> m_grid_map_info_;  // grid map description, x to the bottom, y to the right, along y first
+        std::shared_ptr<Setting> m_setting_;  // environment setting
+        std::vector<Eigen::Matrix2Xi>
+            m_rel_trajectories_;              // relative trajectories of motion primitives
+        std::vector<double> m_motion_costs_;  // cost of each motion
+        Eigen::MatrixX<std::vector<int>> m_reachable_motions_;  // reachable controls for each grid
+        cv::Mat m_original_grid_map_;  // original grid map, where each cell is a scaled cost value
+        cv::Mat m_grid_map_;           // inflated grid map
+        std::shared_ptr<common::GridMapInfo2D>
+            m_grid_map_info_;  // grid map description, x to the bottom, y to the right, along y
+                               // first
 
     public:
         explicit Environment2D(
-            const std::shared_ptr<common::GridMapUnsigned2D> &grid_map,  // x to the bottom, y to the right, along y first
+            const std::shared_ptr<common::GridMapUnsigned2D>
+                &grid_map,  // x to the bottom, y to the right, along y first
             std::shared_ptr<Setting> setting,
             std::shared_ptr<CostBase> distance_cost_func = nullptr);
 
@@ -85,8 +89,13 @@ namespace erl::env {
         }
 
         [[nodiscard]] std::vector<std::shared_ptr<EnvironmentState>>
-        ForwardAction(const std::shared_ptr<const EnvironmentState> &env_state, const std::vector<int> &action_coords) const override {
-            ERL_ASSERTM(action_coords.size() == 1, "Invalid action_coords size: %lu.", action_coords.size());
+        ForwardAction(
+            const std::shared_ptr<const EnvironmentState> &env_state,
+            const std::vector<int> &action_coords) const override {
+            ERL_ASSERTM(
+                action_coords.size() == 1,
+                "Invalid action_coords size: %lu.",
+                action_coords.size());
             auto new_state = std::make_shared<EnvironmentState>();
             new_state->grid = env_state->grid + m_setting_->motions[action_coords[0]];
             new_state->metric = GridToMetric(new_state->grid);
@@ -99,7 +108,9 @@ namespace erl::env {
         [[nodiscard]] bool
         InStateSpace(const std::shared_ptr<EnvironmentState> &env_state) const override {
             return m_grid_map_info_->InGrids(env_state->grid) &&
-                   (m_setting_->grid_stride == 1 || (env_state->grid[0] % m_setting_->grid_stride == 0 && env_state->grid[1] % m_setting_->grid_stride == 0));
+                   (m_setting_->grid_stride == 1 ||
+                    (env_state->grid[0] % m_setting_->grid_stride == 0 &&
+                     env_state->grid[1] % m_setting_->grid_stride == 0));
         }
 
         [[nodiscard]] uint32_t
@@ -109,13 +120,17 @@ namespace erl::env {
 
         [[nodiscard]] Eigen::VectorXi
         MetricToGrid(const Eigen::Ref<const Eigen::VectorXd> &metric_state) const override {
-            Eigen::Vector2i grid_state(m_grid_map_info_->MeterToGridForValue(metric_state[0], 0), m_grid_map_info_->MeterToGridForValue(metric_state[1], 1));
+            Eigen::Vector2i grid_state(
+                m_grid_map_info_->MeterToGridForValue(metric_state[0], 0),
+                m_grid_map_info_->MeterToGridForValue(metric_state[1], 1));
             return grid_state;
         }
 
         [[nodiscard]] Eigen::VectorXd
         GridToMetric(const Eigen::Ref<const Eigen::VectorXi> &grid_state) const override {
-            Eigen::Vector2d metric_state(m_grid_map_info_->GridToMeterForValue(grid_state[0], 0), m_grid_map_info_->GridToMeterForValue(grid_state[1], 1));
+            Eigen::Vector2d metric_state(
+                m_grid_map_info_->GridToMeterForValue(grid_state[0], 0),
+                m_grid_map_info_->GridToMeterForValue(grid_state[1], 1));
             return metric_state;
         }
 

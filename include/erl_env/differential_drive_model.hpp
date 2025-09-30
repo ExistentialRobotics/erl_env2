@@ -25,7 +25,16 @@ namespace erl::env {
     };
 
     inline void
-    DifferentialDriveKinematic(double x, double y, double theta, double linear_v, double angular_v, double t, double &new_x, double &new_y, double &new_theta) {
+    DifferentialDriveKinematic(
+        double x,
+        double y,
+        double theta,
+        double linear_v,
+        double angular_v,
+        double t,
+        double &new_x,
+        double &new_y,
+        double &new_theta) {
 
         auto w = angular_v * t;
         new_theta = common::WrapAnglePi(theta + w);

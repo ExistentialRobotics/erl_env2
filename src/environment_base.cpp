@@ -12,7 +12,8 @@ namespace erl::env {
         // inflate the grid map: rows are x, cols are y
         // create the dilation_kernel and anchor
         std::vector<std::vector<cv::Point>> contours(1);
-        auto &contour = contours[0];  // vector of points, each point is a 2D point (col, row), i.e. (y, x)
+        auto &contour =
+            contours[0];  // vector of points, each point is a 2D point (col, row), i.e. (y, x)
         long n_vertices = shape_metric_vertices.cols();
         contour.reserve(n_vertices);
         int row_min = std::numeric_limits<int>::max();
@@ -49,7 +50,8 @@ namespace erl::env {
 
         // dilate the grid map
         cv::Point anchor(col_0 - col_min, row_0 - row_min);
-        // dst(x, y) = max_{(x', y') of nonzero elements in kernel} src(x + x' - anchor.x, y + y' - anchor.y)
+        // dst(x, y) = max_{(x', y') of nonzero elements in kernel} src(x + x' - anchor.x, y + y' -
+        // anchor.y)
         cv::dilate(original_grid_map, inflated_grid_map, dilation_kernel, anchor, 1);
     }
 }  // namespace erl::env

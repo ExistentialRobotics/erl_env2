@@ -69,13 +69,13 @@ namespace erl::env::scene_graph {
         std::optional<std::array<int, 2>> up_stairs_portal = {};            // up stairs portal
         std::optional<std::array<int, 2>> down_stairs_portal = {};          // down stairs portal
         double ground_z = -1;                                               // ground z coordinate
-        std::string room_map = {};                                          // relative path of room segmentation map
-        std::string cat_map = {};                                           // relative path of object segmentation map
-        std::unordered_map<int, std::shared_ptr<Room>> rooms;               // rooms
-        int num_rooms = 0;                                                  // number of rooms
-        Eigen::Vector2d grid_map_origin = {};                               // grid_map origin
-        Eigen::Vector2d grid_map_resolution = {};                           // grid_map resolution
-        Eigen::Vector2i grid_map_size = {};                                 // grid_map size
+        std::string room_map = {};  // relative path of room segmentation map
+        std::string cat_map = {};   // relative path of object segmentation map
+        std::unordered_map<int, std::shared_ptr<Room>> rooms;  // rooms
+        int num_rooms = 0;                                     // number of rooms
+        Eigen::Vector2d grid_map_origin = {};                  // grid_map origin
+        Eigen::Vector2d grid_map_resolution = {};              // grid_map resolution
+        Eigen::Vector2i grid_map_size = {};                    // grid_map size
     };
 
     struct Building : public common::Yamlable<Building, Node> {
@@ -103,19 +103,34 @@ namespace erl::env::scene_graph {
             uuid_to_node.clear();
             for (auto& floor_itr: floors) {
                 auto& floor = floor_itr.second;
-                ERL_ASSERTM(uuid_to_node.try_emplace(floor->uuid, floor).second, "Duplicate floor uuid: %d", floor->uuid);
+                ERL_ASSERTM(
+                    uuid_to_node.try_emplace(floor->uuid, floor).second,
+                    "Duplicate floor uuid: %d",
+                    floor->uuid);
                 for (auto& room_itr: floor->rooms) {
                     auto& room = room_itr.second;
                     room_ids.push_back(room->id);
                     room_uuids.push_back(room->uuid);
-                    ERL_ASSERTM(id_to_room.try_emplace(room->id, room).second, "Duplicate room id: %d", room->id);
-                    ERL_ASSERTM(uuid_to_node.try_emplace(room->uuid, room).second, "Duplicate room uuid: %d", room->uuid);
+                    ERL_ASSERTM(
+                        id_to_room.try_emplace(room->id, room).second,
+                        "Duplicate room id: %d",
+                        room->id);
+                    ERL_ASSERTM(
+                        uuid_to_node.try_emplace(room->uuid, room).second,
+                        "Duplicate room uuid: %d",
+                        room->uuid);
                     for (auto& object_itr: room->objects) {
                         auto& object = object_itr.second;
                         object_ids.push_back(object->id);
                         object_uuids.push_back(object->uuid);
-                        ERL_ASSERTM(id_to_object.try_emplace(object->id, object).second, "Duplicate object id: %d", object->id);
-                        ERL_ASSERTM(uuid_to_node.try_emplace(object->uuid, object).second, "Duplicate object uuid: %d", object->uuid);
+                        ERL_ASSERTM(
+                            id_to_object.try_emplace(object->id, object).second,
+                            "Duplicate object id: %d",
+                            object->id);
+                        ERL_ASSERTM(
+                            uuid_to_node.try_emplace(object->uuid, object).second,
+                            "Duplicate object uuid: %d",
+                            object->uuid);
                     }
                 }
             }
@@ -283,11 +298,17 @@ namespace YAML {
                 ERL_WARN("Node type is not kRoom");
                 return false;
             }
-            rhs.objects = node["objects"].as<std::unordered_map<int, std::shared_ptr<erl::env::scene_graph::Object>>>();
+            rhs.objects =
+                node["objects"]
+                    .as<std::unordered_map<int, std::shared_ptr<erl::env::scene_graph::Object>>>();
             rhs.num_objects = node["num_objects"].as<uint32_t>();
             ERL_ASSERTM(rhs.objects.size() == rhs.num_objects, "Number of objects does not match");
             for (auto object_itr: rhs.objects) {
-                ERL_ASSERTM(object_itr.second->id == object_itr.first, "Object %d has wrong id: %d", object_itr.first, object_itr.second->id);
+                ERL_ASSERTM(
+                    object_itr.second->id == object_itr.first,
+                    "Object %d has wrong id: %d",
+                    object_itr.first,
+                    object_itr.second->id);
             }
             rhs.connected_room_ids = node["connected_room_ids"].as<std::vector<int>>();
             rhs.connected_room_uuids = node["connected_room_uuids"].as<std::vector<int>>();
@@ -339,15 +360,24 @@ namespace YAML {
             rhs.down_stairs_cost = node["down_stairs_cost"].as<double>();
             rhs.up_stairs_cost = node["up_stairs_cost"].as<double>();
             rhs.up_stairs_portal = node["up_stairs_portal"].as<std::optional<std::array<int, 2>>>();
-            rhs.down_stairs_portal = node["down_stairs_portal"].as<std::optional<std::array<int, 2>>>();
+            rhs.down_stairs_portal =
+                node["down_stairs_portal"].as<std::optional<std::array<int, 2>>>();
             rhs.ground_z = node["ground_z"].as<double>();
             rhs.room_map = node["room_map"].as<std::string>();
             rhs.cat_map = node["cat_map"].as<std::string>();
-            rhs.rooms = node["rooms"].as<std::unordered_map<int, std::shared_ptr<erl::env::scene_graph::Room>>>();
+            rhs.rooms =
+                node["rooms"]
+                    .as<std::unordered_map<int, std::shared_ptr<erl::env::scene_graph::Room>>>();
             rhs.num_rooms = node["num_rooms"].as<int>();
-            ERL_ASSERTM(rhs.rooms.size() == std::size_t(rhs.num_rooms), "Number of rooms does not match");
+            ERL_ASSERTM(
+                rhs.rooms.size() == std::size_t(rhs.num_rooms),
+                "Number of rooms does not match");
             for (auto room_itr: rhs.rooms) {
-                ERL_ASSERTM(room_itr.second->id == room_itr.first, "Room %d has wrong id: %d", room_itr.first, room_itr.second->id);
+                ERL_ASSERTM(
+                    room_itr.second->id == room_itr.first,
+                    "Room %d has wrong id: %d",
+                    room_itr.first,
+                    room_itr.second->id);
             }
             rhs.grid_map_origin = node["grid_map_origin"].as<Eigen::Vector2d>();
             rhs.grid_map_resolution = node["grid_map_resolution"].as<Eigen::Vector2d>();
@@ -376,12 +406,20 @@ namespace YAML {
                 ERL_WARN("Node type is not kBuilding");
                 return false;
             }
-            rhs.floors = node["floors"].as<std::unordered_map<int, std::shared_ptr<erl::env::scene_graph::Floor>>>();
+            rhs.floors =
+                node["floors"]
+                    .as<std::unordered_map<int, std::shared_ptr<erl::env::scene_graph::Floor>>>();
             rhs.num_floors = node["num_floors"].as<int>();
-            ERL_ASSERTM(rhs.floors.size() == std::size_t(rhs.num_floors), "Number of floors does not match");
+            ERL_ASSERTM(
+                rhs.floors.size() == std::size_t(rhs.num_floors),
+                "Number of floors does not match");
             for (int i = 0; i < int(rhs.num_floors); ++i) {
                 ERL_ASSERTM(rhs.floors.find(i) != rhs.floors.end(), "Floor %d is missing", i);
-                ERL_ASSERTM(rhs.floors[i]->id == i, "Floor %d has wrong id: %d", i, rhs.floors[i]->id);
+                ERL_ASSERTM(
+                    rhs.floors[i]->id == i,
+                    "Floor %d has wrong id: %d",
+                    i,
+                    rhs.floors[i]->id);
             }
             rhs.reference_point = node["reference_point"].as<Eigen::Vector3d>();
             rhs.size = node["size"].as<Eigen::Vector3d>();

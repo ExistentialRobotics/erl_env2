@@ -12,10 +12,14 @@
 // #define DEBUG_ENVIRONMENT_SE2_3
 
 namespace erl::env {
-    EnvironmentSe2::EnvironmentSe2(const std::shared_ptr<common::GridMapUnsigned2D> &grid_map, std::shared_ptr<Setting> setting)
+    EnvironmentSe2::EnvironmentSe2(
+        const std::shared_ptr<common::GridMapUnsigned2D> &grid_map,
+        std::shared_ptr<Setting> setting)
         : EnvironmentBase(std::make_shared<Se2Cost>(), 0),
           m_setting_(setting == nullptr ? std::make_shared<Setting>() : std::move(setting)),
-          m_grid_map_info_(std::make_shared<common::GridMapInfo3D>(grid_map->info->Extend(m_setting_->num_orientations, -M_PI, M_PI, 2))) {
+          m_grid_map_info_(
+              std::make_shared<common::GridMapInfo3D>(
+                  grid_map->info->Extend(m_setting_->num_orientations, -M_PI, M_PI, 2))) {
         m_time_step_ = m_setting_->time_step;
         m_distance_cost_func_ = std::make_shared<Se2Cost>(m_setting_->cost_theta_weight);
 
@@ -26,19 +30,25 @@ namespace erl::env {
         cv::waitKey(0);
 #endif
 
-        // The motion primitives may generate trajectories that go outside the map. We need to determine the furthest
-        // distance and create a new grid_map_info that is large enough to contain all the trajectories.
+        // The motion primitives may generate trajectories that go outside the map. We need to
+        // determine the furthest distance and create a new grid_map_info that is large enough to
+        // contain all the trajectories.
         double max_distance = 0;
-        // process motion primitives and prepare metric relative trajectories starting from [0, 0, 0]
-        std::vector<std::vector<Eigen::MatrixXd>> metric_rel_trajectories;  // [motion_primitive][control][3, num_states]
-        std::vector<std::vector<double>> trajectory_costs;                  // [motion_idx][control_idx]
+        // process motion primitives and prepare metric relative trajectories starting from [0, 0,
+        // 0]
+        std::vector<std::vector<Eigen::MatrixXd>>
+            metric_rel_trajectories;  // [motion_primitive][control][3, num_states]
+        std::vector<std::vector<double>> trajectory_costs;  // [motion_idx][control_idx]
         trajectory_costs.reserve(m_setting_->motion_primitives.size());
         metric_rel_trajectories.reserve(m_setting_->motion_primitives.size());
         for (auto &motion: m_setting_->motion_primitives) {
             // convert incremental cost to cumulative cost
             std::partial_sum(motion.costs.begin(), motion.costs.end(), motion.costs.begin());
             // compute metric relative trajectory segments
-            metric_rel_trajectories.push_back(motion.ComputeTrajectorySegments(Eigen::Vector3d::Zero(), m_time_step_, MotionModel));
+            metric_rel_trajectories.push_back(motion.ComputeTrajectorySegments(
+                Eigen::Vector3d::Zero(),
+                m_time_step_,
+                MotionModel));
             // compute the maximum distance of the trajectory segments
             std::vector<double> segment_costs;
             segment_costs.reserve(metric_rel_trajectories.back().size());
@@ -49,8 +59,9 @@ namespace erl::env {
                     if (distance > max_distance) { max_distance = distance; }
                     if (i == 0) {
                         segment_cost += (*m_distance_cost_func_)(
-                            EnvironmentState(Eigen::VectorXd(Eigen::Vector3d::Zero())),  // previous state
-                            EnvironmentState(Eigen::VectorXd(segment.col(i))));          // current state
+                            EnvironmentState(
+                                Eigen::VectorXd(Eigen::Vector3d::Zero())),       // previous state
+                            EnvironmentState(Eigen::VectorXd(segment.col(i))));  // current state
                         continue;
                     }
                     segment_cost += (*m_distance_cost_func_)(
@@ -69,24 +80,29 @@ namespace erl::env {
                 Eigen::Matrix3Xi points = m_grid_map_info_->MeterToGridForPoints(segment);
                 std::vector<cv::Point> cv_points;
                 cv_points.reserve(points.cols());
-                for (long i = 0; i < points.cols(); ++i) { cv_points.emplace_back(points(1, i) + x_offset, points(0, i) + y_offset); }
+                for (long i = 0; i < points.cols(); ++i) {
+                    cv_points.emplace_back(points(1, i) + x_offset, points(0, i) + y_offset);
+                }
                 cv::polylines(img, cv_points, false, cv::Scalar(0, 0, 255), 1);
             }
-            std::cout << "motion primitive:" << std::endl << YAML::convert<DdcMotionPrimitive>::encode(motion) << std::endl;
+            std::cout << "motion primitive:" << std::endl
+                      << YAML::convert<DdcMotionPrimitive>::encode(motion) << std::endl;
             cv::imshow("metric relative trajectory", img);
             cv::waitKey(0);
 #endif
         }
 
-        // We should use the grid map center as the reference point and make sure the grid_map_info contains the longest
-        // metric relative trajectory, so that the grid state hashing can work properly. The hashing result will be
-        // wrong if there is negative value in the grid state.
+        // We should use the grid map center as the reference point and make sure the grid_map_info
+        // contains the longest metric relative trajectory, so that the grid state hashing can work
+        // properly. The hashing result will be wrong if there is negative value in the grid state.
         double x_center = m_grid_map_info_->Center().x();
         double y_center = m_grid_map_info_->Center().y();
         // m_max_num_successors_ = m_max_num_controls_ * m_motion_primitives_.size();
         auto hashing_grid_map_info = m_grid_map_info_;
-        if ((x_center - max_distance < m_grid_map_info_->Min(0)) || (y_center - max_distance < m_grid_map_info_->Min(1)) ||
-            (x_center + max_distance > m_grid_map_info_->Max(0)) || (y_center + max_distance > m_grid_map_info_->Max(1))) {
+        if ((x_center - max_distance < m_grid_map_info_->Min(0)) ||
+            (y_center - max_distance < m_grid_map_info_->Min(1)) ||
+            (x_center + max_distance > m_grid_map_info_->Max(0)) ||
+            (y_center + max_distance > m_grid_map_info_->Max(1))) {
             // create a new grid map info
             max_distance *= 1.1;  // add 10% to the max distance to avoid edge cases
             auto num_cells_x = static_cast<int>(max_distance / m_grid_map_info_->Resolution(0)) + 1;
@@ -96,10 +112,16 @@ namespace erl::env {
             const double &kThetaRes = m_grid_map_info_->Resolution(2);
 
             hashing_grid_map_info = std::make_shared<common::GridMapInfo3D>(
-                Eigen::Vector3d(x_center - static_cast<double>(num_cells_x) * kXRes, y_center - static_cast<double>(num_cells_y) * kYRes, -M_PI),  // min
-                Eigen::Vector3d(x_center + static_cast<double>(num_cells_x) * kXRes, y_center + static_cast<double>(num_cells_y) * kYRes, M_PI),   // max
-                Eigen::Vector3d(kXRes, kYRes, kThetaRes),                                                                                          // resolution
-                Eigen::Vector3i(0, 0, 0));                                                                                                         // padding
+                Eigen::Vector3d(
+                    x_center - static_cast<double>(num_cells_x) * kXRes,
+                    y_center - static_cast<double>(num_cells_y) * kYRes,
+                    -M_PI),  // min
+                Eigen::Vector3d(
+                    x_center + static_cast<double>(num_cells_x) * kXRes,
+                    y_center + static_cast<double>(num_cells_y) * kYRes,
+                    M_PI),                                 // max
+                Eigen::Vector3d(kXRes, kYRes, kThetaRes),  // resolution
+                Eigen::Vector3i(0, 0, 0));                 // padding
             ERL_DEBUG_ASSERT(
                 hashing_grid_map_info->Center().x() == x_center,
                 "Grid map center changed! x_center: {:f}, grid_map_info->Center().x(): {:f}",
@@ -129,8 +151,11 @@ namespace erl::env {
             double sin_theta = std::sin(theta);
             double cos_theta = std::cos(theta);
 
-            auto ref_state = std::make_shared<EnvironmentState>(Eigen::Vector3d(x_center, y_center, theta), Eigen::Vector3i(x_center_g, y_center_g, theta_g));
-            auto &rel_trajectories = m_rel_trajectories_[theta_g];  // std::vector<std::vector<Eigen::MatrixXi>>
+            auto ref_state = std::make_shared<EnvironmentState>(
+                Eigen::Vector3d(x_center, y_center, theta),
+                Eigen::Vector3i(x_center_g, y_center_g, theta_g));
+            auto &rel_trajectories =
+                m_rel_trajectories_[theta_g];  // std::vector<std::vector<Eigen::MatrixXi>>
             rel_trajectories.resize(num_motions);
 
             std::map<std::size_t, RelSuccessorInfo> unique_rel_successors;
@@ -145,36 +170,57 @@ namespace erl::env {
                 motion_rel_trajectories.reserve(num_controls);
 
                 long max_num_trajectory_states = 0;
-                for (Eigen::MatrixXd &segment: motion_metric_rel_trajectories) { max_num_trajectory_states += segment.cols(); }
-                std::vector<std::shared_ptr<EnvironmentState>> grid_trajectory;  // a grid trajectory starts from [x_center_g, y_center_g, theta_g]
+                for (Eigen::MatrixXd &segment: motion_metric_rel_trajectories) {
+                    max_num_trajectory_states += segment.cols();
+                }
+                std::vector<std::shared_ptr<EnvironmentState>>
+                    grid_trajectory;  // a grid trajectory starts from [x_center_g, y_center_g,
+                                      // theta_g]
                 grid_trajectory.reserve(max_num_trajectory_states);
 
-                // a motion primitive can have multiple controls, and the intermediate states are considered as successors
+                // a motion primitive can have multiple controls, and the intermediate states are
+                // considered as successors
                 for (int control_idx = 0; control_idx < num_controls; ++control_idx) {
-                    Eigen::MatrixXd &metric_segment = motion_metric_rel_trajectories[control_idx];  // [3, num_states]
+                    Eigen::MatrixXd &metric_segment =
+                        motion_metric_rel_trajectories[control_idx];  // [3, num_states]
                     long num_metric_states = metric_segment.cols();
                     for (long i = 0; i < num_metric_states; ++i) {
-                        // to hash the grid state correctly, use grid map center as the reference point, [x_center_g, y_center_g, theta_g]
+                        // to hash the grid state correctly, use grid map center as the reference
+                        // point, [x_center_g, y_center_g, theta_g]
                         Eigen::Vector3i grid_state(
-                            hashing_grid_map_info->MeterToGridForValue(cos_theta * metric_segment(0, i) - sin_theta * metric_segment(1, i) + x_center, 0),
-                            hashing_grid_map_info->MeterToGridForValue(sin_theta * metric_segment(0, i) + cos_theta * metric_segment(1, i) + y_center, 1),
-                            hashing_grid_map_info->MeterToGridForValue(common::WrapAnglePi(metric_segment(2, i) + theta), 2));
-                        Eigen::Vector3d metric_state = hashing_grid_map_info->GridToMeterForPoints(grid_state);
+                            hashing_grid_map_info->MeterToGridForValue(
+                                cos_theta * metric_segment(0, i) -
+                                    sin_theta * metric_segment(1, i) + x_center,
+                                0),
+                            hashing_grid_map_info->MeterToGridForValue(
+                                sin_theta * metric_segment(0, i) +
+                                    cos_theta * metric_segment(1, i) + y_center,
+                                1),
+                            hashing_grid_map_info->MeterToGridForValue(
+                                common::WrapAnglePi(metric_segment(2, i) + theta),
+                                2));
+                        Eigen::Vector3d metric_state =
+                            hashing_grid_map_info->GridToMeterForPoints(grid_state);
                         auto state = std::make_shared<EnvironmentState>(metric_state, grid_state);
                         if (grid_trajectory.empty()) {
-                            if (grid_state == ref_state->grid) { continue; }  // skip the start state [x_center_g, y_center_g, theta_g]
+                            if (grid_state == ref_state->grid) {
+                                continue;
+                            }  // skip the start state [x_center_g, y_center_g, theta_g]
                         } else if (grid_state == grid_trajectory.back()->grid) {
                             continue;  // skip duplicate states
                         }
                         grid_trajectory.push_back(state);  // new state
 #ifndef NDEBUG
                         if (grid_trajectory.size() >= 2) {  // check consecutive states
-                            Eigen::VectorXi &state1 = grid_trajectory[grid_trajectory.size() - 2]->grid;
+                            Eigen::VectorXi &state1 =
+                                grid_trajectory[grid_trajectory.size() - 2]->grid;
                             Eigen::VectorXi &state2 = grid_trajectory.back()->grid;
                             Eigen::Vector3i diff = (state1 - state2).cwiseAbs();
                             ERL_WARN_ONCE_COND(
-                                diff[0] > 1 || diff[1] > 1 || std::min(diff[2], m_setting_->num_orientations - diff[2]) > 1,
-                                "grid trajectory segment [{}, {}, {}] -> [{}, {}, {}] has a step larger than 1. Collision checking may be compromised.",
+                                diff[0] > 1 || diff[1] > 1 ||
+                                    std::min(diff[2], m_setting_->num_orientations - diff[2]) > 1,
+                                "grid trajectory segment [{}, {}, {}] -> [{}, {}, {}] has a step "
+                                "larger than 1. Collision checking may be compromised.",
                                 state1[0],
                                 state1[1],
                                 state1[2],
@@ -194,7 +240,7 @@ namespace erl::env {
                             control.linear_v,
                             control.angular_v);
                         motion_rel_trajectories.emplace_back();  // empty trajectory
-                        continue;                                // skip the control if the trajectory is empty
+                        continue;  // skip the control if the trajectory is empty
                     }
 
                     // hashing will be wrong if there are negative values!
@@ -204,13 +250,20 @@ namespace erl::env {
                         grid_trajectory.back()->grid[0],
                         grid_trajectory.back()->grid[1],
                         grid_trajectory.back()->grid[2]);
-                    auto hashing = hashing_grid_map_info->GridToIndex(grid_trajectory.back()->grid, true);
-                    auto &successor_info = unique_rel_successors[hashing];  // get the info of the successor reached by the control
-                    if (successor_info.rel_state == nullptr) { successor_info.rel_state = grid_trajectory.back(); }
+                    auto hashing =
+                        hashing_grid_map_info->GridToIndex(grid_trajectory.back()->grid, true);
+                    auto &successor_info =
+                        unique_rel_successors[hashing];  // get the info of the successor reached by
+                                                         // the control
+                    if (successor_info.rel_state == nullptr) {
+                        successor_info.rel_state = grid_trajectory.back();
+                    }
                     successor_info.motion_indices.push_back(motion_idx);
                     successor_info.control_indices.push_back(control_idx);
                     successor_info.action_coords.push_back({motion_idx, control_idx});
-                    successor_info.costs.push_back(motion.costs[control_idx] + trajectory_costs[motion_idx][control_idx]);  // add trajectory length
+                    successor_info.costs.push_back(
+                        motion.costs[control_idx] +
+                        trajectory_costs[motion_idx][control_idx]);  // add trajectory length
                     motion_rel_trajectories.emplace_back(grid_trajectory);
                 }
 
@@ -220,7 +273,9 @@ namespace erl::env {
                           << "motion primitive:" << std::endl
                           << YAML::convert<DdcMotionPrimitive>::encode(motion) << std::endl;
                 std::vector<cv::Point> points;
-                for (auto &state: grid_trajectory) { points.emplace_back(state->grid[1], state->grid[0]); }
+                for (auto &state: grid_trajectory) {
+                    points.emplace_back(state->grid[1], state->grid[0]);
+                }
                 cv::circle(img, points.front(), 2, cv::Scalar(0, 255, 0), -1);
                 cv::polylines(img, points, false, cv::Scalar(0, 0, 255), 1);
                 cv::imshow("grid relative trajectory", img);
@@ -255,13 +310,17 @@ namespace erl::env {
                 std::sort(
                     successor_info.orders.begin(),
                     successor_info.orders.end(),
-                    [&motion_indices, &control_indices, &costs, &trajectory_costs](std::size_t i, std::size_t j) {
-                        if (costs[i] == costs[j]) {  // identical control_cost + trajectory_length, prefer shorter trajectory
+                    [&motion_indices, &control_indices, &costs, &trajectory_costs](
+                        std::size_t i,
+                        std::size_t j) {
+                        if (costs[i] == costs[j]) {  // identical control_cost + trajectory_length,
+                                                     // prefer shorter trajectory
                             const int &motion_idx_i = motion_indices[i];
                             const int &motion_idx_j = motion_indices[j];
                             const int &control_idx_i = control_indices[i];
                             const int &control_idx_j = control_indices[j];
-                            return trajectory_costs[motion_idx_i][control_idx_i] < trajectory_costs[motion_idx_j][control_idx_j];
+                            return trajectory_costs[motion_idx_i][control_idx_i] <
+                                   trajectory_costs[motion_idx_j][control_idx_j];
                         }
                         return costs[i] < costs[j];
                     });
@@ -294,24 +353,34 @@ namespace erl::env {
         }
 
         m_inflated_grid_maps_.resize(m_setting_->num_orientations);
-        for (int theta_g = 0; theta_g < m_setting_->num_orientations; ++theta_g) { m_original_grid_map_.copyTo(m_inflated_grid_maps_[theta_g]); }
+        for (int theta_g = 0; theta_g < m_setting_->num_orientations; ++theta_g) {
+            m_original_grid_map_.copyTo(m_inflated_grid_maps_[theta_g]);
+        }
         if (m_setting_->shape.cols() == 0) { return; }
 
         // inflate grid map for different orientations
         for (int theta_g = 0; theta_g < m_setting_->num_orientations; ++theta_g) {
             double theta = m_grid_map_info_->GridToMeterForValue(theta_g, 2);
-            Eigen::Matrix2Xd vertices = Eigen::Rotation2Dd(theta).toRotationMatrix() * m_setting_->shape;
-            InflateGridMap2D(m_original_grid_map_, m_inflated_grid_maps_[theta_g], grid_map->info, vertices);
+            Eigen::Matrix2Xd vertices =
+                Eigen::Rotation2Dd(theta).toRotationMatrix() * m_setting_->shape;
+            InflateGridMap2D(
+                m_original_grid_map_,
+                m_inflated_grid_maps_[theta_g],
+                grid_map->info,
+                vertices);
         }
     }
 
     std::vector<std::shared_ptr<EnvironmentState>>
-    EnvironmentSe2::ForwardAction(const std::shared_ptr<const EnvironmentState> &env_state, const std::vector<int> &action_coords) const {
+    EnvironmentSe2::ForwardAction(
+        const std::shared_ptr<const EnvironmentState> &env_state,
+        const std::vector<int> &action_coords) const {
         ERL_DEBUG_ASSERT(action_coords.size() == 2, "action_coords.size() == 2");
         int motion_idx = action_coords[0];
         int control_idx = action_coords[1];
 
-        const std::vector<std::shared_ptr<EnvironmentState>> &kRelTraj = m_rel_trajectories_[env_state->grid[2]][motion_idx][control_idx];
+        const std::vector<std::shared_ptr<EnvironmentState>> &kRelTraj =
+            m_rel_trajectories_[env_state->grid[2]][motion_idx][control_idx];
         std::vector<std::shared_ptr<EnvironmentState>> trajectory;
         trajectory.reserve(kRelTraj.size());
         for (const std::shared_ptr<EnvironmentState> &kRelState: kRelTraj) {
@@ -321,8 +390,10 @@ namespace erl::env {
             trajectory.push_back(std::move(new_state));
         }
 
-        // Eigen::MatrixXd states = m_setting_->motion_primitives[motion_idx].ComputeTrajectorySegment(env_state->metric, control_idx, m_time_step_,
-        // MotionModel); std::vector<std::shared_ptr<EnvironmentState>> trajectory(states.cols()); long num_states = states.cols(); for (long i = 0; i <
+        // Eigen::MatrixXd states =
+        // m_setting_->motion_primitives[motion_idx].ComputeTrajectorySegment(env_state->metric,
+        // control_idx, m_time_step_, MotionModel); std::vector<std::shared_ptr<EnvironmentState>>
+        // trajectory(states.cols()); long num_states = states.cols(); for (long i = 0; i <
         // num_states; ++i) {
         //     auto new_state = std::make_shared<EnvironmentState>();
         //     new_state->metric = states.col(i);
@@ -348,10 +419,12 @@ namespace erl::env {
 
         for (const RelSuccessorInfo &kRelSuccessor: kRelSuccessors) {
             // for each successor, we pick the one with the lowest cost
-            for (const std::size_t index: kRelSuccessor.orders) {  // iterate over controls that lead to the successor
+            for (const std::size_t index:
+                 kRelSuccessor.orders) {  // iterate over controls that lead to the successor
                 const int &kMotionIdx = kRelSuccessor.motion_indices[index];
                 const int &kControlIdx = kRelSuccessor.control_indices[index];
-                const std::vector<std::shared_ptr<EnvironmentState>> &kRelTrajectory = kRelTrajectories[kMotionIdx][kControlIdx];
+                const std::vector<std::shared_ptr<EnvironmentState>> &kRelTrajectory =
+                    kRelTrajectories[kMotionIdx][kControlIdx];
 
                 // check collision
                 bool collided = false;
@@ -369,29 +442,44 @@ namespace erl::env {
                     x_g = kRelGrid[0] + env_state->grid[0];
                     y_g = kRelGrid[1] + env_state->grid[1];
                     theta_g = kRelGrid[2] + env_state->grid[2];
-                    if (theta_g >= m_setting_->num_orientations) { theta_g -= m_setting_->num_orientations; }
+                    if (theta_g >= m_setting_->num_orientations) {
+                        theta_g -= m_setting_->num_orientations;
+                    }
 
                     if (x_g < 0 || x_g >= x_len || y_g < 0 || y_g >= y_len) {  // out of grid map
                         collided = true;
                         break;
                     }
 
-                    if (m_inflated_grid_maps_[theta_g].at<uint8_t>(x_g, y_g) >= m_setting_->obstacle_threshold) {  // in collision
+                    if (m_inflated_grid_maps_[theta_g].at<uint8_t>(x_g, y_g) >=
+                        m_setting_->obstacle_threshold) {  // in collision
                         collided = true;
                         break;
                     }
 
                     const Eigen::VectorXd &kRelMetric = kRelTrajectory[i]->metric;
-                    metric_state = kRelMetric.head<3>() + env_state->metric.head<3>();  // (x, y, theta)
+                    metric_state =
+                        kRelMetric.head<3>() + env_state->metric.head<3>();  // (x, y, theta)
                 }
                 if (collided) { continue; }  // this control is invalid, try next one
 
                 double cost = kRelSuccessor.costs[index];
                 if (m_setting_->add_map_cost) {
-                    cost += static_cast<double>(m_inflated_grid_maps_[theta_g].at<uint8_t>(x_g, y_g)) * m_setting_->map_cost_factor;
+                    cost +=
+                        static_cast<double>(m_inflated_grid_maps_[theta_g].at<uint8_t>(x_g, y_g)) *
+                        m_setting_->map_cost_factor;
                 }
-                successors.emplace_back(metric_state, grid_state, cost, kRelSuccessor.action_coords[index]);
-                ERL_DEBUG_ASSERT((grid_state.array() >= 0).all(), "Grid state is negative: [{}, {}, {}].\n", grid_state[0], grid_state[1], grid_state[2]);
+                successors.emplace_back(
+                    metric_state,
+                    grid_state,
+                    cost,
+                    kRelSuccessor.action_coords[index]);
+                ERL_DEBUG_ASSERT(
+                    (grid_state.array() >= 0).all(),
+                    "Grid state is negative: [{}, {}, {}].\n",
+                    grid_state[0],
+                    grid_state[1],
+                    grid_state[2]);
             }
         }
         return successors;
@@ -410,7 +498,10 @@ namespace erl::env {
                 auto grid_point = MetricToGrid(kPath.col(i));
                 points.emplace_back(grid_point[1], grid_point[0]);
             }
-            cv::Scalar color(dist(common::g_random_engine), dist(common::g_random_engine), dist(common::g_random_engine));
+            cv::Scalar color(
+                dist(common::g_random_engine),
+                dist(common::g_random_engine),
+                dist(common::g_random_engine));
             cv::polylines(img, points, false, color, 1);
         }
         cv::namedWindow("environment se2: paths", cv::WINDOW_NORMAL | cv::WINDOW_AUTOSIZE);

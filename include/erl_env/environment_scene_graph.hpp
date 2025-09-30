@@ -21,12 +21,15 @@ namespace erl::env {
 
     public:
         struct Setting : public common::Yamlable<Setting> {
-            std::string data_dir = {};                                            // folder to store scene graph data, actions, cost maps and so on
-            long num_threads = 64;                                                // number of threads to use
-            bool allow_diagonal = true;                                           // whether allow diagonal movement
-            double object_reach_distance = 0.6;                                   // distance (meter) to reach an object
-            Eigen::Matrix2Xd shape = {};                                          // shape of the robot, assume the shape center is at the origin
-            scene_graph::Node::Type max_level = scene_graph::Node::Type::kFloor;  // maximum resolution level (inclusive)
+            std::string data_dir =
+                {};  // folder to store scene graph data, actions, cost maps and so on
+            long num_threads = 64;               // number of threads to use
+            bool allow_diagonal = true;          // whether allow diagonal movement
+            double object_reach_distance = 0.6;  // distance (meter) to reach an object
+            Eigen::Matrix2Xd shape =
+                {};  // shape of the robot, assume the shape center is at the origin
+            scene_graph::Node::Type max_level =
+                scene_graph::Node::Type::kFloor;  // maximum resolution level (inclusive)
         };
 
         struct AtomicAction {
@@ -52,27 +55,38 @@ namespace erl::env {
 
         std::shared_ptr<Setting> m_setting_ = nullptr;
         std::shared_ptr<scene_graph::Building> m_scene_graph_ = nullptr;
-        std::shared_ptr<common::GridMapInfo3D> m_grid_map_info_ = nullptr;                              // (x, y, floor_num), for hashing
-        std::vector<cv::Mat> m_room_maps_ = {};                                                         // room maps for each floor
-        std::vector<cv::Mat> m_cat_maps_ = {};                                                          // category maps for each floor
-        std::vector<cv::Mat> m_ground_masks_ = {};                                                      // ground masks for each floor, 0: is ground
-        std::vector<cv::Mat> m_obstacle_maps_ = {};                                                     // obstacle space maps, 0: free, >=1: obstacle
-        absl::flat_hash_map<int, Eigen::MatrixXd> m_up_stairs_cost_maps_ = {};                          // cost maps to go upstairs for each floor
-        absl::flat_hash_map<int, PathMatrix> m_up_stairs_path_maps_ = {};                               // path maps to go upstairs for each floor
-        absl::flat_hash_map<int, Eigen::MatrixXd> m_down_stairs_cost_maps_ = {};                        // cost maps to go downstairs for each floor
-        absl::flat_hash_map<int, PathMatrix> m_down_stairs_path_maps_ = {};                             // path maps to go downstairs for each floor
-        absl::flat_hash_map<int, absl::flat_hash_map<int, LocalCostMap>> m_room_cost_maps_ = {};        // cost maps to go to each room, key: room id
-        absl::flat_hash_map<int, Eigen::MatrixX<std::unordered_set<int>>> m_object_reached_maps_ = {};  // object reached maps for each floor
-        absl::flat_hash_map<int, LocalCostMap> m_object_cost_maps_ = {};                                // cost maps to reach each object, key: object id
-        std::vector<AtomicAction> m_atomic_actions_ = {};                                               // atomic actions
-        int m_floor_up_action_id_ = 0;                                                                  // atomic action id to go upstairs
-        int m_floor_down_action_id_ = 0;                                                                // atomic action id to go downstairs
+        std::shared_ptr<common::GridMapInfo3D> m_grid_map_info_ =
+            nullptr;                                 // (x, y, floor_num), for hashing
+        std::vector<cv::Mat> m_room_maps_ = {};      // room maps for each floor
+        std::vector<cv::Mat> m_cat_maps_ = {};       // category maps for each floor
+        std::vector<cv::Mat> m_ground_masks_ = {};   // ground masks for each floor, 0: is ground
+        std::vector<cv::Mat> m_obstacle_maps_ = {};  // obstacle space maps, 0: free, >=1: obstacle
+        absl::flat_hash_map<int, Eigen::MatrixXd> m_up_stairs_cost_maps_ =
+            {};  // cost maps to go upstairs for each floor
+        absl::flat_hash_map<int, PathMatrix> m_up_stairs_path_maps_ =
+            {};  // path maps to go upstairs for each floor
+        absl::flat_hash_map<int, Eigen::MatrixXd> m_down_stairs_cost_maps_ =
+            {};  // cost maps to go downstairs for each floor
+        absl::flat_hash_map<int, PathMatrix> m_down_stairs_path_maps_ =
+            {};  // path maps to go downstairs for each floor
+        absl::flat_hash_map<int, absl::flat_hash_map<int, LocalCostMap>> m_room_cost_maps_ =
+            {};  // cost maps to go to each room, key: room id
+        absl::flat_hash_map<int, Eigen::MatrixX<std::unordered_set<int>>> m_object_reached_maps_ =
+            {};  // object reached maps for each floor
+        absl::flat_hash_map<int, LocalCostMap> m_object_cost_maps_ =
+            {};  // cost maps to reach each object, key: object id
+        std::vector<AtomicAction> m_atomic_actions_ = {};  // atomic actions
+        int m_floor_up_action_id_ = 0;                     // atomic action id to go upstairs
+        int m_floor_down_action_id_ = 0;                   // atomic action id to go downstairs
 
         friend class search_planning::LlmSceneGraphHeuristic;
 
     public:
-        explicit EnvironmentSceneGraph(std::shared_ptr<scene_graph::Building> scene_graph, std::shared_ptr<Setting> setting = nullptr)
-            :  // just use the interface of EnvironmentBase, no need to use the distance cost function
+        explicit EnvironmentSceneGraph(
+            std::shared_ptr<scene_graph::Building> scene_graph,
+            std::shared_ptr<Setting> setting = nullptr)
+            :  // just use the interface of EnvironmentBase, no need to use the distance cost
+               // function
               m_setting_(std::move(setting)),
               m_scene_graph_(std::move(scene_graph)) {
             ERL_ASSERTM(m_scene_graph_ != nullptr, "scene_graph should not be nullptr.");
@@ -116,7 +130,8 @@ namespace erl::env {
              * object | m_scene_graph_->object_ids.size()
              * atomic | m_atomic_actions_.size()
              */
-            return 2 + m_scene_graph_->room_ids.size() + m_scene_graph_->object_ids.size() + m_atomic_actions_.size();
+            return 2 + m_scene_graph_->room_ids.size() + m_scene_graph_->object_ids.size() +
+                   m_atomic_actions_.size();
         }
 
         /**
@@ -126,10 +141,13 @@ namespace erl::env {
          * @return
          */
         [[nodiscard]] std::vector<std::shared_ptr<EnvironmentState>>
-        ForwardAction(const std::shared_ptr<const EnvironmentState> &env_state, const std::vector<int> &action_coords) const override;
+        ForwardAction(
+            const std::shared_ptr<const EnvironmentState> &env_state,
+            const std::vector<int> &action_coords) const override;
 
         [[nodiscard]] std::vector<Successor>
-        GetSuccessors(const std::shared_ptr<EnvironmentState> &env_state) const override {  // NOLINT(*-no-recursion)
+        GetSuccessors(const std::shared_ptr<EnvironmentState> &env_state)
+            const override {  // NOLINT(*-no-recursion)
             std::vector<Successor> successors;
             successors.reserve(m_scene_graph_->object_ids.size() + m_scene_graph_->room_ids.size());
             for (auto level: {
@@ -139,14 +157,20 @@ namespace erl::env {
                      scene_graph::Node::Type::kFloor,
                  }) {
                 if (level > m_setting_->max_level) { break; }
-                std::vector<Successor> level_successors = GetSuccessorsAtLevel(env_state, std::size_t(level) + 1);
-                successors.insert(successors.end(), level_successors.begin(), level_successors.end());
+                std::vector<Successor> level_successors =
+                    GetSuccessorsAtLevel(env_state, std::size_t(level) + 1);
+                successors.insert(
+                    successors.end(),
+                    level_successors.begin(),
+                    level_successors.end());
             }
             return successors;
         }
 
         [[nodiscard]] std::vector<Successor>
-        GetSuccessorsAtLevel(const std::shared_ptr<EnvironmentState> &env_state, std::size_t resolution_level) const override;
+        GetSuccessorsAtLevel(
+            const std::shared_ptr<EnvironmentState> &env_state,
+            std::size_t resolution_level) const override;
 
         [[nodiscard]] bool
         InStateSpace(const std::shared_ptr<EnvironmentState> &env_state) const override {
@@ -154,15 +178,21 @@ namespace erl::env {
         }
 
         [[nodiscard]] bool
-        InStateSpaceAtLevel(const std::shared_ptr<EnvironmentState> &env_state, std::size_t resolution_level) const override {
+        InStateSpaceAtLevel(
+            const std::shared_ptr<EnvironmentState> &env_state,
+            std::size_t resolution_level) const override {
             if (resolution_level == 0) { return m_grid_map_info_->InGrids(env_state->grid); }
             auto level = scene_graph::Node::Type(resolution_level - 1);
             if (!m_grid_map_info_->InGrids(env_state->grid)) { return false; }
             switch (level) {
                 case scene_graph::Node::Type::kObject:
-                    return !m_object_reached_maps_.at(env_state->grid[2])(env_state->grid[0], env_state->grid[1]).empty();
+                    return !m_object_reached_maps_
+                                .at(env_state->grid[2])(env_state->grid[0], env_state->grid[1])
+                                .empty();
                 case scene_graph::Node::Type::kRoom:
-                    return m_room_maps_[env_state->grid[2]].at<int>(env_state->grid[0], env_state->grid[1]) > 0;
+                    return m_room_maps_[env_state->grid[2]].at<int>(
+                               env_state->grid[0],
+                               env_state->grid[1]) > 0;
                 case scene_graph::Node::Type::kOcc:
                 case scene_graph::Node::Type::kFloor:
                 case scene_graph::Node::Type::kBuilding:
@@ -230,7 +260,11 @@ namespace erl::env {
         GenerateObjectCostMaps();
 
         void
-        ReverseAStar(const Eigen::Ref<Eigen::Matrix2Xi> &goals, const cv::Mat &obstacle_map, Eigen::MatrixXd &cost_map, PathMatrix &path_map) const {
+        ReverseAStar(
+            const Eigen::Ref<Eigen::Matrix2Xi> &goals,
+            const cv::Mat &obstacle_map,
+            Eigen::MatrixXd &cost_map,
+            PathMatrix &path_map) const {
             Eigen::MatrixX<std::vector<uint32_t>> action_map;  // empty
             Eigen::MatrixXi goal_index_map;                    // empty
             ReverseAStar(goals, obstacle_map, cost_map, path_map, action_map, goal_index_map);
@@ -274,7 +308,9 @@ namespace erl::env {
 
         std::vector<std::shared_ptr<EnvironmentState>>
         GetPathToFloor(int xg, int yg, int floor_num, int next_floor_num) const {
-            ERL_DEBUG_ASSERT(std::abs(floor_num - next_floor_num) == 1, "floor_num and next_floor_num should differ by 1.");
+            ERL_DEBUG_ASSERT(
+                std::abs(floor_num - next_floor_num) == 1,
+                "floor_num and next_floor_num should differ by 1.");
             std::vector<std::shared_ptr<EnvironmentState>> next_env_states;
             if (floor_num < next_floor_num) {  // go upstairs
                 auto &path = m_up_stairs_path_maps_.at(floor_num)(xg, yg);

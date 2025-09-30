@@ -24,7 +24,8 @@ namespace erl::env {
             Eigen::Matrix2Xd shape = {};
         };
 
-        inline static const volatile bool kSettingRegistered = common::YamlableBase::Register<Setting>();
+        inline static const volatile bool kSettingRegistered =
+            common::YamlableBase::Register<Setting>();
 
     protected:
         std::shared_ptr<Setting> m_setting_;
@@ -32,7 +33,8 @@ namespace erl::env {
         std::vector<cv::Mat> m_inflated_grid_maps_;
         std::shared_ptr<common::GridMapInfo3D> m_grid_map_info_;
         // [theta][motion_primitive][control][trajectory_waypoint_index]
-        std::vector<std::vector<std::vector<std::vector<std::shared_ptr<EnvironmentState>>>>> m_rel_trajectories_;
+        std::vector<std::vector<std::vector<std::vector<std::shared_ptr<EnvironmentState>>>>>
+            m_rel_trajectories_;
 
         /*
          * for each orientation
@@ -60,7 +62,9 @@ namespace erl::env {
          * @param add_map_cost
          * @param map_cost_factor
          */
-        explicit EnvironmentSe2(const std::shared_ptr<common::GridMapUnsigned2D> &grid_map, std::shared_ptr<Setting> setting = nullptr);
+        explicit EnvironmentSe2(
+            const std::shared_ptr<common::GridMapUnsigned2D> &grid_map,
+            std::shared_ptr<Setting> setting = nullptr);
 
         [[nodiscard]] std::shared_ptr<Setting>
         GetSetting() const {
@@ -75,12 +79,17 @@ namespace erl::env {
         [[nodiscard]] inline std::size_t
         GetActionSpaceSize() const override {
             std::size_t size = 0;
-            for (auto &motion_primitive: m_setting_->motion_primitives) { size += motion_primitive.controls.size(); }
+            for (auto &motion_primitive: m_setting_->motion_primitives) {
+                size += motion_primitive.controls.size();
+            }
             return size;
         }
 
         inline static Eigen::VectorXd
-        MotionModel(const Eigen::Ref<const Eigen::VectorXd> &metric_state, const DifferentialDriveControl &control, double t) {
+        MotionModel(
+            const Eigen::Ref<const Eigen::VectorXd> &metric_state,
+            const DifferentialDriveControl &control,
+            double t) {
             Eigen::VectorXd next_state(3);
 
             DifferentialDriveKinematic(
@@ -97,7 +106,9 @@ namespace erl::env {
         }
 
         [[nodiscard]] std::vector<std::shared_ptr<EnvironmentState>>
-        ForwardAction(const std::shared_ptr<const EnvironmentState> &env_state, const std::vector<int> &action_coords) const override;
+        ForwardAction(
+            const std::shared_ptr<const EnvironmentState> &env_state,
+            const std::vector<int> &action_coords) const override;
 
         [[nodiscard]] std::vector<Successor>
         GetSuccessors(const std::shared_ptr<EnvironmentState> &env_state) const override;
@@ -114,7 +125,9 @@ namespace erl::env {
 
         [[nodiscard]] inline Eigen::VectorXi
         MetricToGrid(const Eigen::Ref<const Eigen::VectorXd> &metric_state) const override {
-            ERL_DEBUG_ASSERT(m_grid_map_info_, "Not supported when not initialized with grid_map_info.");
+            ERL_DEBUG_ASSERT(
+                m_grid_map_info_,
+                "Not supported when not initialized with grid_map_info.");
             Eigen::Vector3i grid_state(
                 m_grid_map_info_->MeterToGridForValue(metric_state[0], 0),
                 m_grid_map_info_->MeterToGridForValue(metric_state[1], 1),
@@ -124,7 +137,9 @@ namespace erl::env {
 
         [[nodiscard]] inline Eigen::VectorXd
         GridToMetric(const Eigen::Ref<const Eigen::VectorXi> &grid_state) const override {
-            ERL_DEBUG_ASSERT(m_grid_map_info_, "Not supported when not initialized with grid_map_info.");
+            ERL_DEBUG_ASSERT(
+                m_grid_map_info_,
+                "Not supported when not initialized with grid_map_info.");
             Eigen::Vector3d metric_state(
                 m_grid_map_info_->GridToMeterForValue(grid_state[0], 0),
                 m_grid_map_info_->GridToMeterForValue(grid_state[1], 1),
@@ -142,7 +157,8 @@ namespace erl::env {
 
     private:
         [[nodiscard]] inline std::size_t
-        GridStateHashingImpl(const Eigen::Ref<const Eigen::VectorXi> &grid_state) const {  // this can be called in the constructor
+        GridStateHashingImpl(const Eigen::Ref<const Eigen::VectorXi> &grid_state)
+            const {  // this can be called in the constructor
             return m_grid_map_info_->GridToIndex(grid_state, true);
         }
     };
@@ -168,7 +184,8 @@ namespace YAML {
         inline static bool
         decode(const Node &node, erl::env::EnvironmentSe2::Setting &rhs) {
             rhs.time_step = node["time_step"].as<double>();
-            rhs.motion_primitives = node["motion_primitives"].as<std::vector<erl::env::DdcMotionPrimitive>>();
+            rhs.motion_primitives =
+                node["motion_primitives"].as<std::vector<erl::env::DdcMotionPrimitive>>();
             rhs.num_orientations = node["num_orientations"].as<int>();
             rhs.obstacle_threshold = node["obstacle_threshold"].as<uint8_t>();
             rhs.add_map_cost = node["add_map_cost"].as<bool>();

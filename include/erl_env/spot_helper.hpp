@@ -94,7 +94,8 @@ namespace erl::env::spot_helper {
         for (const bdd &sop: BddToIrredundantSumOfProduct(b)) {
             for (const bdd &minterm: BddToMinterms(sop, atomic_propositions)) {
                 uint32_t label = 0;
-                // bdd_varprofile is used to count the number of appearances of each variable in a BDD.
+                // bdd_varprofile is used to count the number of appearances of each variable in a
+                // BDD.
                 std::vector<int> flags = BddToFlags(minterm);
                 for (int i = 0; i < varnum; ++i) {
                     if (flags[i] == kTRUE) {

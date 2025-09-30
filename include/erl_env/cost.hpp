@@ -17,7 +17,9 @@ namespace erl::env {
     struct EuclideanDistanceCost : public CostBase {
         inline double
         operator()(const EnvironmentState& state1, const EnvironmentState& state2) const override {
-            ERL_ASSERTM(state1.metric.size() == state2.metric.size(), "state dimension is not equal to goal dimension.");
+            ERL_ASSERTM(
+                state1.metric.size() == state2.metric.size(),
+                "state dimension is not equal to goal dimension.");
             long n = state1.metric.size();
             double distance = 0.0;
             for (long i = 0; i < n; ++i) {
@@ -44,7 +46,8 @@ namespace erl::env {
             double diff_y = state1.metric[1] - state2.metric[1];
             double diff_theta = std::abs(state1.metric[2] - state2.metric[2]);
             diff_theta = std::min(diff_theta, 2 * M_PI - diff_theta);
-            double distance = std::sqrt(diff_x * diff_x + diff_y * diff_y + w_theta * diff_theta * diff_theta);
+            double distance =
+                std::sqrt(diff_x * diff_x + diff_y * diff_y + w_theta * diff_theta * diff_theta);
             return distance;
         }
     };
@@ -52,7 +55,9 @@ namespace erl::env {
     struct ManhattanDistanceCost : public CostBase {
         inline double
         operator()(const EnvironmentState& state1, const EnvironmentState& state2) const override {
-            ERL_ASSERTM(state1.metric.size() == state2.metric.size(), "state dimension is not equal to goal dimension.");
+            ERL_ASSERTM(
+                state1.metric.size() == state2.metric.size(),
+                "state dimension is not equal to goal dimension.");
             long n = state1.metric.size();
             double distance = 0.0;
             for (long i = 0; i < n; ++i) {

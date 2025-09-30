@@ -3,7 +3,10 @@
 #include "erl_common/eigen.hpp"
 
 namespace erl::env {
-    enum VirtualStateValue { kStart = -2, kGoal = -1 };  // used for multi-start and multi-goal search
+    enum VirtualStateValue {
+        kStart = -2,
+        kGoal = -1
+    };  // used for multi-start and multi-goal search
 
     struct EnvironmentState {
         Eigen::VectorXd metric = {};

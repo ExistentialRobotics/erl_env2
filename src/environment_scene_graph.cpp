@@ -5,23 +5,36 @@
 namespace erl::env {
 
     std::vector<std::shared_ptr<EnvironmentState>>
-    EnvironmentSceneGraph::ForwardAction(const std::shared_ptr<const EnvironmentState> &env_state, const std::vector<int> &action_coords) const {
+    EnvironmentSceneGraph::ForwardAction(
+        const std::shared_ptr<const EnvironmentState> &env_state,
+        const std::vector<int> &action_coords) const {
         auto level = env::scene_graph::Node::Type(action_coords[0]);
         const int &cur_x = env_state->grid[0];
         const int &cur_y = env_state->grid[1];
         const int &cur_z = env_state->grid[2];
-        ERL_DEBUG("forward action, x: {}, y: {}, floor_num: {}, cur_room_id: {}", cur_x, cur_y, cur_z, m_room_maps_[cur_z].at<int>(cur_x, cur_y));
+        ERL_DEBUG(
+            "forward action, x: {}, y: {}, floor_num: {}, cur_room_id: {}",
+            cur_x,
+            cur_y,
+            cur_z,
+            m_room_maps_[cur_z].at<int>(cur_x, cur_y));
         switch (level) {
             case scene_graph::Node::Type::kOcc: {  // atomic action
                 const int &atomic_action_id = action_coords[1];
                 ERL_DEBUG("kNA action id: {}", atomic_action_id);
-                ERL_DEBUG_ASSERT(atomic_action_id >= 0 && std::size_t(atomic_action_id) < m_atomic_actions_.size(), "atomic_action_id is out of range.");
+                ERL_DEBUG_ASSERT(
+                    atomic_action_id >= 0 &&
+                        std::size_t(atomic_action_id) < m_atomic_actions_.size(),
+                    "atomic_action_id is out of range.");
                 if (std::size_t(atomic_action_id) < m_atomic_actions_.size() - 2) {
                     auto next_env_state = std::make_shared<EnvironmentState>();
-                    next_env_state->grid = env_state->grid + m_atomic_actions_[atomic_action_id].state_diff;
+                    next_env_state->grid =
+                        env_state->grid + m_atomic_actions_[atomic_action_id].state_diff;
                     next_env_state->metric = GridToMetric(next_env_state->grid);
                     return {next_env_state};
-                } else if (std::size_t(atomic_action_id) == m_atomic_actions_.size() - 2) {  // floor up
+                } else if (
+                    std::size_t(atomic_action_id) == m_atomic_actions_.size() - 2) {  // floor
+                                                                                      // up
                     auto next_env_state = std::make_shared<EnvironmentState>();
                     next_env_state->grid.resize(3);
                     int &nx = next_env_state->grid[0];
@@ -33,7 +46,9 @@ namespace erl::env {
                     ny = floor->down_stairs_portal.value()[1];
                     next_env_state->metric = GridToMetric(next_env_state->grid);
                     return {next_env_state};
-                } else if (std::size_t(atomic_action_id) == m_atomic_actions_.size() - 1) {  // floor down
+                } else if (
+                    std::size_t(atomic_action_id) == m_atomic_actions_.size() - 1) {  // floor
+                                                                                      // down
                     auto next_env_state = std::make_shared<EnvironmentState>();
                     next_env_state->grid.resize(3);
                     int &nx = next_env_state->grid[0];
@@ -57,33 +72,50 @@ namespace erl::env {
                 auto &object = m_scene_graph_->id_to_object[goal_object_id];
                 const int &room_id = object->parent_id;
                 auto &room = m_scene_graph_->id_to_room[room_id];
-                ERL_ASSERTM(room->parent_id == cur_z, "On {} floor but action is to reach object on {} floor.", cur_z, room->parent_id);
+                ERL_ASSERTM(
+                    room->parent_id == cur_z,
+                    "On {} floor but action is to reach object on {} floor.",
+                    cur_z,
+                    room->parent_id);
                 const int &at_room_id = m_room_maps_[cur_z].at<int>(cur_x, cur_y);
-                ERL_ASSERTM(at_room_id == room_id, "In room {} but action is to reach object in room {}.", at_room_id, room_id);
+                ERL_ASSERTM(
+                    at_room_id == room_id,
+                    "In room {} but action is to reach object in room {}.",
+                    at_room_id,
+                    room_id);
                 ERL_ASSERTM(
                     (cur_x >= local_cost_map.grid_min_x && cur_x <= local_cost_map.grid_max_x) &&
                         (cur_y >= local_cost_map.grid_min_y && cur_y <= local_cost_map.grid_max_y),
                     "Not in the local cost map of object (id: {}) to reach.",
                     goal_object_id);
 #endif
-                auto &path = local_cost_map.path_map(cur_x - local_cost_map.grid_min_x, cur_y - local_cost_map.grid_min_y);
+                auto &path = local_cost_map.path_map(
+                    cur_x - local_cost_map.grid_min_x,
+                    cur_y - local_cost_map.grid_min_y);
                 return ConvertPath(path, cur_z);
             }
             case scene_graph::Node::Type::kRoom: {  // reach room
                 const int &goal_room_id = action_coords[1];
                 const int &at_room_id = m_room_maps_[cur_z].at<int>(cur_x, cur_y);
                 ERL_DEBUG("kRoom action id: {}, at_room_id: {}", goal_room_id, at_room_id);
-                const LocalCostMap &local_cost_map = m_room_cost_maps_.at(at_room_id).at(goal_room_id);
+                const LocalCostMap &local_cost_map =
+                    m_room_cost_maps_.at(at_room_id).at(goal_room_id);
 #ifndef NDEBUG
                 auto &room = m_scene_graph_->id_to_room[goal_room_id];
-                ERL_ASSERTM(room->parent_id == cur_z, "On {} floor but action is to reach room on {} floor.", cur_z, room->parent_id);
+                ERL_ASSERTM(
+                    room->parent_id == cur_z,
+                    "On {} floor but action is to reach room on {} floor.",
+                    cur_z,
+                    room->parent_id);
                 ERL_ASSERTM(
                     (cur_x >= local_cost_map.grid_min_x && cur_x < local_cost_map.grid_max_x) &&
                         (cur_y >= local_cost_map.grid_min_y && cur_y < local_cost_map.grid_max_y),
                     "Not in the local cost map of room (id: {}) to take the action.",
                     goal_room_id);
 #endif
-                auto &path = local_cost_map.path_map(cur_x - local_cost_map.grid_min_x, cur_y - local_cost_map.grid_min_y);
+                auto &path = local_cost_map.path_map(
+                    cur_x - local_cost_map.grid_min_x,
+                    cur_y - local_cost_map.grid_min_y);
                 return ConvertPath(path, cur_z);
             }
             case scene_graph::Node::Type::kFloor: {  // floor up or down
@@ -99,7 +131,9 @@ namespace erl::env {
     }
 
     std::vector<Successor>
-    EnvironmentSceneGraph::GetSuccessorsAtLevel(const std::shared_ptr<EnvironmentState> &env_state, std::size_t resolution_level) const {
+    EnvironmentSceneGraph::GetSuccessorsAtLevel(
+        const std::shared_ptr<EnvironmentState> &env_state,
+        std::size_t resolution_level) const {
         if (!InStateSpace(env_state)) { return {}; }
         if (resolution_level == 0) { return GetSuccessors(env_state); }
         auto level = env::scene_graph::Node::Type(resolution_level - 1);
@@ -109,57 +143,92 @@ namespace erl::env {
         std::vector<Successor> successors;
         switch (level) {
             case scene_graph::Node::Type::kOcc: {
-                for (int atomic_action_id = 0; atomic_action_id < m_floor_up_action_id_; ++atomic_action_id) {  // grid movement
+                for (int atomic_action_id = 0; atomic_action_id < m_floor_up_action_id_;
+                     ++atomic_action_id) {  // grid movement
                     auto &atomic_action = m_atomic_actions_[atomic_action_id];
                     auto next_env_state = std::make_shared<EnvironmentState>();
                     next_env_state->grid.resize(3);
                     int &nx = next_env_state->grid[0];
                     int &ny = next_env_state->grid[1];
                     nx = cur_x + atomic_action.state_diff[0];
-                    if (nx < 0 || nx >= m_grid_map_info_->Shape(0)) { continue; }  // out of map boundary
+                    if (nx < 0 || nx >= m_grid_map_info_->Shape(0)) {
+                        continue;
+                    }  // out of map boundary
                     ny = cur_y + atomic_action.state_diff[1];
-                    if (ny < 0 || ny >= m_grid_map_info_->Shape(1)) { continue; }       // out of map boundary
+                    if (ny < 0 || ny >= m_grid_map_info_->Shape(1)) {
+                        continue;
+                    }  // out of map boundary
                     if (m_obstacle_maps_[cur_z].at<uint8_t>(nx, ny) > 0) { continue; }  // obstacle
                     next_env_state->grid[2] = cur_z;
                     next_env_state->metric = GridToMetric(next_env_state->grid);
-                    // the room maps may have some small regions marked N/A due to the original mesh processing, we should skip it.
-                    if (m_room_maps_[cur_z].at<int>(nx, ny) <= 0) { continue; }  // room id missing, skip it.
-                    successors.emplace_back(next_env_state, atomic_action.cost, std::vector<int>{int(scene_graph::Node::Type::kOcc), atomic_action_id});
+                    // the room maps may have some small regions marked N/A due to the original mesh
+                    // processing, we should skip it.
+                    if (m_room_maps_[cur_z].at<int>(nx, ny) <= 0) {
+                        continue;
+                    }  // room id missing, skip it.
+                    successors.emplace_back(
+                        next_env_state,
+                        atomic_action.cost,
+                        std::vector<int>{int(scene_graph::Node::Type::kOcc), atomic_action_id});
                 }
                 // going up/down stairs only happens when the robot arrives at the stairs portal
                 auto &floor = m_scene_graph_->floors.at(cur_z);
                 int floor_num_up = cur_z + 1;
-                if (floor_num_up < m_scene_graph_->num_floors && floor->up_stairs_portal.has_value() && cur_x == floor->up_stairs_portal.value()[0] &&
+                if (floor_num_up < m_scene_graph_->num_floors &&
+                    floor->up_stairs_portal.has_value() &&
+                    cur_x == floor->up_stairs_portal.value()[0] &&
                     cur_y == floor->up_stairs_portal.value()[1]) {  // go upstairs
                     auto &floor_up = m_scene_graph_->floors.at(floor_num_up);
-                    // ERL_ASSERTM(floor->up_stairs_portal.has_value(), "floor->up_stairs_portal should have value.");
-                    ERL_ASSERTM(floor_up->down_stairs_portal.has_value(), "floor_up->down_stairs_portal should have value.");
+                    // ERL_ASSERTM(floor->up_stairs_portal.has_value(), "floor->up_stairs_portal
+                    // should have value.");
+                    ERL_ASSERTM(
+                        floor_up->down_stairs_portal.has_value(),
+                        "floor_up->down_stairs_portal should have value.");
                     const double &cost = floor->up_stairs_cost;
-                    if (!std::isinf(cost)) {  // no path to go upstairs (should not happen, but just in case)
+                    if (!std::isinf(cost)) {  // no path to go upstairs (should not happen, but just
+                                              // in case)
                         auto next_env_state = std::make_shared<EnvironmentState>();
                         next_env_state->grid.resize(3);
                         next_env_state->grid[0] = floor_up->down_stairs_portal.value()[0];
                         next_env_state->grid[1] = floor_up->down_stairs_portal.value()[1];
                         next_env_state->grid[2] = floor_num_up;
                         next_env_state->metric = GridToMetric(next_env_state->grid);
-                        successors.emplace_back(next_env_state, cost, std::vector<int>{int(scene_graph::Node::Type::kOcc), m_floor_up_action_id_});
+                        successors.emplace_back(
+                            next_env_state,
+                            cost,
+                            std::vector<int>{
+                                int(scene_graph::Node::Type::kOcc),
+                                m_floor_up_action_id_});
                     }
                 }
                 int floor_num_down = cur_z - 1;
-                if (floor_num_down >= 0 && floor->down_stairs_portal.has_value() && cur_x == floor->down_stairs_portal.value()[0] &&
+                if (floor_num_down >= 0 && floor->down_stairs_portal.has_value() &&
+                    cur_x == floor->down_stairs_portal.value()[0] &&
                     cur_y == floor->down_stairs_portal.value()[1]) {  // go downstairs
                     auto &floor_down = m_scene_graph_->floors.at(floor_num_down);
-                    // ERL_ASSERTM(floor->down_stairs_portal.has_value(), "floor->down_stairs_portal should have value.");
-                    ERL_ASSERTM(floor_down->up_stairs_portal.has_value(), "floor_down->up_stairs_portal should have value.");
-                    const double &cost = floor->down_stairs_cost;  // m_down_stairs_cost_maps_.at(cur_z)(cur_x, cur_y);
-                    if (std::isinf(cost)) { return successors; }   // no path to go downstairs (should not happen, but just in case)
+                    // ERL_ASSERTM(floor->down_stairs_portal.has_value(), "floor->down_stairs_portal
+                    // should have value.");
+                    ERL_ASSERTM(
+                        floor_down->up_stairs_portal.has_value(),
+                        "floor_down->up_stairs_portal should have value.");
+                    const double &cost =
+                        floor->down_stairs_cost;  // m_down_stairs_cost_maps_.at(cur_z)(cur_x,
+                                                  // cur_y);
+                    if (std::isinf(cost)) {
+                        return successors;
+                    }  // no path to go downstairs (should not happen, but just in case)
                     auto next_env_state = std::make_shared<EnvironmentState>();
                     next_env_state->grid.resize(3);
                     next_env_state->grid[0] = floor_down->up_stairs_portal.value()[0];
                     next_env_state->grid[1] = floor_down->up_stairs_portal.value()[1];
                     next_env_state->grid[2] = floor_num_down;
                     next_env_state->metric = GridToMetric(next_env_state->grid);
-                    successors.emplace_back(next_env_state, cost, std::vector<int>{int(scene_graph::Node::Type::kOcc), m_floor_down_action_id_});
+                    successors.emplace_back(
+                        next_env_state,
+                        cost,
+                        std::vector<int>{
+                            int(scene_graph::Node::Type::kOcc),
+                            m_floor_down_action_id_});
                 }
                 return successors;
             }
@@ -167,14 +236,20 @@ namespace erl::env {
                 int at_room_id = m_room_maps_.at(cur_z).at<int>(cur_x, cur_y);
                 auto &room = m_scene_graph_->id_to_room.at(at_room_id);
                 auto &reached_object_ids = m_object_reached_maps_.at(cur_z)(cur_x, cur_y);
-                if (reached_object_ids.empty()) { return successors; }  // no object reached at this grid
+                if (reached_object_ids.empty()) {
+                    return successors;
+                }  // no object reached at this grid
                 successors.reserve(room->objects.size() - reached_object_ids.size());
                 for (auto &itr: room->objects) {
                     const int &object_id = itr.first;                           // reach this object
                     if (reached_object_ids.count(object_id) > 0) { continue; }  // already reached
                     auto &local_cost_map = m_object_cost_maps_.at(object_id);
-                    ERL_DEBUG_ASSERT(local_cost_map.grid_min_x <= cur_x && cur_x <= local_cost_map.grid_max_x, "x is out of range.");
-                    ERL_DEBUG_ASSERT(local_cost_map.grid_min_y <= cur_y && cur_y <= local_cost_map.grid_max_y, "y is out of range.");
+                    ERL_DEBUG_ASSERT(
+                        local_cost_map.grid_min_x <= cur_x && cur_x <= local_cost_map.grid_max_x,
+                        "x is out of range.");
+                    ERL_DEBUG_ASSERT(
+                        local_cost_map.grid_min_y <= cur_y && cur_y <= local_cost_map.grid_max_y,
+                        "y is out of range.");
                     int r = cur_x - local_cost_map.grid_min_x;
                     int c = cur_y - local_cost_map.grid_min_y;
                     auto &path = local_cost_map.path_map(r, c);          // path to reach the object
@@ -187,24 +262,44 @@ namespace erl::env {
                     next_env_state->grid[1] = path.back()[1];
                     next_env_state->grid[2] = cur_z;
                     next_env_state->metric = GridToMetric(next_env_state->grid);
-                    successors.emplace_back(next_env_state, cost, std::vector<int>{int(scene_graph::Node::Type::kObject), object_id});
+                    successors.emplace_back(
+                        next_env_state,
+                        cost,
+                        std::vector<int>{int(scene_graph::Node::Type::kObject), object_id});
                 }
                 return successors;
             }
             case scene_graph::Node::Type::kRoom: {
                 int at_room_id = m_room_maps_.at(cur_z).at<int>(cur_x, cur_y);
                 auto connected_room_cost_maps_itr = m_room_cost_maps_.find(at_room_id);
-                if (connected_room_cost_maps_itr == m_room_cost_maps_.end()) { return successors; }  // no action for this room
+                if (connected_room_cost_maps_itr == m_room_cost_maps_.end()) {
+                    return successors;
+                }  // no action for this room
                 auto &connected_room_cost_maps = connected_room_cost_maps_itr->second;
                 auto &room = m_scene_graph_->id_to_room.at(at_room_id);
-                ERL_DEBUG_ASSERT(room->parent_id == cur_z, "On {} floor but action is to reach room on {} floor.", cur_z, room->parent_id);
-                ERL_DEBUG_ASSERT(room->id == at_room_id, "In room {} but action is to reach room {}.", at_room_id, room->id);
+                ERL_DEBUG_ASSERT(
+                    room->parent_id == cur_z,
+                    "On {} floor but action is to reach room on {} floor.",
+                    cur_z,
+                    room->parent_id);
+                ERL_DEBUG_ASSERT(
+                    room->id == at_room_id,
+                    "In room {} but action is to reach room {}.",
+                    at_room_id,
+                    room->id);
                 successors.reserve(room->connected_room_ids.size());
                 for (int &connected_room_id: room->connected_room_ids) {
-                    ERL_DEBUG_ASSERT(m_room_maps_.at(cur_z).at<int>(cur_x, cur_y) != connected_room_id, "The current state is in the connected room.");
-                    ERL_DEBUG_ASSERT(connected_room_id != room->id, "Room {} is connected to itself.", room->id);  // self-connected (loop)
+                    ERL_DEBUG_ASSERT(
+                        m_room_maps_.at(cur_z).at<int>(cur_x, cur_y) != connected_room_id,
+                        "The current state is in the connected room.");
+                    ERL_DEBUG_ASSERT(
+                        connected_room_id != room->id,
+                        "Room {} is connected to itself.",
+                        room->id);  // self-connected (loop)
                     auto local_cost_map_itr = connected_room_cost_maps.find(connected_room_id);
-                    if (local_cost_map_itr == connected_room_cost_maps.end()) { continue; }  // no action to go to this room
+                    if (local_cost_map_itr == connected_room_cost_maps.end()) {
+                        continue;
+                    }  // no action to go to this room
                     auto &local_cost_map = local_cost_map_itr->second;
                     int r = cur_x - local_cost_map.grid_min_x;
                     int c = cur_y - local_cost_map.grid_min_y;
@@ -217,10 +312,15 @@ namespace erl::env {
                     int &ny = next_env_state->grid[1];
                     nx = path.back()[0];
                     ny = path.back()[1];
-                    ERL_DEBUG_ASSERT(m_room_maps_.at(cur_z).at<int>(nx, ny) == connected_room_id, "The next state is not in the connected room.");
+                    ERL_DEBUG_ASSERT(
+                        m_room_maps_.at(cur_z).at<int>(nx, ny) == connected_room_id,
+                        "The next state is not in the connected room.");
                     next_env_state->grid[2] = cur_z;
                     next_env_state->metric = GridToMetric(next_env_state->grid);
-                    successors.emplace_back(next_env_state, cost, std::vector<int>{int(scene_graph::Node::Type::kRoom), connected_room_id});
+                    successors.emplace_back(
+                        next_env_state,
+                        cost,
+                        std::vector<int>{int(scene_graph::Node::Type::kRoom), connected_room_id});
                 }
                 return successors;
             }
@@ -238,7 +338,10 @@ namespace erl::env {
                         next_env_state->grid[1] = floor->down_stairs_portal.value()[1];
                         next_env_state->grid[2] = floor_num_up;
                         next_env_state->metric = GridToMetric(next_env_state->grid);
-                        successors.emplace_back(next_env_state, cost, std::vector<int>{int(scene_graph::Node::Type::kFloor), floor_num_up});
+                        successors.emplace_back(
+                            next_env_state,
+                            cost,
+                            std::vector<int>{int(scene_graph::Node::Type::kFloor), floor_num_up});
                     }
                 }
                 if (floor_num_down >= 0) {  // go downstairs
@@ -251,7 +354,10 @@ namespace erl::env {
                     next_env_state->grid[1] = floor->up_stairs_portal.value()[1];
                     next_env_state->grid[2] = floor_num_down;
                     next_env_state->metric = GridToMetric(next_env_state->grid);
-                    successors.emplace_back(next_env_state, cost, std::vector<int>{int(scene_graph::Node::Type::kFloor), floor_num_down});
+                    successors.emplace_back(
+                        next_env_state,
+                        cost,
+                        std::vector<int>{int(scene_graph::Node::Type::kFloor), floor_num_down});
                 }
                 return successors;
             }
@@ -275,31 +381,47 @@ namespace erl::env {
         // }
 
         auto &floor = m_scene_graph_->floors[0];
-        auto floor_grid_map_info = std::make_shared<common::GridMapInfo2D>(floor->grid_map_origin, floor->grid_map_resolution, floor->grid_map_size);
+        auto floor_grid_map_info = std::make_shared<common::GridMapInfo2D>(
+            floor->grid_map_origin,
+            floor->grid_map_resolution,
+            floor->grid_map_size);
 
         // load room maps, category maps and obstacle maps, initialize object reach maps
         m_room_maps_.reserve(m_scene_graph_->num_floors);
         m_cat_maps_.reserve(m_scene_graph_->num_floors);
         for (int i = 0; i < m_scene_graph_->num_floors; ++i) {
-            m_room_maps_.push_back(m_scene_graph_->LoadRoomMap(m_setting_->data_dir, i));  // room map, CV_32SC1
-            m_cat_maps_.push_back(m_scene_graph_->LoadCatMap(m_setting_->data_dir, i));    // category map, CV_32SC1
+            m_room_maps_.push_back(
+                m_scene_graph_->LoadRoomMap(m_setting_->data_dir, i));  // room map, CV_32SC1
+            m_cat_maps_.push_back(
+                m_scene_graph_->LoadCatMap(m_setting_->data_dir, i));  // category map, CV_32SC1
             cv::Mat &cat_map = m_cat_maps_.back();
-            m_ground_masks_.push_back(cat_map != int(scene_graph::Object::SOC::kGround));  // CV_8UC1
-            m_obstacle_maps_.push_back(m_ground_masks_.back().clone());                    // CV_8UC1, 0: free, >=1: obstacle
-            if (m_setting_->shape.cols() > 0) {                                            // inflate the obstacle map if the robot shape is given
+            m_ground_masks_.push_back(
+                cat_map != int(scene_graph::Object::SOC::kGround));  // CV_8UC1
+            m_obstacle_maps_.push_back(
+                m_ground_masks_.back().clone());  // CV_8UC1, 0: free, >=1: obstacle
+            if (m_setting_->shape.cols() >
+                0) {  // inflate the obstacle map if the robot shape is given
                 cv::Mat mask_stairs_up = cat_map != int(scene_graph::Object::SOC::kStairsUp);
                 cv::Mat mask_stairs_down = cat_map != int(scene_graph::Object::SOC::kStairsDown);
                 cv::Mat mask_stairs = mask_stairs_up & mask_stairs_down;
                 cv::Mat &obstacle_map = m_obstacle_maps_.back();
-                obstacle_map &= mask_stairs;                                                           // when inflate the map, do not inflate the stairs
-                InflateGridMap2D(obstacle_map, obstacle_map, floor_grid_map_info, m_setting_->shape);  // inflate the obstacle map
-                obstacle_map |= ~mask_stairs;                                                          // remove the stairs
+                obstacle_map &= mask_stairs;  // when inflate the map, do not inflate the stairs
+                InflateGridMap2D(
+                    obstacle_map,
+                    obstacle_map,
+                    floor_grid_map_info,
+                    m_setting_->shape);        // inflate the obstacle map
+                obstacle_map |= ~mask_stairs;  // remove the stairs
             }
         }
 
-        GenerateFloorCostMaps();                                                                      // needed by kNA and kFloor actions
-        if (m_setting_->max_level >= scene_graph::Node::Type::kRoom) { GenerateRoomCostMaps(); }      // needed by kRoom actions
-        if (m_setting_->max_level >= scene_graph::Node::Type::kObject) { GenerateObjectCostMaps(); }  // needed by kObject actions
+        GenerateFloorCostMaps();  // needed by kNA and kFloor actions
+        if (m_setting_->max_level >= scene_graph::Node::Type::kRoom) {
+            GenerateRoomCostMaps();
+        }  // needed by kRoom actions
+        if (m_setting_->max_level >= scene_graph::Node::Type::kObject) {
+            GenerateObjectCostMaps();
+        }  // needed by kObject actions
     }
 
     void
@@ -307,18 +429,32 @@ namespace erl::env {
         auto &floor = m_scene_graph_->floors[0];
         double floor_height = std::numeric_limits<double>::infinity();
         if (m_scene_graph_->num_floors == 1) {
-            floor_height = 2.0;  // default height for one-floor building, which is not used in the heuristic
+            floor_height =
+                2.0;  // default height for one-floor building, which is not used in the heuristic
         } else {
             for (int i = 1; i < m_scene_graph_->num_floors; ++i) {
                 // get minimum height between two floors to make sure the heuristics is admissible
-                double height = m_scene_graph_->floors[i]->ground_z - m_scene_graph_->floors[i - 1]->ground_z;
+                double height =
+                    m_scene_graph_->floors[i]->ground_z - m_scene_graph_->floors[i - 1]->ground_z;
                 if (height < floor_height) { floor_height = height; }
             }
         }
-        Eigen::Vector3d grid_map_origin(floor->grid_map_origin.x(), floor->grid_map_origin.y(), floor->ground_z - 0.5 * floor_height);
-        Eigen::Vector3d grid_map_resolution(floor->grid_map_resolution.x(), floor->grid_map_resolution.y(), floor_height);
-        Eigen::Vector3i grid_map_size(floor->grid_map_size.x(), floor->grid_map_size.y(), m_scene_graph_->num_floors);
-        m_grid_map_info_ = std::make_shared<common::GridMapInfo3D>(grid_map_origin, grid_map_resolution, grid_map_size);
+        Eigen::Vector3d grid_map_origin(
+            floor->grid_map_origin.x(),
+            floor->grid_map_origin.y(),
+            floor->ground_z - 0.5 * floor_height);
+        Eigen::Vector3d grid_map_resolution(
+            floor->grid_map_resolution.x(),
+            floor->grid_map_resolution.y(),
+            floor_height);
+        Eigen::Vector3i grid_map_size(
+            floor->grid_map_size.x(),
+            floor->grid_map_size.y(),
+            m_scene_graph_->num_floors);
+        m_grid_map_info_ = std::make_shared<common::GridMapInfo3D>(
+            grid_map_origin,
+            grid_map_resolution,
+            grid_map_size);
 
         double x_res = m_grid_map_info_->Resolution(0);
         double y_res = m_grid_map_info_->Resolution(1);
@@ -331,7 +467,9 @@ namespace erl::env {
                     if (i == j && i == 0) { continue; }
                     double dx = i * x_res;
                     double dy = j * y_res;
-                    m_atomic_actions_.emplace_back(std::sqrt(dx * dx + dy * dy), Eigen::Vector3i(i, j, 0));
+                    m_atomic_actions_.emplace_back(
+                        std::sqrt(dx * dx + dy * dy),
+                        Eigen::Vector3i(i, j, 0));
                 }
             }
         } else {
@@ -349,14 +487,23 @@ namespace erl::env {
 
     void
     EnvironmentSceneGraph::GenerateFloorCostMaps() {
-        if (m_scene_graph_->num_floors <= 1) { return; }  // no need to generate up/down stairs cost maps
+        if (m_scene_graph_->num_floors <= 1) {
+            return;
+        }  // no need to generate up/down stairs cost maps
         int grid_map_rows = m_grid_map_info_->Shape(0);
         int grid_map_cols = m_grid_map_info_->Shape(1);
-        for (int floor_num = 1; floor_num < m_scene_graph_->num_floors; ++floor_num) {  // initialize cost maps
+        for (int floor_num = 1; floor_num < m_scene_graph_->num_floors;
+             ++floor_num) {  // initialize cost maps
             int n1 = floor_num - 1;
             int n2 = floor_num;
-            ERL_ASSERTM(m_scene_graph_->floors[n1]->up_stairs_portal.has_value(), "Floor {} does not have up stairs portal.", n1);
-            ERL_ASSERTM(m_scene_graph_->floors[n2]->down_stairs_portal.has_value(), "Floor {} does not have down stairs portal.", n2);
+            ERL_ASSERTM(
+                m_scene_graph_->floors[n1]->up_stairs_portal.has_value(),
+                "Floor {} does not have up stairs portal.",
+                n1);
+            ERL_ASSERTM(
+                m_scene_graph_->floors[n2]->down_stairs_portal.has_value(),
+                "Floor {} does not have down stairs portal.",
+                n2);
             m_up_stairs_cost_maps_[floor_num - 1].resize(grid_map_rows, grid_map_cols);
             m_up_stairs_path_maps_[floor_num - 1].resize(grid_map_rows, grid_map_cols);
             m_down_stairs_cost_maps_[floor_num].resize(grid_map_rows, grid_map_cols);
@@ -372,10 +519,13 @@ namespace erl::env {
                m_down_stairs_cost_maps_, \
                m_down_stairs_path_maps_, \
                Eigen::Dynamic)
-        for (int floor_num = 1; floor_num < m_scene_graph_->num_floors; ++floor_num) {  // initialize cost maps
+        for (int floor_num = 1; floor_num < m_scene_graph_->num_floors;
+             ++floor_num) {  // initialize cost maps
             int n1 = floor_num - 1;
             auto &floor1 = m_scene_graph_->floors[n1];
-            Eigen::Vector2i goal(floor1->up_stairs_portal.value()[0], floor1->up_stairs_portal.value()[1]);
+            Eigen::Vector2i goal(
+                floor1->up_stairs_portal.value()[0],
+                floor1->up_stairs_portal.value()[1]);
             cv::Mat &obstacle_map1 = m_obstacle_maps_[n1];
             obstacle_map1.at<uint8_t>(goal[0], goal[1]) = 0;  // set the goal to be free
             Eigen::MatrixXd &cost_map1 = m_up_stairs_cost_maps_[n1];
@@ -405,7 +555,9 @@ namespace erl::env {
             }
         }
         auto t1 = std::chrono::high_resolution_clock::now();
-        ERL_INFO("GenerateFloorCostMaps: {:f} ms", std::chrono::duration<double, std::milli>(t1 - t0).count());
+        ERL_INFO(
+            "GenerateFloorCostMaps: {:f} ms",
+            std::chrono::duration<double, std::milli>(t1 - t0).count());
     }
 
     void
@@ -416,7 +568,9 @@ namespace erl::env {
             if (room->name == "staircase") { continue; }
             m_room_cost_maps_[room_id].reserve(room->connected_room_ids.size());
             for (int connected_room_id: room->connected_room_ids) {
-                if (m_scene_graph_->id_to_room[connected_room_id]->name == "staircase") { continue; }
+                if (m_scene_graph_->id_to_room[connected_room_id]->name == "staircase") {
+                    continue;
+                }
                 m_room_cost_maps_[room_id][connected_room_id] = {};
             }
         }
@@ -426,12 +580,16 @@ namespace erl::env {
         for (int room_id: m_scene_graph_->room_ids) {
             auto &room = m_scene_graph_->id_to_room.at(room_id);
             auto connected_room_cost_maps_itr = m_room_cost_maps_.find(room_id);
-            if (connected_room_cost_maps_itr == m_room_cost_maps_.end()) { continue; }  // not initialized
+            if (connected_room_cost_maps_itr == m_room_cost_maps_.end()) {
+                continue;
+            }  // not initialized
             auto &connected_room_cost_maps = connected_room_cost_maps_itr->second;
             cv::Mat obstacle_map = m_obstacle_maps_[room->parent_id];
             for (int connected_room_id: room->connected_room_ids) {
                 auto local_cost_map_itr = connected_room_cost_maps.find(connected_room_id);
-                if (local_cost_map_itr == connected_room_cost_maps.end()) { continue; }  // not initialized
+                if (local_cost_map_itr == connected_room_cost_maps.end()) {
+                    continue;
+                }  // not initialized
                 LocalCostMap &local_cost_map = local_cost_map_itr->second;
                 local_cost_map.grid_min_x = room->grid_map_min.x();
                 local_cost_map.grid_min_y = room->grid_map_min.y();
@@ -464,9 +622,16 @@ namespace erl::env {
                     cv::Point2i(local_cost_map.grid_min_y, local_cost_map.grid_min_x),
                     cv::Point2i(local_cost_map.grid_max_y + 1, local_cost_map.grid_max_x + 1));
                 cv::Mat obstacle_map_roi = obstacle_map(room_roi);
-                local_cost_map.cost_map.setConstant(obstacle_map_roi.rows, obstacle_map_roi.cols, std::numeric_limits<double>::infinity());
+                local_cost_map.cost_map.setConstant(
+                    obstacle_map_roi.rows,
+                    obstacle_map_roi.cols,
+                    std::numeric_limits<double>::infinity());
                 local_cost_map.path_map.resize(obstacle_map_roi.rows, obstacle_map_roi.cols);
-                ReverseAStar(goals, obstacle_map_roi, local_cost_map.cost_map, local_cost_map.path_map);
+                ReverseAStar(
+                    goals,
+                    obstacle_map_roi,
+                    local_cost_map.cost_map,
+                    local_cost_map.path_map);
 
                 for (int r = 0; r < obstacle_map_roi.rows; ++r) {
                     for (int c = 0; c < obstacle_map_roi.cols; ++c) {
@@ -481,23 +646,34 @@ namespace erl::env {
             }
         }
         auto t1 = std::chrono::high_resolution_clock::now();
-        ERL_INFO("GenerateRoomCostMaps: {:f} ms", std::chrono::duration<double, std::milli>(t1 - t0).count());
+        ERL_INFO(
+            "GenerateRoomCostMaps: {:f} ms",
+            std::chrono::duration<double, std::milli>(t1 - t0).count());
     }
 
     void
     EnvironmentSceneGraph::GenerateObjectCostMaps() {
         m_object_cost_maps_.reserve(m_scene_graph_->object_ids.size());
         for (int floor_num = 0; floor_num < m_scene_graph_->num_floors; ++floor_num) {
-            m_object_reached_maps_[floor_num].resize(m_grid_map_info_->Shape(0), m_grid_map_info_->Shape(1));
+            m_object_reached_maps_[floor_num].resize(
+                m_grid_map_info_->Shape(0),
+                m_grid_map_info_->Shape(1));
         }
-        for (int object_id: m_scene_graph_->object_ids) { m_object_cost_maps_[object_id] = {}; }  // initialize object cost maps
+        for (int object_id: m_scene_graph_->object_ids) {
+            m_object_cost_maps_[object_id] = {};
+        }  // initialize object cost maps
         auto t0 = std::chrono::high_resolution_clock::now();
 
-#pragma omp parallel for default(none) shared(m_scene_graph_, m_room_maps_, m_obstacle_maps_, m_cat_maps_, m_object_cost_maps_)
+#pragma omp parallel for default(none) \
+    shared(m_scene_graph_, m_room_maps_, m_obstacle_maps_, m_cat_maps_, m_object_cost_maps_)
         for (int object_id: m_scene_graph_->object_ids) {
-            int row_padding = int(m_setting_->object_reach_distance / m_grid_map_info_->Resolution(0)) + 1;
-            int col_padding = int(m_setting_->object_reach_distance / m_grid_map_info_->Resolution(1)) + 1;
-            auto kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(2 * row_padding + 1, 2 * col_padding + 1));
+            int row_padding =
+                int(m_setting_->object_reach_distance / m_grid_map_info_->Resolution(0)) + 1;
+            int col_padding =
+                int(m_setting_->object_reach_distance / m_grid_map_info_->Resolution(1)) + 1;
+            auto kernel = cv::getStructuringElement(
+                cv::MORPH_ELLIPSE,
+                cv::Size(2 * row_padding + 1, 2 * col_padding + 1));
             auto &object = m_scene_graph_->id_to_object[object_id];
             auto &room = m_scene_graph_->id_to_room[object->parent_id];
             int floor_id = room->parent_id;
@@ -530,12 +706,18 @@ namespace erl::env {
             cv::Mat obstacle_map_roi = obstacle_map(room_roi);
 
             // get grids that reach the object
-            cv::Mat object_seg_mask = m_cat_maps_[floor_id](room_roi) == object_id;  // CV_8UC1, 0: object not reached, 1: object reached
-            cv::dilate(object_seg_mask, object_seg_mask, kernel);                    // dilate the object segmentation mask
+            cv::Mat object_seg_mask =
+                m_cat_maps_[floor_id](room_roi) ==
+                object_id;  // CV_8UC1, 0: object not reached, 1: object reached
+            cv::dilate(
+                object_seg_mask,
+                object_seg_mask,
+                kernel);  // dilate the object segmentation mask
             int max_num_goals = object_seg_mask.rows * object_seg_mask.cols;
             Eigen::Matrix2Xi goals(2, max_num_goals);
             cv::Mat room_map_roi = m_room_maps_[floor_id](room_roi);
-            Eigen::MatrixX<std::unordered_set<int>> &object_reached_map = m_object_reached_maps_[floor_id];
+            Eigen::MatrixX<std::unordered_set<int>> &object_reached_map =
+                m_object_reached_maps_[floor_id];
             int num_goals = 0;
             for (int row = 0; row < object_seg_mask.rows; ++row) {
                 for (int col = 0; col < object_seg_mask.cols; ++col) {
@@ -549,7 +731,10 @@ namespace erl::env {
 
                     {
 #pragma omp critical
-                        object_reached_map(row + local_cost_map.grid_min_x, col + local_cost_map.grid_min_y).insert(object_id);
+                        object_reached_map(
+                            row + local_cost_map.grid_min_x,
+                            col + local_cost_map.grid_min_y)
+                            .insert(object_id);
                     }
 
                     bool on_boundary = false;
@@ -578,9 +763,13 @@ namespace erl::env {
             goals.conservativeResize(2, num_goals);
 
             // compute cost maps
-            local_cost_map.cost_map.setConstant(obstacle_map_roi.rows, obstacle_map_roi.cols, std::numeric_limits<double>::infinity());
+            local_cost_map.cost_map.setConstant(
+                obstacle_map_roi.rows,
+                obstacle_map_roi.cols,
+                std::numeric_limits<double>::infinity());
             local_cost_map.path_map.resize(obstacle_map_roi.rows, obstacle_map_roi.cols);
-            // local_cost_map.arg_min_map.setConstant(obstacle_map_roi.rows, obstacle_map_roi.cols, -1);
+            // local_cost_map.arg_min_map.setConstant(obstacle_map_roi.rows, obstacle_map_roi.cols,
+            // -1);
             ReverseAStar(goals, obstacle_map_roi, local_cost_map.cost_map, local_cost_map.path_map);
 
             for (int r = 0; r < obstacle_map_roi.rows; ++r) {
@@ -595,7 +784,9 @@ namespace erl::env {
             }
         }
         auto t1 = std::chrono::high_resolution_clock::now();
-        ERL_INFO("GenerateObjectCostMaps: {:f} ms", std::chrono::duration<double, std::milli>(t1 - t0).count());
+        ERL_INFO(
+            "GenerateObjectCostMaps: {:f} ms",
+            std::chrono::duration<double, std::milli>(t1 - t0).count());
     }
 
     void
@@ -642,14 +833,16 @@ namespace erl::env {
             int x_grid = 0;
             int y_grid = 0;
             std::shared_ptr<Node> parent = nullptr;
-            uint32_t action_id = -1;  // action id from parent to this node, also used as goal index if this node is a goal
+            uint32_t action_id = -1;  // action id from parent to this node, also used as goal index
+                                      // if this node is a goal
             double g_value = std::numeric_limits<double>::infinity();
             double h_value = std::numeric_limits<double>::infinity();
         };
 
         struct Greater {
             bool
-            operator()(const std::shared_ptr<QueueItem> &s1, const std::shared_ptr<QueueItem> &s2) const {
+            operator()(const std::shared_ptr<QueueItem> &s1, const std::shared_ptr<QueueItem> &s2)
+                const {
                 if (std::abs(s1->f_value - s2->f_value) < 1.e-6) {
                     // f value is too close, compare g value
                     return s1->node->g_value > s2->node->g_value;
@@ -666,8 +859,10 @@ namespace erl::env {
             boost::heap::compare<Greater>>;
         // clang-format on
 
-        Eigen::MatrixXb closed = Eigen::MatrixXb::Constant(obstacle_map.rows, obstacle_map.cols, false);
-        Eigen::MatrixXb opened = Eigen::MatrixXb::Constant(obstacle_map.rows, obstacle_map.cols, false);
+        Eigen::MatrixXb closed =
+            Eigen::MatrixXb::Constant(obstacle_map.rows, obstacle_map.cols, false);
+        Eigen::MatrixXb opened =
+            Eigen::MatrixXb::Constant(obstacle_map.rows, obstacle_map.cols, false);
         Eigen::MatrixX<std::shared_ptr<Node>> nodes(obstacle_map.rows, obstacle_map.cols);
         Eigen::MatrixX<PriorityQueue::handle_type> heap_keys(obstacle_map.rows, obstacle_map.cols);
         PriorityQueue queue;
@@ -692,13 +887,14 @@ namespace erl::env {
             node->g_value = 0;
             node->h_value = 0;
             nodes(node->x_grid, node->y_grid) = node;
-            heap_keys(node->x_grid, node->y_grid) = queue.push(std::make_shared<QueueItem>(node->g_value + node->h_value, node));
+            heap_keys(node->x_grid, node->y_grid) =
+                queue.push(std::make_shared<QueueItem>(node->g_value + node->h_value, node));
             cost_map(node->x_grid, node->y_grid) = 0;
         }
 
         // start search
-        // we do search within the obstacle map of a specific floor, so we don't use the floor up/down atomic actions,
-        // which are used when generating composite actions
+        // we do search within the obstacle map of a specific floor, so we don't use the floor
+        // up/down atomic actions, which are used when generating composite actions
         while (!queue.empty()) {
             auto node = queue.top()->node;
             queue.pop();
@@ -732,7 +928,8 @@ namespace erl::env {
                     child->g_value = tentative_g;
                     child->h_value = heuristic_func(x_grid, y_grid);
                     nodes(x_grid, y_grid) = child;
-                    heap_keys(x_grid, y_grid) = queue.push(std::make_shared<QueueItem>(child->g_value + child->h_value, child));
+                    heap_keys(x_grid, y_grid) = queue.push(
+                        std::make_shared<QueueItem>(child->g_value + child->h_value, child));
                     opened(x_grid, y_grid) = true;
                 }
             }
@@ -760,7 +957,9 @@ namespace erl::env {
                     actions.reserve(n_reserve);
                 }
                 while (node->parent != nullptr) {
-                    if (get_path) { path.emplace_back(std::array<int, 2>{node->x_grid, node->y_grid}); }
+                    if (get_path) {
+                        path.emplace_back(std::array<int, 2>{node->x_grid, node->y_grid});
+                    }
                     if (get_action) { actions.emplace_back(node->action_id); }
                     node = node->parent;
                 }

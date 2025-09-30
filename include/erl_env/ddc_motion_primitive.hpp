@@ -29,7 +29,8 @@ namespace YAML {
             if (!node["durations"].IsSequence()) { return false; }
             if (!node["costs"]) { return false; }
             if (!node["costs"].IsSequence()) { return false; }
-            primitive.controls = node["controls"].as<std::vector<erl::env::DifferentialDriveControl>>();
+            primitive.controls =
+                node["controls"].as<std::vector<erl::env::DifferentialDriveControl>>();
             primitive.durations = node["durations"].as<std::vector<double>>();
             primitive.costs = node["costs"].as<std::vector<double>>();
             return true;
@@ -42,7 +43,9 @@ namespace erl::env {
     LoadDdcMotionPrimitivesFromYaml(const std::string &filename) {
         std::vector<YAML::Node> nodes = YAML::LoadAllFromFile(filename);
 
-        if (nodes.empty()) { throw std::runtime_error("No motion primitives found in file: " + filename); }
+        if (nodes.empty()) {
+            throw std::runtime_error("No motion primitives found in file: " + filename);
+        }
 
         if (nodes.size() == 1) {
             auto &node = nodes[0];
@@ -54,7 +57,11 @@ namespace erl::env {
         } else {  // this file contains multiple nodes, each of which is a motion primitive
             std::vector<DdcMotionPrimitive> primitives;
             primitives.reserve(nodes.size());
-            std::transform(nodes.begin(), nodes.end(), std::back_inserter(primitives), [](const YAML::Node &node) { return node.as<DdcMotionPrimitive>(); });
+            std::transform(
+                nodes.begin(),
+                nodes.end(),
+                std::back_inserter(primitives),
+                [](const YAML::Node &node) { return node.as<DdcMotionPrimitive>(); });
             return primitives;
         }
     }

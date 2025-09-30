@@ -22,7 +22,16 @@ namespace erl::env {
         double &new_x,
         double &new_y,
         double &new_theta) {
-        DifferentialDriveKinematic(x, y, theta, linear_v, linear_v / wheel_base * std::tan(steering_angle), t, new_x, new_y, new_theta);
+        DifferentialDriveKinematic(
+            x,
+            y,
+            theta,
+            linear_v,
+            linear_v / wheel_base * std::tan(steering_angle),
+            t,
+            new_x,
+            new_y,
+            new_theta);
     }
 
 }  // namespace erl::env

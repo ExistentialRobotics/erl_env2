@@ -22,12 +22,12 @@ namespace erl::env {
     class EnvironmentLTL2D : public EnvironmentBase {
     public:
         struct Setting : public common::Yamlable<Setting> {
-            std::vector<Eigen::Vector2i> motions;                // 2d grid motions
-            int grid_stride = 1;                                 // grid stride in grid space
-            uint8_t obstacle_threshold = 1;                      // minimum map value to be considered as obstacle
-            bool add_map_cost = false;                           // indicate whether to add map cost to the successor cost
-            double map_cost_factor = 1.0;                        // map cost = map_cost_factor * map_cost
-            Eigen::Matrix2Xd shape = {};                         // assume the shape center is at the origin
+            std::vector<Eigen::Vector2i> motions;  // 2d grid motions
+            int grid_stride = 1;                   // grid stride in grid space
+            uint8_t obstacle_threshold = 1;        // minimum map value to be considered as obstacle
+            bool add_map_cost = false;     // indicate whether to add map cost to the successor cost
+            double map_cost_factor = 1.0;  // map cost = map_cost_factor * map_cost
+            Eigen::Matrix2Xd shape = {};   // assume the shape center is at the origin
             std::shared_ptr<FiniteStateAutomaton::Setting> fsa;  // finite state automaton
 
             inline void
@@ -59,13 +59,17 @@ namespace erl::env {
     private:
         std::shared_ptr<Setting> m_setting_;
         std::shared_ptr<FiniteStateAutomaton> m_fsa_;
-        std::vector<Eigen::Matrix2Xi> m_rel_trajectories_;        // relative trajectories of motion primitives
-        std::vector<double> m_motion_costs_;                      // cost of each control
-        Eigen::MatrixX<std::vector<int>> m_reachable_motions_;    // reachable controls for each grid
-        cv::Mat m_original_grid_map_;                             // original grid map, where each cell is a scaled cost value
-        cv::Mat m_grid_map_;                                      // inflated grid map
-        std::shared_ptr<common::GridMapInfo3D> m_grid_map_info_;  // grid map description (x, y, q), x to the bottom, y to the right, along y first
-        Eigen::MatrixX<uint32_t> m_label_map_;                    // each element is a |AP|-bit word representing the result of atomic propositions
+        std::vector<Eigen::Matrix2Xi>
+            m_rel_trajectories_;              // relative trajectories of motion primitives
+        std::vector<double> m_motion_costs_;  // cost of each control
+        Eigen::MatrixX<std::vector<int>> m_reachable_motions_;  // reachable controls for each grid
+        cv::Mat m_original_grid_map_;  // original grid map, where each cell is a scaled cost value
+        cv::Mat m_grid_map_;           // inflated grid map
+        std::shared_ptr<common::GridMapInfo3D>
+            m_grid_map_info_;  // grid map description (x, y, q), x to the bottom, y to the right,
+                               // along y first
+        Eigen::MatrixX<uint32_t> m_label_map_;  // each element is a |AP|-bit word representing the
+                                                // result of atomic propositions
 
     public:
         EnvironmentLTL2D(
@@ -100,7 +104,9 @@ namespace erl::env {
         }
 
         [[nodiscard]] inline std::vector<std::shared_ptr<EnvironmentState>>
-        ForwardAction(const std::shared_ptr<const EnvironmentState> &env_state, const std::vector<int> &action_coords) const override;
+        ForwardAction(
+            const std::shared_ptr<const EnvironmentState> &env_state,
+            const std::vector<int> &action_coords) const override;
 
         [[nodiscard]] std::vector<Successor>
         GetSuccessors(const std::shared_ptr<EnvironmentState> &env_state) const override;
@@ -108,7 +114,9 @@ namespace erl::env {
         [[nodiscard]] inline bool
         InStateSpace(const std::shared_ptr<EnvironmentState> &env_state) const override {
             return m_grid_map_info_->InGrids(env_state->grid) &&
-                   (m_setting_->grid_stride == 1 || (env_state->grid[0] % m_setting_->grid_stride == 0 && env_state->grid[1] % m_setting_->grid_stride == 0));
+                   (m_setting_->grid_stride == 1 ||
+                    (env_state->grid[0] % m_setting_->grid_stride == 0 &&
+                     env_state->grid[1] % m_setting_->grid_stride == 0));
         }
 
         [[nodiscard]] inline uint32_t

@@ -71,7 +71,9 @@ namespace YAML {
             Node node;
             node["type"] = rhs.type;
             node["uuid"] = rhs.uuid;
-            if (rhs.type == erl::env::AtomicProposition::Type::kReachObject) { node["reach_distance"] = rhs.reach_distance; }
+            if (rhs.type == erl::env::AtomicProposition::Type::kReachObject) {
+                node["reach_distance"] = rhs.reach_distance;
+            }
             return node;
         }
 
@@ -80,7 +82,9 @@ namespace YAML {
             if (!node.IsMap()) { return false; }
             rhs.type = node["type"].as<erl::env::AtomicProposition::Type>();
             rhs.uuid = node["uuid"].as<int>();
-            if (rhs.type == erl::env::AtomicProposition::Type::kReachObject) { rhs.reach_distance = node["reach_distance"].as<double>(); }
+            if (rhs.type == erl::env::AtomicProposition::Type::kReachObject) {
+                rhs.reach_distance = node["reach_distance"].as<double>();
+            }
             return true;
         }
     };

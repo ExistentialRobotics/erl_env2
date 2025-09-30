@@ -32,7 +32,14 @@ namespace erl::env {
         // clang-format on
         typedef boost::property<boost::edge_color_t, uint32_t> BoostEdgeProp;
         typedef boost::property<boost::graph_name_t, std::string> BoostGraphProp;
-        typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::directedS, BoostVertexProp, BoostEdgeProp, BoostGraphProp> BoostGraph;
+        typedef boost::adjacency_list<
+            boost::vecS,
+            boost::vecS,
+            boost::directedS,
+            BoostVertexProp,
+            BoostEdgeProp,
+            BoostGraphProp>
+            BoostGraph;
         using SpotGraph = spot::twa_graph_ptr;
 
         struct Setting : public common::Yamlable<Setting> {
@@ -90,14 +97,17 @@ namespace erl::env {
         };
 
     protected:
-        std::shared_ptr<Setting> m_setting_;                                        // setting
-        uint32_t m_alphabet_size_ = 0;                                              // alphabet size
-        absl::flat_hash_map<uint32_t, std::vector<uint32_t>> m_transition_labels_;  // given key of p->q, return the edge labels
-        absl::flat_hash_map<uint32_t, uint32_t> m_transition_next_state_;           // given hashing of state p and label a, return the next state q
-        std::vector<std::vector<uint32_t>> m_levels_;                               // states in each level
-        std::vector<std::vector<bool>> m_levels_b_;                                 // states in each level (boolean version)
-        std::vector<bool> m_sink_states_;                                           // sink states
-        std::vector<bool> m_accepting_states_;                                      // accepting states
+        std::shared_ptr<Setting> m_setting_;  // setting
+        uint32_t m_alphabet_size_ = 0;        // alphabet size
+        absl::flat_hash_map<uint32_t, std::vector<uint32_t>>
+            m_transition_labels_;  // given key of p->q, return the edge labels
+        absl::flat_hash_map<uint32_t, uint32_t>
+            m_transition_next_state_;  // given hashing of state p and label a, return the next
+                                       // state q
+        std::vector<std::vector<uint32_t>> m_levels_;  // states in each level
+        std::vector<std::vector<bool>> m_levels_b_;    // states in each level (boolean version)
+        std::vector<bool> m_sink_states_;              // sink states
+        std::vector<bool> m_accepting_states_;         // accepting states
 
     public:
         explicit FiniteStateAutomaton(std::shared_ptr<Setting> setting);
@@ -223,9 +233,13 @@ namespace YAML {
             rhs.initial_state = node["initial_state"].as<uint32_t>();
             rhs.accepting_states = node["accepting_states"].as<std::vector<uint32_t>>();
             rhs.atomic_propositions = node["atomic_propositions"].as<std::vector<std::string>>();
-            rhs.transitions = node["transitions"].as<std::vector<erl::env::FiniteStateAutomaton::Setting::Transition>>();
+            rhs.transitions =
+                node["transitions"]
+                    .as<std::vector<erl::env::FiniteStateAutomaton::Setting::Transition>>();
             std::sort(rhs.accepting_states.begin(), rhs.accepting_states.end(), std::greater<>());
-            for (auto &transition: rhs.transitions) { std::sort(transition.labels.begin(), transition.labels.end(), std::greater<>()); }
+            for (auto &transition: rhs.transitions) {
+                std::sort(transition.labels.begin(), transition.labels.end(), std::greater<>());
+            }
             return true;
         }
     };

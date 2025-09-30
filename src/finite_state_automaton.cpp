@@ -9,7 +9,10 @@ namespace erl::env {
     FiniteStateAutomaton::Setting::Setting(const std::string &filepath, FileType file_type) {
         switch (file_type) {
             case FileType::kYaml:
-                ERL_ASSERTM(FromYamlFile(filepath), "failed to load the setting from the yaml file: {}", filepath);
+                ERL_ASSERTM(
+                    FromYamlFile(filepath),
+                    "failed to load the setting from the yaml file: {}",
+                    filepath);
                 break;
             case FileType::kSpotHoa:
                 FromSpotGraphHoaFile(filepath);
@@ -34,14 +37,23 @@ namespace erl::env {
             std::string label = std::to_string(state);
             if (state == initial_state) {
                 label += ":initial";
-            } else if (std::find(accepting_states.begin(), accepting_states.end(), state) != accepting_states.end()) {
+            } else if (
+                std::find(accepting_states.begin(), accepting_states.end(), state) !=
+                accepting_states.end()) {
                 label += ":accepting";
             }
-            vertices.emplace_back(boost::add_vertex(BoostVertexProp(state, {std::to_string(state), label}), graph));
+            vertices.emplace_back(
+                boost::add_vertex(BoostVertexProp(state, {std::to_string(state), label}), graph));
         }
         // add edge with label
         for (auto &transition: transitions) {
-            for (auto &label: transition.labels) { boost::add_edge(vertices[transition.from], vertices[transition.to], BoostEdgeProp(label), graph); }
+            for (auto &label: transition.labels) {
+                boost::add_edge(
+                    vertices[transition.from],
+                    vertices[transition.to],
+                    BoostEdgeProp(label),
+                    graph);
+            }
         }
         return graph;
     }
@@ -69,11 +81,16 @@ namespace erl::env {
         BoostGraph graph(0);
         boost::dynamic_properties properties;
         // use ref_property_map to turn a graph property into a property map
-        boost::ref_property_map<BoostGraph *, std::string> graph_name = boost::get_property(graph, boost::graph_name);
-        boost::property_map<BoostGraph, boost::vertex_index_t>::type vertex_index = boost::get(boost::vertex_index, graph);
-        boost::property_map<BoostGraph, boost::vertex_name_t>::type vertex_name = boost::get(boost::vertex_name, graph);
-        boost::property_map<BoostGraph, boost::vertex_color_t>::type vertex_label = boost::get(boost::vertex_color, graph);
-        boost::property_map<BoostGraph, boost::edge_color_t>::type edge_label = boost::get(boost::edge_color, graph);
+        boost::ref_property_map<BoostGraph *, std::string> graph_name =
+            boost::get_property(graph, boost::graph_name);
+        boost::property_map<BoostGraph, boost::vertex_index_t>::type vertex_index =
+            boost::get(boost::vertex_index, graph);
+        boost::property_map<BoostGraph, boost::vertex_name_t>::type vertex_name =
+            boost::get(boost::vertex_name, graph);
+        boost::property_map<BoostGraph, boost::vertex_color_t>::type vertex_label =
+            boost::get(boost::vertex_color, graph);
+        boost::property_map<BoostGraph, boost::edge_color_t>::type edge_label =
+            boost::get(boost::edge_color, graph);
         properties.property("name", graph_name);
         properties.property("node_index", vertex_index);
         properties.property("node_id", vertex_name);
@@ -101,7 +118,8 @@ namespace erl::env {
             }
         }
         // iterate over edges
-        std::vector<std::tuple<uint32_t, uint32_t, std::set<uint32_t>>> loaded_transitions(num_states * num_states);
+        std::vector<std::tuple<uint32_t, uint32_t, std::set<uint32_t>>> loaded_transitions(
+            num_states * num_states);
         for (auto e = boost::edges(graph); e.first != e.second; ++e.first) {
             uint32_t from = vertex_index[boost::source(*e.first, graph)];
             uint32_t to = vertex_index[boost::target(*e.first, graph)];
@@ -118,7 +136,9 @@ namespace erl::env {
             transitions.emplace_back(from, to, labels);
         }
         std::sort(accepting_states.begin(), accepting_states.end(), std::greater<>());
-        for (auto &transition: transitions) { std::sort(transition.labels.begin(), transition.labels.end(), std::greater<>()); }
+        for (auto &transition: transitions) {
+            std::sort(transition.labels.begin(), transition.labels.end(), std::greater<>());
+        }
     }
 
     FiniteStateAutomaton::SpotGraph
@@ -136,14 +156,18 @@ namespace erl::env {
             bdd_aps.emplace_back(ap_bdd);
         }
 
-        // we do not support multiple accepting sets yet: https://spot.lre.epita.fr/concepts.html#acceptance-set
+        // we do not support multiple accepting sets yet:
+        // https://spot.lre.epita.fr/concepts.html#acceptance-set
         graph->set_generalized_buchi(1);       // set the number of acceptance sets to use
         graph->new_states(num_states);         // set the number of states
         graph->set_init_state(initial_state);  // set the initial state
         for (auto &transition: transitions) {
             bdd cond = bddfalse;
-            for (auto &label: transition.labels) { cond |= spot_helper::LabelToBdd(label, bdd_aps); }
-            if (std::find(accepting_states.begin(), accepting_states.end(), transition.to) != accepting_states.end()) {
+            for (auto &label: transition.labels) {
+                cond |= spot_helper::LabelToBdd(label, bdd_aps);
+            }
+            if (std::find(accepting_states.begin(), accepting_states.end(), transition.to) !=
+                accepting_states.end()) {
                 graph->new_edge(transition.from, transition.to, cond, {0});
             } else {
                 graph->new_edge(transition.from, transition.to, cond);
@@ -182,7 +206,9 @@ namespace erl::env {
         }
         // get sink states, they should not be added to the accepting states
         std::vector<bool> sink_states(num_states);
-        for (uint32_t s = 0; s < num_states; ++s) { sink_states[s] = spot_helper::IsSink(pa->aut, s); }
+        for (uint32_t s = 0; s < num_states; ++s) {
+            sink_states[s] = spot_helper::IsSink(pa->aut, s);
+        }
         // extract transitions and accepting states
         std::unordered_set<uint32_t> accepting_set;
         std::vector<std::tuple<uint32_t, uint32_t, std::set<uint32_t>>> loaded_transitions;
@@ -192,7 +218,9 @@ namespace erl::env {
             for (auto &t: out_edges) {
                 // if (t.acc.count() > 0 && !sink_states[t.dst]) { accepting_set.insert(t.dst); }
                 if (t.src == t.dst && t.acc.count() > 0) { accepting_set.insert(t.dst); }
-                ERL_ASSERTM(spot::bdd_to_formula(t.cond, bdd_dict).is_ltl_formula(), "Only support LTL formula.");
+                ERL_ASSERTM(
+                    spot::bdd_to_formula(t.cond, bdd_dict).is_ltl_formula(),
+                    "Only support LTL formula.");
                 auto &[from, to, labels] = loaded_transitions[s * num_states + t.dst];
                 from = t.src;
                 to = t.dst;
@@ -200,14 +228,17 @@ namespace erl::env {
                 for (auto &label: new_labels) { labels.insert(label); }
             }
         }
-        bdd_dict->unregister_all_my_variables(this);  // unregister all variables to please spot library
+        bdd_dict->unregister_all_my_variables(
+            this);  // unregister all variables to please spot library
         accepting_states.insert(accepting_states.end(), accepting_set.begin(), accepting_set.end());
         for (auto &[from, to, labels]: loaded_transitions) {
             if (labels.empty()) { continue; }
             transitions.emplace_back(from, to, labels);
         }
         std::sort(accepting_states.begin(), accepting_states.end(), std::greater<>());
-        for (auto &transition: transitions) { std::sort(transition.labels.begin(), transition.labels.end(), std::greater<>()); }
+        for (auto &transition: transitions) {
+            std::sort(transition.labels.begin(), transition.labels.end(), std::greater<>());
+        }
     }
 
     FiniteStateAutomaton::FiniteStateAutomaton(std::shared_ptr<Setting> setting)
@@ -243,8 +274,10 @@ namespace erl::env {
         for (const auto &state: m_setting_->accepting_states) { m_accepting_states_[state] = true; }
 
         // compute levels
-        m_levels_.emplace_back(m_setting_->accepting_states.begin(), m_setting_->accepting_states.end());  // level 0
-        m_levels_b_.emplace_back(m_setting_->num_states, false);                                           // level 0
+        m_levels_.emplace_back(
+            m_setting_->accepting_states.begin(),
+            m_setting_->accepting_states.end());                  // level 0
+        m_levels_b_.emplace_back(m_setting_->num_states, false);  // level 0
         m_sink_states_.resize(m_setting_->num_states, true);
         for (const auto &state: m_setting_->accepting_states) {
             m_sink_states_[state] = false;
@@ -257,8 +290,12 @@ namespace erl::env {
             for (auto &state: level_states) {
                 for (uint32_t prev_state = 0; prev_state < m_setting_->num_states; ++prev_state) {
                     if (!m_sink_states_[prev_state]) { continue; }
-                    if (m_transition_labels_.find(HashingTransition(prev_state, state)) == m_transition_labels_.end()) { continue; }
-                    // exist a transition from prev_state to state but prev_state is marked as a sink state
+                    if (m_transition_labels_.find(HashingTransition(prev_state, state)) ==
+                        m_transition_labels_.end()) {
+                        continue;
+                    }
+                    // exist a transition from prev_state to state but prev_state is marked as a
+                    // sink state
                     m_sink_states_[prev_state] = false;
                     if (done) {  // add a new level
                         done = false;

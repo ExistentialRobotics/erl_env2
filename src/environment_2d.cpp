@@ -10,7 +10,9 @@ namespace erl::env {
         std::shared_ptr<CostBase> distance_cost_func)
         : EnvironmentBase(std::move(distance_cost_func)),
           m_setting_(std::move(setting)),
-          m_grid_map_info_((assert(grid_map != nullptr), grid_map->info)) {  // x to the bottom, y to the right, along y first
+          m_grid_map_info_(
+              (assert(grid_map != nullptr),
+               grid_map->info)) {  // x to the bottom, y to the right, along y first
 
         if (m_setting_ == nullptr) {
             m_setting_ = std::make_shared<Setting>();
@@ -21,7 +23,13 @@ namespace erl::env {
         InitializeGridMap2D(grid_map, m_original_grid_map_);
         m_original_grid_map_.copyTo(m_grid_map_);
         m_reachable_motions_.resize(m_grid_map_info_->Rows(), m_grid_map_info_->Cols());
-        if (m_setting_->shape.cols() > 0) { InflateGridMap2D(m_original_grid_map_, m_grid_map_, m_grid_map_info_, m_setting_->shape); }
+        if (m_setting_->shape.cols() > 0) {
+            InflateGridMap2D(
+                m_original_grid_map_,
+                m_grid_map_,
+                m_grid_map_info_,
+                m_setting_->shape);
+        }
 
         InitRelTrajectoriesAndCosts();
     }
@@ -44,7 +52,13 @@ namespace erl::env {
         // init grid map
         m_original_grid_map_.copyTo(m_grid_map_);
         m_reachable_motions_.resize(m_grid_map_info_->Rows(), m_grid_map_info_->Cols());
-        if (m_setting_->shape.cols() > 0) { InflateGridMap2D(m_original_grid_map_, m_grid_map_, m_grid_map_info_, m_setting_->shape); }
+        if (m_setting_->shape.cols() > 0) {
+            InflateGridMap2D(
+                m_original_grid_map_,
+                m_grid_map_,
+                m_grid_map_info_,
+                m_setting_->shape);
+        }
 
         InitRelTrajectoriesAndCosts();
     }
@@ -56,7 +70,8 @@ namespace erl::env {
         const int cur_xg = env_state->grid[0];
         const int cur_yg = env_state->grid[1];
         const auto num_motions = static_cast<int>(m_rel_trajectories_.size());
-        auto &reachable_motions = const_cast<std::vector<int> &>(m_reachable_motions_(cur_xg, cur_yg));
+        auto &reachable_motions =
+            const_cast<std::vector<int> &>(m_reachable_motions_(cur_xg, cur_yg));
         if (reachable_motions.empty()) {
             for (int motion_idx = 0; motion_idx < num_motions; ++motion_idx) {
                 auto &rel_trajectory = m_rel_trajectories_[motion_idx];
@@ -72,7 +87,8 @@ namespace erl::env {
                         is_reachable = false;
                         break;
                     }
-                    if (m_grid_map_.at<uint8_t>(nx_grid, ny_grid) >= m_setting_->obstacle_threshold) {
+                    if (m_grid_map_.at<uint8_t>(nx_grid, ny_grid) >=
+                        m_setting_->obstacle_threshold) {
                         is_reachable = false;
                         break;
                     }
@@ -87,18 +103,28 @@ namespace erl::env {
         successors.clear();
         successors.reserve(reachable_motions.size());
         for (auto &motion_idx: reachable_motions) {
-            ERL_DEBUG_ASSERT(motion_idx >= 0 && motion_idx < num_motions, "Invalid motion index: {}.", motion_idx);
+            ERL_DEBUG_ASSERT(
+                motion_idx >= 0 && motion_idx < num_motions,
+                "Invalid motion index: {}.",
+                motion_idx);
             auto next_state = std::make_shared<EnvironmentState>();
             next_state->grid = env_state->grid + m_setting_->motions[motion_idx];
             next_state->metric = GridToMetric(next_state->grid);
             if (m_setting_->add_map_cost) {
-                const double map_cost = m_setting_->map_cost_factor * static_cast<double>(m_grid_map_.at<uint8_t>(next_state->grid[0], next_state->grid[1]));
+                const double map_cost =
+                    m_setting_->map_cost_factor *
+                    static_cast<double>(
+                        m_grid_map_.at<uint8_t>(next_state->grid[0], next_state->grid[1]));
                 double cost = m_motion_costs_[motion_idx] + map_cost;
                 successors.emplace_back(next_state, cost, std::vector<int>{});
             } else {
-                successors.emplace_back(next_state, m_motion_costs_[motion_idx], std::vector<int>{});
+                successors.emplace_back(
+                    next_state,
+                    m_motion_costs_[motion_idx],
+                    std::vector<int>{});
             }
-            successors.back().action_coords.reserve(2);  // reserve one more for multi resolution search
+            successors.back().action_coords.reserve(
+                2);  // reserve one more for multi resolution search
             successors.back().action_coords.push_back(motion_idx);
         }
         return successors;
@@ -117,7 +143,10 @@ namespace erl::env {
                 auto grid_point = MetricToGrid(kPath.col(i));
                 points.emplace_back(grid_point[1], grid_point[0]);
             }
-            cv::Scalar color(dist(common::g_random_engine), dist(common::g_random_engine), dist(common::g_random_engine));
+            cv::Scalar color(
+                dist(common::g_random_engine),
+                dist(common::g_random_engine),
+                dist(common::g_random_engine));
             cv::polylines(img, points, false, color, 1);
         }
         cv::namedWindow("environment 2d: paths", cv::WINDOW_NORMAL);
@@ -142,7 +171,8 @@ namespace erl::env {
             EnvironmentState end;
             end.grid = ref_start.grid + control;
             end.metric = m_grid_map_info_->GridToMeterForPoints(end.grid);
-            Eigen::Matrix2Xi rel_trajectory = m_grid_map_info_->RayCasting(ref_start.metric, end.metric);
+            Eigen::Matrix2Xi rel_trajectory =
+                m_grid_map_info_->RayCasting(ref_start.metric, end.metric);
             rel_trajectory.colwise() -= ref_start.grid;
             double control_cost = (*m_distance_cost_func_)(ref_start, end);
             m_rel_trajectories_.push_back(rel_trajectory);
@@ -152,7 +182,9 @@ namespace erl::env {
 
     std::vector<std::shared_ptr<EnvironmentState>>
     Environment2D::SampleValidStates(const int num_samples) const {
-        if (m_grid_map_.rows * m_grid_map_.cols == 0) { throw std::runtime_error("collision map is empty"); }
+        if (m_grid_map_.rows * m_grid_map_.cols == 0) {
+            throw std::runtime_error("collision map is empty");
+        }
         auto x_rng = std::uniform_int_distribution(0, m_grid_map_.rows - 1);
         auto y_rng = std::uniform_int_distribution(0, m_grid_map_.cols - 1);
         std::vector<std::shared_ptr<EnvironmentState>> states;

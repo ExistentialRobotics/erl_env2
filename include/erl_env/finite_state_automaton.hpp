@@ -7,7 +7,6 @@
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/graphviz.hpp>
 
-#include <cstdint>
 #include <memory>
 #include <numeric>
 #include <string>
@@ -25,11 +24,14 @@ namespace erl::env {
     class FiniteStateAutomaton {
 
     public:
-        // clang-format off
-        typedef boost::property<boost::vertex_index_t, uint32_t,
-                boost::property<boost::vertex_name_t, std::string,
-                boost::property<boost::vertex_color_t, std::string>>> BoostVertexProp;
-        // clang-format on
+        typedef boost::property<
+            boost::vertex_index_t,
+            uint32_t,
+            boost::property<
+                boost::vertex_name_t,
+                std::string,
+                boost::property<boost::vertex_color_t, std::string>>>
+            BoostVertexProp;
         typedef boost::property<boost::edge_color_t, uint32_t> BoostEdgeProp;
         typedef boost::property<boost::graph_name_t, std::string> BoostGraphProp;
         typedef boost::adjacency_list<
@@ -52,9 +54,7 @@ namespace erl::env {
                 Transition() = default;
 
                 Transition(uint32_t from, uint32_t to, const std::set<uint32_t> &labels)
-                    : from(from),
-                      to(to),
-                      labels(labels.begin(), labels.end()) {}
+                    : from(from), to(to), labels(labels.begin(), labels.end()) {}
             };
 
             uint32_t num_states = 0;                            // number of states
@@ -66,7 +66,16 @@ namespace erl::env {
             enum class FileType { kSpotHoa = 0, kBoostDot = 1, kYaml = 2 };
 
             Setting() = default;
-            Setting(const std::string &filepath, FileType file_type);
+
+            /**
+             *
+             * @param filepath path to the file
+             * @param file_type type of the file
+             * @param complete if true, complete the automaton first (adding a sink state if
+             * necessary so that for each state, it has a transition for each letter in the
+             * alphabet). This parameter is only used when file_type is kSpotHoa.
+             */
+            Setting(const std::string &filepath, FileType file_type, bool complete);
 
             [[nodiscard]] BoostGraph
             AsBoostGraph() const;
@@ -78,32 +87,45 @@ namespace erl::env {
             FromBoostGraphDotFile(const std::string &filepath);
 
             [[nodiscard]] SpotGraph
-            AsSpotGraph() const;
-
-            inline void
-            AsSpotGraphHoaFile(const std::string &filename) const {
-                std::ofstream ofs(filename);
-                spot::print_hoa(ofs, AsSpotGraph());
-            }
+            AsSpotGraph(bool complete) const;
 
             void
-            FromSpotGraphHoaFile(const std::string &filepath);
-
-            inline void
-            AsSpotGraphDotFile(const std::string &filename) const {
+            AsSpotGraphHoaFile(const std::string &filename, const bool complete) const {
                 std::ofstream ofs(filename);
-                AsSpotGraph()->dump_storage_as_dot(ofs);
+                spot::print_hoa(ofs, AsSpotGraph(complete));
+            }
+
+            /**
+             *
+             * @param filepath path to the hoa file
+             * @param complete if true, complete the automaton first (adding a sink state if
+             * necessary so that for each state, it has a transition for each letter in the
+             * alphabet).
+             */
+            void
+            FromSpotGraphHoaFile(const std::string &filepath, bool complete);
+
+            /**
+             *
+             * @param filename path to the dot file
+             * @param complete if true, complete the automaton first (adding a sink state if
+             * necessary so that for each state, it has a transition for each letter in the
+             * alphabet).
+             */
+            void
+            AsSpotGraphDotFile(const std::string &filename, const bool complete) const {
+                std::ofstream ofs(filename);
+                AsSpotGraph(complete)->dump_storage_as_dot(ofs);
             }
         };
 
     protected:
         std::shared_ptr<Setting> m_setting_;  // setting
         uint32_t m_alphabet_size_ = 0;        // alphabet size
-        absl::flat_hash_map<uint32_t, std::vector<uint32_t>>
-            m_transition_labels_;  // given key of p->q, return the edge labels
-        absl::flat_hash_map<uint32_t, uint32_t>
-            m_transition_next_state_;  // given hashing of state p and label a, return the next
-                                       // state q
+        // given key of p->q, return the edge labels
+        absl::flat_hash_map<uint32_t, std::vector<uint32_t>> m_transition_labels_;
+        // given hashing of state p and label `a`, return the next state q
+        absl::flat_hash_map<uint32_t, uint32_t> m_transition_next_state_;
         std::vector<std::vector<uint32_t>> m_levels_;  // states in each level
         std::vector<std::vector<bool>> m_levels_b_;    // states in each level (boolean version)
         std::vector<bool> m_sink_states_;              // sink states

@@ -4,25 +4,32 @@
 
 namespace erl::env {
 
-    class EnvironmentMultiResolution : public EnvironmentBase {
+    template<typename Dtype, int Dim>
+    struct EnvironmentMultiResolution : public EnvironmentBase<Dtype, Dim> {
+        using State = EnvironmentState<Dtype, Dim>;
+        using Successor_t = Successor<Dtype, Dim>;
 
-    public:
-        EnvironmentMultiResolution()
-            : EnvironmentBase(nullptr) {
-        }  // just use the interface of EnvironmentBase, no need to use the distance cost function
+        explicit EnvironmentMultiResolution(const long env_id = 0)
+            : EnvironmentBase<Dtype, Dim>(env_id) {}
 
         [[nodiscard]] virtual std::size_t
         GetNumResolutionLevels() const = 0;
 
-        [[nodiscard]] virtual std::vector<Successor>
-        GetSuccessorsAtLevel(
-            const std::shared_ptr<EnvironmentState> &env_state,
-            std::size_t resolution_level) const = 0;
+        [[nodiscard]] std::vector<State>
+        ForwardAction(const State &env_state, long action_idx) const override {
+            (void) env_state;
+            (void) action_idx;
+            ERL_FATAL("Call ForwardActionAtLevel() instead for {}.", type_name(*this));
+        }
+
+        [[nodiscard]] virtual std::vector<State>
+        ForwardActionAtLevel(const State &env_state, long level, long action_idx) const = 0;
+
+        [[nodiscard]] virtual std::vector<Successor_t>
+        GetSuccessorsAtLevel(const State &env_state, long level) const = 0;
 
         [[nodiscard]] virtual bool
-        InStateSpaceAtLevel(
-            const std::shared_ptr<EnvironmentState> &env_state,
-            std::size_t resolution_level) const = 0;
+        InStateSpaceAtLevel(const State &env_state, long level) const = 0;
     };
 
 }  // namespace erl::env

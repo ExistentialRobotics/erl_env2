@@ -1,18 +1,17 @@
+#include "erl_common/test_helper.hpp"
 #include "erl_env/finite_state_automaton.hpp"
 
 #include <boost/graph/graph_traits.hpp>
-#include <gtest/gtest.h>
 
 #include <filesystem>
 #include <string>
 
 TEST(ERL_ENV, FiniteStateAutomaton) {
+    GTEST_PREPARE_OUTPUT_DIR();
 
     using namespace erl::env;
 
-    std::filesystem::path data_dir = __FILE__;
-    data_dir = data_dir.parent_path();
-    std::filesystem::path fsa_yaml_path = data_dir / "fsa.yaml";
+    std::filesystem::path fsa_yaml_path = gtest_src_dir / "fsa.yaml";
 
     auto setting = std::make_shared<FiniteStateAutomaton::Setting>();
     ASSERT_TRUE(setting->FromYamlFile(fsa_yaml_path));
@@ -29,46 +28,48 @@ TEST(ERL_ENV, FiniteStateAutomaton) {
     EXPECT_EQ(setting->atomic_propositions[3], "phi4");
     EXPECT_EQ(setting->atomic_propositions[4], "phi5");
     EXPECT_EQ(setting->transitions.size(), 38);
-    std::vector<std::pair<std::pair<uint32_t, uint32_t>, std::vector<uint32_t>>> expected_transitions = {
-        {{0, 0}, {12, 8, 4, 0}},
-        {{0, 1}, {14, 10, 6, 2}},
-        {{0, 2}, {20, 16}},
-        {{0, 3}, {22, 18}},
-        {{0, 4}, {24}},
-        {{0, 5}, {26}},
-        {{0, 6}, {28}},
-        {{0, 7}, {30}},
-        {{0, 8}, {31, 29, 27, 25, 23, 21, 19, 17, 15, 13, 11, 9, 7, 5, 3, 1}},
-        {{1, 1}, {14, 12, 10, 8, 6, 4, 2, 0}},
-        {{1, 3}, {22, 20, 18, 16}},
-        {{1, 5}, {26, 24}},
-        {{1, 7}, {30, 28}},
-        {{1, 8}, {31, 29, 27, 25, 23, 21, 19, 17, 15, 13, 11, 9, 7, 5, 3, 1}},
-        {{2, 2}, {20, 16, 4, 0}},
-        {{2, 3}, {22, 18, 6, 2}},
-        {{2, 4}, {24, 8}},
-        {{2, 5}, {26, 10}},
-        {{2, 6}, {28, 12}},
-        {{2, 8}, {31, 29, 27, 25, 23, 21, 19, 17, 15, 13, 11, 9, 7, 5, 3, 1}},
-        {{3, 3}, {22, 20, 18, 16, 6, 4, 2, 0}},
-        {{3, 5}, {26, 24, 10, 8}},
-        {{3, 7}, {30, 28, 14, 12}},
-        {{3, 8}, {31, 29, 27, 25, 23, 21, 19, 17, 15, 13, 11, 9, 7, 5, 3, 1}},
-        {{4, 4}, {24, 16, 8, 0}},
-        {{4, 5}, {26, 18, 10, 2}},
-        {{4, 6}, {28, 20, 12, 4}},
-        {{4, 7}, {30, 22, 14, 6}},
-        {{4, 8}, {31, 29, 27, 25, 23, 21, 19, 17, 15, 13, 11, 9, 7, 5, 3, 1}},
-        {{5, 5}, {26, 24, 18, 16, 10, 8, 2, 0}},
-        {{5, 7}, {30, 28, 22, 20, 14, 12, 6, 4}},
-        {{5, 8}, {31, 29, 27, 25, 23, 21, 19, 17, 15, 13, 11, 9, 7, 5, 3, 1}},
-        {{6, 6}, {28, 24, 20, 16, 12, 8, 4, 0}},
-        {{6, 7}, {30, 26, 22, 18, 14, 10, 6, 2}},
-        {{6, 8}, {31, 29, 27, 25, 23, 21, 19, 17, 15, 13, 11, 9, 7, 5, 3, 1}},
-        {{7, 7}, {30, 28, 26, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 0}},
-        {{7, 8}, {31, 29, 27, 25, 23, 21, 19, 17, 15, 13, 11, 9, 7, 5, 3, 1}},
-        {{8, 8}, {31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0}},
-    };
+    std::vector<std::pair<std::pair<uint32_t, uint32_t>, std::vector<uint32_t>>>
+        expected_transitions = {
+            {{0, 0}, {12, 8, 4, 0}},
+            {{0, 1}, {14, 10, 6, 2}},
+            {{0, 2}, {20, 16}},
+            {{0, 3}, {22, 18}},
+            {{0, 4}, {24}},
+            {{0, 5}, {26}},
+            {{0, 6}, {28}},
+            {{0, 7}, {30}},
+            {{0, 8}, {31, 29, 27, 25, 23, 21, 19, 17, 15, 13, 11, 9, 7, 5, 3, 1}},
+            {{1, 1}, {14, 12, 10, 8, 6, 4, 2, 0}},
+            {{1, 3}, {22, 20, 18, 16}},
+            {{1, 5}, {26, 24}},
+            {{1, 7}, {30, 28}},
+            {{1, 8}, {31, 29, 27, 25, 23, 21, 19, 17, 15, 13, 11, 9, 7, 5, 3, 1}},
+            {{2, 2}, {20, 16, 4, 0}},
+            {{2, 3}, {22, 18, 6, 2}},
+            {{2, 4}, {24, 8}},
+            {{2, 5}, {26, 10}},
+            {{2, 6}, {28, 12}},
+            {{2, 8}, {31, 29, 27, 25, 23, 21, 19, 17, 15, 13, 11, 9, 7, 5, 3, 1}},
+            {{3, 3}, {22, 20, 18, 16, 6, 4, 2, 0}},
+            {{3, 5}, {26, 24, 10, 8}},
+            {{3, 7}, {30, 28, 14, 12}},
+            {{3, 8}, {31, 29, 27, 25, 23, 21, 19, 17, 15, 13, 11, 9, 7, 5, 3, 1}},
+            {{4, 4}, {24, 16, 8, 0}},
+            {{4, 5}, {26, 18, 10, 2}},
+            {{4, 6}, {28, 20, 12, 4}},
+            {{4, 7}, {30, 22, 14, 6}},
+            {{4, 8}, {31, 29, 27, 25, 23, 21, 19, 17, 15, 13, 11, 9, 7, 5, 3, 1}},
+            {{5, 5}, {26, 24, 18, 16, 10, 8, 2, 0}},
+            {{5, 7}, {30, 28, 22, 20, 14, 12, 6, 4}},
+            {{5, 8}, {31, 29, 27, 25, 23, 21, 19, 17, 15, 13, 11, 9, 7, 5, 3, 1}},
+            {{6, 6}, {28, 24, 20, 16, 12, 8, 4, 0}},
+            {{6, 7}, {30, 26, 22, 18, 14, 10, 6, 2}},
+            {{6, 8}, {31, 29, 27, 25, 23, 21, 19, 17, 15, 13, 11, 9, 7, 5, 3, 1}},
+            {{7, 7}, {30, 28, 26, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 0}},
+            {{7, 8}, {31, 29, 27, 25, 23, 21, 19, 17, 15, 13, 11, 9, 7, 5, 3, 1}},
+            {{8, 8}, {31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16,
+                      15, 14, 13, 12, 11, 10, 9,  8,  7,  6,  5,  4,  3,  2,  1,  0}},
+        };
     for (int i = 0; i < 38; ++i) {
         EXPECT_EQ(setting->transitions[i].from, expected_transitions[i].first.first);
         EXPECT_EQ(setting->transitions[i].to, expected_transitions[i].first.second);
@@ -87,12 +88,14 @@ TEST(ERL_ENV, FiniteStateAutomaton) {
         {0, 1, 3, 4, 5, 6},
         {2},
     };
-    auto fsa_levels = fsa.GetLevels();
+    const auto& fsa_levels = fsa.GetLevels();
     EXPECT_EQ(fsa_levels.size(), expected_levels.size());
     for (std::size_t i = 0; i < expected_levels.size(); ++i) {
         EXPECT_EQ(fsa_levels[i].size(), expected_levels[i].size());
         for (std::size_t j = 0; j < expected_levels[i].size(); ++j) {
-            if (fsa_levels[i][j] != expected_levels[i][j]) { std::cout << "i: " << i << ", j: " << j << std::endl; }
+            if (fsa_levels[i][j] != expected_levels[i][j]) {
+                std::cout << "i: " << i << ", j: " << j << std::endl;
+            }
             EXPECT_EQ(fsa_levels[i][j], expected_levels[i][j]);
         }
     }
@@ -106,25 +109,47 @@ TEST(ERL_ENV, FiniteStateAutomaton) {
     for (std::size_t i = 0; i < expected_levels_b.size(); ++i) {
         EXPECT_EQ(fsa_levels_b[i].size(), expected_levels_b[i].size());
         for (std::size_t j = 0; j < expected_levels_b[i].size(); ++j) {
-            if (fsa_levels_b[i][j] != expected_levels_b[i][j]) { std::cout << "i: " << i << ", j: " << j << std::endl; }
+            if (fsa_levels_b[i][j] != expected_levels_b[i][j]) {
+                std::cout << "i: " << i << ", j: " << j << std::endl;
+            }
             EXPECT_EQ(fsa_levels_b[i][j], expected_levels_b[i][j]);
         }
     }
 
     // check sink state
-    std::vector<bool> expected_sink_states = {false, false, false, false, false, false, false, false, true};
+    std::vector<bool> expected_sink_states =
+        {false, false, false, false, false, false, false, false, true};
     auto fsa_sink_states = fsa.GetSinkStates();
     EXPECT_EQ(fsa_sink_states.size(), expected_sink_states.size());
-    for (std::size_t i = 0; i < expected_sink_states.size(); ++i) { EXPECT_EQ(fsa_sink_states[i], expected_sink_states[i]); }
+    for (std::size_t i = 0; i < expected_sink_states.size(); ++i) {
+        EXPECT_EQ(fsa_sink_states[i], expected_sink_states[i]);
+    }
 
-    setting->AsBoostGraphDotFile("fsa.dot");  // as boost graph, save as a dot file
-    setting->AsSpotGraphHoaFile("fsa.hoa");   // as spot graph, save as a hoa file
+    setting->AsBoostGraphDotFile("fsa.dot");            // as boost graph, save as a dot file
+    setting->AsSpotGraphHoaFile("fsa.hoa", false);      // as spot graph, save as a hoa file
+    setting->AsSpotGraphDotFile("fsa.hoa.dot", false);  // as spot graph, save as a dot file
     std::string gt_str = setting->AsYamlString();
-    EXPECT_EQ(gt_str, FiniteStateAutomaton::Setting("fsa.hoa", FiniteStateAutomaton::Setting::FileType::kSpotHoa).AsYamlString());
-    EXPECT_EQ(gt_str, FiniteStateAutomaton::Setting("fsa.dot", FiniteStateAutomaton::Setting::FileType::kBoostDot).AsYamlString());
+    EXPECT_EQ(
+        gt_str,
+        FiniteStateAutomaton::Setting(
+            "fsa.hoa",
+            FiniteStateAutomaton::Setting::FileType::kSpotHoa,
+            false)
+            .AsYamlString());
+    EXPECT_EQ(
+        gt_str,
+        FiniteStateAutomaton::Setting(
+            "fsa.dot",
+            FiniteStateAutomaton::Setting::FileType::kBoostDot,
+            false)
+            .AsYamlString());
 
     // test spot file generated by ChatGPT
-    auto fsa_hoa_gpt_setting = std::make_shared<FiniteStateAutomaton::Setting>(data_dir / "automaton2.aut", FiniteStateAutomaton::Setting::FileType::kSpotHoa);
+    auto fsa_hoa_gpt_setting = std::make_shared<FiniteStateAutomaton::Setting>(
+        gtest_src_dir / "automaton.aut",
+        FiniteStateAutomaton::Setting::FileType::kSpotHoa,
+        false);
+
     // auto fsa_hoa_gpt = std::make_shared<FiniteStateAutomaton>(fsa_hoa_gpt_setting);
     // EXPECT_EQ(fsa_hoa_gpt_setting->num_states, 4);
     // EXPECT_EQ(fsa_hoa_gpt_setting->initial_state, 0);
@@ -139,7 +164,9 @@ TEST(ERL_ENV, FiniteStateAutomaton) {
     // EXPECT_EQ(fsa_hoa_gpt_setting->atomic_propositions[5], "p7");
     // EXPECT_EQ(fsa_hoa_gpt_setting->atomic_propositions[6], "p8");
     // EXPECT_EQ(fsa_hoa_gpt_setting->atomic_propositions[7], "p4");
-    fsa_hoa_gpt_setting->AsSpotGraphDotFile("fsa_hoa_gpt.dot");  // as spot graph, save as a dot file
+
+    // as spot graph, save as a dot file
+    fsa_hoa_gpt_setting->AsSpotGraphDotFile("fsa_hoa_gpt.dot", false);
 }
 
 using namespace boost;
@@ -181,7 +208,8 @@ struct exercise_vertex {
         // Write out all adjacent vertices
         std::cout << "\tadjacent vertices: ";
         typename graph_traits<Graph>::adjacency_iterator ai, ai_end;
-        for (tie(ai, ai_end) = adjacent_vertices(v, g); ai != ai_end; ++ai) std::cout << get(vertex_id, *ai) << " ";
+        for (tie(ai, ai_end) = adjacent_vertices(v, g); ai != ai_end; ++ai)
+            std::cout << get(vertex_id, *ai) << " ";
         std::cout << std::endl;
     }
 
@@ -190,7 +218,8 @@ struct exercise_vertex {
 
 TEST(BoostGraph, QuickTour) {
     // create a typedef for the Graph type
-    typedef adjacency_list<vecS, vecS, bidirectionalS, no_property, property<edge_weight_t, float>> Graph;
+    typedef adjacency_list<vecS, vecS, bidirectionalS, no_property, property<edge_weight_t, float>>
+        Graph;
 
     // Make convenient labels for the vertices
     enum { A, B, C, D, E, N };
@@ -235,13 +264,15 @@ TEST(BoostGraph, QuickTour) {
     std::cout << "vertices(g) = ";
     typedef graph_traits<Graph>::vertex_iterator vertex_iter;
     std::pair<vertex_iter, vertex_iter> vp;
-    for (vp = vertices(g); vp.first != vp.second; ++vp.first) std::cout << name[get(vertex_id, *vp.first)] << " ";
+    for (vp = vertices(g); vp.first != vp.second; ++vp.first)
+        std::cout << name[get(vertex_id, *vp.first)] << " ";
     std::cout << std::endl;
 
     std::cout << "edges(g) = ";
     graph_traits<Graph>::edge_iterator ei, ei_end;
     for (tie(ei, ei_end) = edges(g); ei != ei_end; ++ei)
-        std::cout << "(" << name[get(vertex_id, source(*ei, g))] << "," << name[get(vertex_id, target(*ei, g))] << ") ";
+        std::cout << "(" << name[get(vertex_id, source(*ei, g))] << ","
+                  << name[get(vertex_id, target(*ei, g))] << ") ";
     std::cout << std::endl;
 
     std::for_each(vertices(g).first, vertices(g).second, exercise_vertex<Graph>(g));
@@ -292,7 +323,9 @@ TEST(BoostGraph, ReadGraphViz) {
 
     bool status = read_graphviz(gvgraph, graph, dp, "node_id");
 
-    for (auto v = boost::vertices(graph); v.first != v.second; ++v.first) { std::cout << name[*v.first] << std::endl; }
+    for (auto v = boost::vertices(graph); v.first != v.second; ++v.first) {
+        std::cout << name[*v.first] << std::endl;
+    }
 
     EXPECT_EQ(status, true);
 }

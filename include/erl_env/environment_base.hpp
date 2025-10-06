@@ -1,85 +1,76 @@
 #pragma once
 
-#include "cost.hpp"
 #include "environment_state.hpp"
 
-#include "erl_common/exception.hpp"
 #include "erl_common/grid_map.hpp"
 
-#include <opencv2/core.hpp>
-
-#include <list>
-#include <map>
-#include <memory>
 #include <vector>
 
 namespace erl::env {
 
+    template<typename Dtype, int Dim>
     struct Successor {
-        std::shared_ptr<EnvironmentState> env_state = nullptr;
-        double cost = 0.0;
-        std::vector<int> action_coords = {};
+        using EnvState = EnvironmentState<Dtype, Dim>;
+        using MetricState = typename EnvState::MetricState;
+        using GridState = typename EnvState::GridState;
+
+        EnvState env_state = {};
+        Dtype cost = 0.0;
+        long action_idx = -1;  // index of the action in the action set
+        long env_id = 0;       // id of the environment that generates this successor
 
         Successor() = default;
 
-        Successor(
-            std::shared_ptr<EnvironmentState> state,
-            const double cost,
-            std::vector<int> action_coords)
+        Successor(EnvState state, const Dtype cost, const long action_idx, const long env_id)
             : env_state(std::move(state)),
               cost(cost),
-              action_coords(std::move(action_coords)) {
-            ERL_ASSERTM(env_state != nullptr, "state is nullptr");
-        }
+              action_idx(action_idx),
+              env_id(env_id) {}
 
         Successor(
-            Eigen::VectorXd env_metric_state,
-            Eigen::VectorXi env_grid_state,
-            const double cost,
-            std::vector<int> action_coords)
-            : env_state(
-                  std::make_shared<EnvironmentState>(
-                      std::move(env_metric_state),
-                      std::move(env_grid_state))),
+            MetricState env_metric_state,
+            GridState env_grid_state,
+            const Dtype cost,
+            const long action_idx,
+            const long env_id)
+            : env_state(std::move(env_metric_state), std::move(env_grid_state)),
               cost(cost),
-              action_coords(std::move(action_coords)) {}
+              action_idx(action_idx),
+              env_id(env_id) {}
     };
 
     /**
      * @brief EnvironmentBase is a virtual interface for search-based planning on a metric space.
      * Thus, the EnvironmentBase includes a set of map parameters such as grid cell resolution, and
      * a collision checker. The internal state representation is discrete grid coordinate.
+     * @tparam Dtype data type of the metric space, float or double.
+     * @tparam Dim dimension of the metric space, e.g. 2 for 2D space, 3 for SE(2) space.
      */
-    class EnvironmentBase {
+    template<typename Dtype, int Dim>
+    struct EnvironmentBase {
+
+        using State = EnvironmentState<Dtype, Dim>;
+        using Successor_t = Successor<Dtype, Dim>;
+        using MetricState = typename State::MetricState;
+        using GridState = typename State::GridState;
 
     protected:
-        std::shared_ptr<CostBase> m_distance_cost_func_;
-        double m_time_step_ = 0.01;  // 10ms
+        long m_env_id_;  // unique id of this environment
 
     public:
-        explicit EnvironmentBase(
-            std::shared_ptr<CostBase> distance_cost_func = nullptr,
-            const double time_step = 0.01)
-            : m_distance_cost_func_(std::move(distance_cost_func)),
-              m_time_step_(time_step) {
-            if (m_distance_cost_func_ == nullptr) {
-                ERL_INFO(
-                    "distance_cost_func is nullptr, use Euclidean distance as default cost "
-                    "function.");
-                m_distance_cost_func_ = std::make_shared<EuclideanDistanceCost>();
-            }
-        }
+        explicit EnvironmentBase(const long env_id = 0)
+            : m_env_id_(env_id) {}
 
         virtual ~EnvironmentBase() = default;
 
-        [[nodiscard]] std::shared_ptr<CostBase>
-        GetDistanceCostFunc() const {
-            return m_distance_cost_func_;
+        [[nodiscard]] long
+        GetEnvId() const {
+            return m_env_id_;
         }
 
-        [[nodiscard]] double
-        GetTimeStep() const {
-            return m_time_step_;
+        void
+        SetEnvId(const long env_id) {
+            m_env_id_ = env_id;
         }
 
         [[nodiscard]] virtual std::size_t
@@ -92,64 +83,42 @@ namespace erl::env {
          * Apply an action on the given environment state to get the next state. No collision check
          * guarantee!
          * @param env_state
-         * @param action_coords
-         * @return
+         * @param action_idx
+         * @return vector of next environment states after applying the action
          */
-        [[nodiscard]] virtual std::vector<std::shared_ptr<EnvironmentState>>
-        ForwardAction(
-            const std::shared_ptr<const EnvironmentState> &env_state,
-            const std::vector<int> &action_coords) const = 0;
+        [[nodiscard]] virtual std::vector<State>
+        ForwardAction(const State &env_state, long action_idx) const = 0;
 
         /**
          * Get reachable next environment states with the current state. Collision check is applied.
          * @param env_state the current environment state
-         * @return vector of reachable next environment states
+         * @return vector of reachable next environment states with their costs and action
+         * coordinates.
          */
-        [[nodiscard]] virtual std::vector<Successor>
-        GetSuccessors(const std::shared_ptr<EnvironmentState> &env_state) const = 0;
+        [[nodiscard]] virtual std::vector<Successor_t>
+        GetSuccessors(const State &env_state) const = 0;
 
         [[nodiscard]] virtual bool
-        InStateSpace(const std::shared_ptr<EnvironmentState> &env_state) const = 0;
+        InStateSpace(const State &env_state) const = 0;
 
         [[nodiscard]] virtual uint32_t
-        StateHashing(const std::shared_ptr<EnvironmentState> &env_state) const = 0;
+        StateHashing(const State &env_state) const = 0;
 
-        [[nodiscard]] virtual Eigen::VectorXi
-        MetricToGrid(const Eigen::Ref<const Eigen::VectorXd> &metric_state) const = 0;
+        [[nodiscard]] virtual GridState
+        MetricToGrid(const MetricState &metric_state) const = 0;
 
-        [[nodiscard]] virtual Eigen::VectorXd
-        GridToMetric(const Eigen::Ref<const Eigen::VectorXi> &grid_state) const = 0;
+        [[nodiscard]] virtual MetricState
+        GridToMetric(const GridState &grid_state) const = 0;
 
-        [[nodiscard]] virtual cv::Mat
-        ShowPaths(const std::map<int, Eigen::MatrixXd> &paths, bool block) const = 0;
-
-        [[nodiscard]] virtual std::vector<std::shared_ptr<EnvironmentState>>
+        [[nodiscard]] virtual std::vector<State>
         SampleValidStates(int num_samples) const = 0;
-
-    protected:
-        static void
-        InitializeGridMap2D(
-            const std::shared_ptr<common::GridMapUnsigned2D> &grid_map,
-            cv::Mat &initialized_grid_map) {
-            // x to the bottom, y to the right, along y first
-            initialized_grid_map =
-                cv::Mat(grid_map->info->Shape(0), grid_map->info->Shape(1), CV_8UC1, cv::Scalar(0));
-            const int size = grid_map->info->Size();
-            const auto begin = grid_map->data.GetDataPtr();
-            const auto end = begin + size;
-            std::copy(
-                begin,
-                end,
-                initialized_grid_map
-                    .data);  // both erl::common::GridMapUnsigned2D and cv::Mat are row-major.
-        }
-
-        static void
-        InflateGridMap2D(
-            const cv::Mat &original_grid_map,
-            cv::Mat &inflated_grid_map,
-            const std::shared_ptr<common::GridMapInfo2D> &grid_map_info,
-            const Eigen::Ref<const Eigen::Matrix2Xd> &shape_metric_vertices);
     };
+
+    extern template class EnvironmentBase<float, 2>;
+    extern template class EnvironmentBase<double, 2>;
+    extern template class EnvironmentBase<float, 3>;
+    extern template class EnvironmentBase<double, 3>;
+    extern template class EnvironmentBase<float, 4>;
+    extern template class EnvironmentBase<double, 4>;
 
 }  // namespace erl::env

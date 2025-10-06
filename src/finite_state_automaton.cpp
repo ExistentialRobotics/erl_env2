@@ -6,7 +6,10 @@
 
 namespace erl::env {
 
-    FiniteStateAutomaton::Setting::Setting(const std::string &filepath, FileType file_type) {
+    FiniteStateAutomaton::Setting::Setting(
+        const std::string &filepath,
+        const FileType file_type,
+        const bool complete) {
         switch (file_type) {
             case FileType::kYaml:
                 ERL_ASSERTM(
@@ -15,7 +18,7 @@ namespace erl::env {
                     filepath);
                 break;
             case FileType::kSpotHoa:
-                FromSpotGraphHoaFile(filepath);
+                FromSpotGraphHoaFile(filepath, complete);
                 break;
             case FileType::kBoostDot:
                 FromBoostGraphDotFile(filepath);
@@ -142,7 +145,7 @@ namespace erl::env {
     }
 
     FiniteStateAutomaton::SpotGraph
-    FiniteStateAutomaton::Setting::AsSpotGraph() const {
+    FiniteStateAutomaton::Setting::AsSpotGraph(const bool complete) const {
         // https://spot.lre.epita.fr/tut22.html
         spot::bdd_dict_ptr dict = spot::make_bdd_dict();
         SpotGraph graph = spot::make_twa_graph(dict);  // Buchi automaton
@@ -150,7 +153,7 @@ namespace erl::env {
         std::vector<bdd> bdd_aps;
         bdd_aps.reserve(bdd_aps.size());
         for (auto &ap: atomic_propositions) {
-            int ap_index = graph->register_ap(ap);
+            const int ap_index = graph->register_ap(ap);
             ERL_ASSERTM(ap_index >= 0, "spot error: ap_index < 0");
             bdd ap_bdd = bdd_ithvar(ap_index);
             bdd_aps.emplace_back(ap_bdd);
@@ -174,11 +177,16 @@ namespace erl::env {
             }
         }
 
+        if (complete) { spot::complete_here(graph); }
+
         return graph;
     }
 
     void
-    FiniteStateAutomaton::Setting::FromSpotGraphHoaFile(const std::string &filepath) {
+    FiniteStateAutomaton::Setting::FromSpotGraphHoaFile(
+        const std::string &filepath,
+        const bool complete) {
+
         spot::parsed_aut_ptr pa = spot::parse_aut(filepath, spot::make_bdd_dict());
         ERL_ASSERTM(pa != nullptr, "failed to parse the HOA file");
         ERL_ASSERTM(!pa->format_errors(std::cerr), "HOA format error");
@@ -186,7 +194,10 @@ namespace erl::env {
         ERL_ASSERTM(pa->aut != nullptr, "spot error: pa->aut is nullptr");
         ERL_ASSERTM(pa->aut->num_sets() == 1, "only support single set of accepting states.");
 
-        complete_here(pa->aut);  // complete the automaton
+        // complete the automaton
+        // WARNING: if the input automaton is not complete, the number of states, the number of
+        // atomic propositions, etc. will change!
+        if (complete) { complete_here(pa->aut); }
 
         const spot::bdd_dict_ptr &bdd_dict = pa->aut->get_dict();
 
@@ -228,8 +239,8 @@ namespace erl::env {
                 for (auto &label: new_labels) { labels.insert(label); }
             }
         }
-        bdd_dict->unregister_all_my_variables(
-            this);  // unregister all variables to please spot library
+        // unregister all variables to please spot library
+        bdd_dict->unregister_all_my_variables(this);
         accepting_states.insert(accepting_states.end(), accepting_set.begin(), accepting_set.end());
         for (auto &[from, to, labels]: loaded_transitions) {
             if (labels.empty()) { continue; }

@@ -24,7 +24,7 @@ costs:
 ---
 controls:
     - linear_v: 1.000
-      angular_v: -0.5000
+      angular_v: -2.000
 durations:
     - 1
 costs:
@@ -32,8 +32,21 @@ costs:
 ---
 controls:
     - linear_v: 1.000
-      angular_v: 0.5000
+      angular_v: 2.000
 durations:
     - 1
 costs:
     - 1.000
+---
+# test multiple controls
+controls:
+    - linear_v: 1.000
+      angular_v: 0.000
+    - linear_v: 0.000
+      angular_v: 1.000
+durations:
+    - 1
+    - 1
+costs:
+    - 1.000
+    - 1.000  # cumulative cost is 2.000

@@ -465,7 +465,7 @@ namespace erl::env {
             std::map<int, std::string> stuff_id_to_supercategory =
                 CocoObjectLabels2017::obj_id_to_supercategory;
             for (auto& cat: json["categories"]) {
-                EXPECT_TRUE(
+                ERL_ASSERT(
                     CocoStuffLabels::stuff_id_to_label[cat["id"].get<int>()] ==
                     cat["name"].get<std::string>());
                 CocoStuffLabels::stuff_label_to_id[cat["name"].get<std::string>()] =

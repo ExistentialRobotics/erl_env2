@@ -11,15 +11,23 @@ namespace erl::env {
      * is used mainly for hashing the state space and generating all possible neighboring states of
      * a given state with the finest resolution, i.e. all possible actions.
      */
-    class EnvironmentAnchor : public EnvironmentMultiResolution {
+    template<typename Dtype, int Dim>
+    class EnvironmentAnchor : public EnvironmentMultiResolution<Dtype, Dim> {
+    public:
+        using EnvBase = EnvironmentBase<Dtype, Dim>;
+        using State = EnvironmentState<Dtype, Dim>;
+        using Successor_t = Successor<Dtype, Dim>;
+
     protected:
-        std::vector<std::shared_ptr<EnvironmentBase>> m_envs_ = {};
+        std::vector<std::shared_ptr<EnvBase>> m_envs_ = {};
         std::size_t m_action_space_size_ = 0;
 
     public:
-        explicit EnvironmentAnchor(std::vector<std::shared_ptr<EnvironmentBase>> environments)
-            : m_envs_(std::move(environments)) {
-            for (auto &env: m_envs_) {
+        explicit EnvironmentAnchor(std::vector<std::shared_ptr<EnvBase>> environments)
+            : EnvironmentMultiResolution<Dtype, Dim>(0), m_envs_(std::move(environments)) {
+            for (int i = 0; i < static_cast<int>(m_envs_.size()); ++i) {
+                std::shared_ptr<EnvBase> &env = m_envs_[i];
+                env->SetEnvId(i + 1);
                 ERL_ASSERTM(env != nullptr, "env is nullptr");
                 m_action_space_size_ += env->GetActionSpaceSize();
             }
@@ -51,17 +59,13 @@ namespace erl::env {
         /**
          * @brief Get the trajectory starting from the given state and following the given action.
          * @param env_state
-         * @param action_coords (env_action_coords, resolution_level), where resolution_level = 1,
-         * 2, ..., n
+         * @param level index of the environment (resolution level) to use, 1-based
+         * @param action_idx index of the action to apply
          * @return
          */
-        [[nodiscard]] std::vector<std::shared_ptr<EnvironmentState>>
-        ForwardAction(
-            const std::shared_ptr<const EnvironmentState> &env_state,
-            const std::vector<int> &action_coords) const override {
-            return m_envs_[action_coords.back() - 1]->ForwardAction(
-                env_state,
-                {action_coords.begin(), action_coords.end() - 1});
+        [[nodiscard]] std::vector<State>
+        ForwardActionAtLevel(const State &env_state, long level, long action_idx) const override {
+            return m_envs_[level - 1]->ForwardAction(env_state, action_idx);
         }
 
         /**
@@ -70,48 +74,38 @@ namespace erl::env {
          * @param env_state
          * @return
          */
-        [[nodiscard]] std::vector<Successor>
-        GetSuccessors(const std::shared_ptr<EnvironmentState> &env_state) const override {
+        [[nodiscard]] std::vector<Successor_t>
+        GetSuccessors(const State &env_state) const override {
             if (!InStateSpace(env_state)) { return {}; }
-            std::vector<Successor> successors;
+            std::vector<Successor_t> successors;
             successors.reserve(m_action_space_size_);
             for (auto it = m_envs_.begin(); it < m_envs_.end(); ++it) {
-                std::vector<Successor> env_successors = (*it)->GetSuccessors(env_state);
+                std::vector<Successor_t> env_successors = (*it)->GetSuccessors(env_state);
                 if (env_successors.empty()) { continue; }
-                auto resolution_level = static_cast<int>(std::distance(m_envs_.begin(), it)) + 1;
-                for (auto &successor: env_successors) {
-                    successor.action_coords.push_back(resolution_level);
-                    successors.push_back(successor);
-                }
+                successors.insert(successors.end(), env_successors.begin(), env_successors.end());
             }
             return successors;
         }
 
-        [[nodiscard]] std::vector<Successor>
-        GetSuccessorsAtLevel(
-            const std::shared_ptr<EnvironmentState> &state,
-            const std::size_t resolution_level) const override {
-            if (resolution_level == 0) { return GetSuccessors(state); }
-            std::vector<Successor> successors = m_envs_[resolution_level - 1]->GetSuccessors(state);
-            for (auto &successor: successors) {
-                successor.action_coords.push_back(static_cast<int>(resolution_level));
-            }
-            return successors;
+        [[nodiscard]] std::vector<Successor_t>
+        GetSuccessorsAtLevel(const State &state, const long level) const override {
+            if (level == 0) { return GetSuccessors(state); }
+            ERL_ASSERTM(level >= 1 && level <= static_cast<long>(m_envs_.size()), "Invalid level.");
+            return m_envs_[level - 1]->GetSuccessors(state);
         }
 
         [[nodiscard]] bool
-        InStateSpace(const std::shared_ptr<EnvironmentState> &env_state) const override {
+        InStateSpace(const State &env_state) const override {
             return std::any_of(m_envs_.begin(), m_envs_.end(), [&env_state](const auto &env) {
                 return env->InStateSpace(env_state);
             });
         }
 
         [[nodiscard]] bool
-        InStateSpaceAtLevel(
-            const std::shared_ptr<EnvironmentState> &env_state,
-            const std::size_t resolution_level) const override {
-            if (resolution_level == 0) { return InStateSpace(env_state); }
-            return m_envs_[resolution_level - 1]->InStateSpace(env_state);
+        InStateSpaceAtLevel(const State &env_state, const long level) const override {
+            ERL_ASSERTM(level >= 0 && level <= static_cast<long>(m_envs_.size()), "Invalid level.");
+            if (level == 0) { return InStateSpace(env_state); }
+            return m_envs_[level - 1]->InStateSpace(env_state);
         }
     };
 

@@ -1,8 +1,6 @@
+#include "erl_common/angle_utils.hpp"
+#include "erl_common/test_helper.hpp"
 #include "erl_env/differential_drive_model.hpp"
-
-#include <gtest/gtest.h>
-
-#include <cmath>
 
 inline double
 RestrictAngle(double phi, double minrange = -M_PI, double maxrange = M_PI) {
@@ -17,8 +15,8 @@ inline std::array<double, 3>
 DdMotionModel(const std::array<double, 3>& x, const std::array<double, 2>& u, double t) {
     std::array<double, 3> nx{};
     double tw = t * u[1];
-    nx[2] = erl::common::ClipAngle(x[2] + tw);
-    if (std::abs(tw) < 0.0001) {
+    nx[2] = erl::common::WrapAnglePi(x[2] + tw);
+    if (std::abs(tw) < 1.e-6f) {
         nx[0] = x[0] + t * u[0] * std::cos(nx[2]);
         nx[1] = x[1] + t * u[0] * std::sin(nx[2]);
     } else {
@@ -32,7 +30,7 @@ TEST(DifferentialDriveModelTest, LinearOnly) {
 
     auto expected = DdMotionModel({0, 0, 0}, {1, 0}, 1);
     std::array<double, 3> actual{};
-    erl::env::DifferentialDriveKinematic(0, 0, 0, 1, 0, 1, actual[0], actual[1], actual[2]);
+    erl::env::DifferentialDriveKinematic<double>(0, 0, 0, 1, 0, 1, actual[0], actual[1], actual[2]);
 
     EXPECT_EQ(actual, expected);
 }
@@ -41,7 +39,7 @@ TEST(DifferentialDriveModelTest, AngularOnly) {
 
     auto expected = DdMotionModel({0, 0, 0}, {0, 1}, 1);
     std::array<double, 3> actual{};
-    erl::env::DifferentialDriveKinematic(0, 0, 0, 0, 1, 1, actual[0], actual[1], actual[2]);
+    erl::env::DifferentialDriveKinematic<double>(0, 0, 0, 0, 1, 1, actual[0], actual[1], actual[2]);
 
     EXPECT_EQ(actual, expected);
 }
@@ -50,18 +48,16 @@ TEST(DifferentialDriveModelTest, LinearAndAngular) {
 
     auto expected = DdMotionModel({0, 0, 0}, {1, 1}, 1);
     std::array<double, 3> actual{};
-    erl::env::DifferentialDriveKinematic(0, 0, 0, 1, 1, 1, actual[0], actual[1], actual[2]);
+    erl::env::DifferentialDriveKinematic<double>(0, 0, 0, 1, 1, 1, actual[0], actual[1], actual[2]);
 
     EXPECT_EQ(actual, expected);
 }
 
 TEST(DifferentialDriveModelTest, VeryShortDuration) {
-
-    // EXPECT_EQ(0.00001, RestrictAngle(0.00001));  // RestrictAngle is not accurate when the angle is very small
-
     auto expected = DdMotionModel({0, 0, 0}, {1, 1}, 0.00001);
     std::array<double, 3> actual{};
-    erl::env::DifferentialDriveKinematic(0, 0, 0, 1, 1, 0.00001, actual[0], actual[1], actual[2]);
+    erl::env::DifferentialDriveKinematic<
+        double>(0, 0, 0, 1, 1, 0.00001, actual[0], actual[1], actual[2]);
 
     EXPECT_EQ(actual, expected);
 }
@@ -70,7 +66,7 @@ TEST(DifferentialDriveModelTest, LongerDuration) {
 
     auto expected = DdMotionModel({0, 0, 0}, {1, 1}, 2);
     std::array<double, 3> actual{};
-    erl::env::DifferentialDriveKinematic(0, 0, 0, 1, 1, 2, actual[0], actual[1], actual[2]);
+    erl::env::DifferentialDriveKinematic<double>(0, 0, 0, 1, 1, 2, actual[0], actual[1], actual[2]);
 
     EXPECT_EQ(actual, expected);
 }
@@ -79,7 +75,7 @@ TEST(DifferentialDriveModelTest, NonZeroInitialPose) {
 
     auto expected = DdMotionModel({1, 2, 3}, {1, 1}, 2);
     std::array<double, 3> actual{};
-    erl::env::DifferentialDriveKinematic(1, 2, 3, 1, 1, 2, actual[0], actual[1], actual[2]);
+    erl::env::DifferentialDriveKinematic<double>(1, 2, 3, 1, 1, 2, actual[0], actual[1], actual[2]);
 
     EXPECT_EQ(actual, expected);
 }

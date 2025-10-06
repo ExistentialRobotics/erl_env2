@@ -4,21 +4,23 @@
 #include <filesystem>
 
 TEST(ERL_ENV, EnvironmentSceneGraph) {
+    GTEST_PREPARE_OUTPUT_DIR();
 
-    std::filesystem::path path = __FILE__;
-    auto data_dir = path.parent_path();
-    path = data_dir / "building.yaml";
-    auto building = std::make_shared<erl::env::scene_graph::Building>();
+    using namespace erl::env;
+    using Dtype = float;
+    using Env = EnvironmentSceneGraph<Dtype>;
+
+    std::filesystem::path path = gtest_src_dir / "building.yaml";
+    auto building = std::make_shared<scene_graph::Building>();
     ASSERT_TRUE(building->FromYamlFile(path.string()));
 
-    auto setting = std::make_shared<erl::env::EnvironmentSceneGraph::Setting>();
-    setting->data_dir = data_dir.string();
-    setting->shape = Eigen::Matrix2Xd(2, 360);
-    Eigen::VectorXd angles = Eigen::VectorXd::LinSpaced(360, 0, 2 * M_PI);
-    double r = 0.15;
+    auto setting = std::make_shared<Env::Setting>();
+    setting->data_dir = gtest_src_dir.string();
+    setting->robot_metric_contour = Eigen::Matrix2X<Dtype>(2, 360);
+    Eigen::VectorX<Dtype> angles = Eigen::VectorX<Dtype>::LinSpaced(360, 0, 2 * M_PI);
     for (int i = 0; i < 360; ++i) {
-        setting->shape(0, i) = r * cos(angles[i]);
-        setting->shape(1, i) = r * sin(angles[i]);
+        constexpr Dtype r = 0.15f;
+        setting->robot_metric_contour.col(i) << r * cos(angles[i]), r * sin(angles[i]);
     }
-    erl::env::EnvironmentSceneGraph env_scene_graph(building, setting);
+    Env env_scene_graph(building, setting);
 }

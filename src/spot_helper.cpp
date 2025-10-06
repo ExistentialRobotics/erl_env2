@@ -9,19 +9,18 @@ namespace erl::env::spot_helper {
     bdd_to_vec_rec(
         std::vector<int> &vec,
         const bdd &r,
-        std::vector<int> &set) {  // NOLINT(*-no-recursion)
-        if (r == bddfalse) {      // false terminal
-            return;
-        } else if (r == bddtrue) {  // true terminal, dump to vec
+        std::vector<int> &set) {        // NOLINT(*-no-recursion)
+        if (r == bddfalse) { return; }  // false terminal
+        if (r == bddtrue) {             // true terminal, dump to vec
             for (int n = 0; n < bdd_varnum(); ++n) {
                 if (set[n] > 0) {
-                    int var = bdd_level2var(n);
+                    const int var = bdd_level2var(n);
                     vec[var] = set[n] == 2;
                 }
             }
         } else {
-            int level = bdd_var2level(
-                bdd_var(r));  // position of the variable in the current variable order
+            // position of the variable in the current variable order
+            const int level = bdd_var2level(bdd_var(r));
             set[level] = 1;
             bdd_to_vec_rec(vec, bdd_low(r), set);
             set[level] = 2;
@@ -32,12 +31,13 @@ namespace erl::env::spot_helper {
 
     std::vector<int>
     BddToFlags(const bdd &b) {
-        int varnum = bdd_varnum();
+        const int varnum = bdd_varnum();
         std::vector<int> vec(varnum, kDONT_CARE);
         if (b == bddtrue) {
             vec.resize(varnum, kTRUE);
             return vec;
-        } else if (b == bddfalse) {
+        }
+        if (b == bddfalse) {
             vec.resize(varnum, kFALSE);
             return vec;
         }

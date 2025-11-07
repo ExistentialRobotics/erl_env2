@@ -9,7 +9,7 @@ TEST(DDCMotionPrimitiveTest, LoadFromFile) {
     const std::filesystem::path file = gtest_src_dir / "ddc_motion_primitives.yaml";
 
     auto motion_primitives =
-        erl::common::LoadSequenceFromFile<DdcMotionPrimitive<float>>(file, true);
+        erl::common::LoadYamlSequenceFromFile<DdcMotionPrimitive<float>>(file, true);
 
     constexpr int kNumMotionPrimitives = 6;
     ASSERT_EQ(motion_primitives.size(), kNumMotionPrimitives);

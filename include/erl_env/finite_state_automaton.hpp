@@ -46,15 +46,23 @@ namespace erl::env {
 
         struct Setting : public common::Yamlable<Setting> {
 
-            struct Transition {
+            struct Transition : public common::Yamlable<Transition> {
                 uint32_t from = 0;
                 uint32_t to = 0;
                 std::vector<uint32_t> labels = {};
 
+                ERL_REFLECT_SCHEMA(
+                    Transition,
+                    ERL_REFLECT_MEMBER(Transition, from),
+                    ERL_REFLECT_MEMBER(Transition, to),
+                    ERL_REFLECT_MEMBER(Transition, labels));
+
                 Transition() = default;
 
-                Transition(uint32_t from, uint32_t to, const std::set<uint32_t> &labels)
-                    : from(from), to(to), labels(labels.begin(), labels.end()) {}
+                Transition(const uint32_t from, const uint32_t to, std::vector<uint32_t> labels)
+                    : from(from),
+                      to(to),
+                      labels(std::move(labels)) {}
             };
 
             uint32_t num_states = 0;                            // number of states
@@ -62,6 +70,14 @@ namespace erl::env {
             std::vector<uint32_t> accepting_states = {};        // accepting states
             std::vector<std::string> atomic_propositions = {};  // atomic propositions
             std::vector<Transition> transitions = {};           // transitions
+
+            ERL_REFLECT_SCHEMA(
+                Setting,
+                ERL_REFLECT_MEMBER(Setting, num_states),
+                ERL_REFLECT_MEMBER(Setting, initial_state),
+                ERL_REFLECT_MEMBER(Setting, accepting_states),
+                ERL_REFLECT_MEMBER(Setting, atomic_propositions),
+                ERL_REFLECT_MEMBER(Setting, transitions));
 
             enum class FileType { kSpotHoa = 0, kBoostDot = 1, kYaml = 2 };
 
@@ -76,6 +92,15 @@ namespace erl::env {
              * alphabet). This parameter is only used when file_type is kSpotHoa.
              */
             Setting(const std::string &filepath, FileType file_type, bool complete);
+
+            bool
+            PostDeserialization() override {
+                std::sort(accepting_states.begin(), accepting_states.end(), std::greater<>());
+                for (auto &transition: transitions) {
+                    std::sort(transition.labels.begin(), transition.labels.end(), std::greater<>());
+                }
+                return true;
+            }
 
             [[nodiscard]] BoostGraph
             AsBoostGraph() const;
@@ -105,6 +130,12 @@ namespace erl::env {
             void
             FromSpotGraphHoaFile(const std::string &filepath, bool complete);
 
+            void
+            FromSpotGraphHoaString(const std::string &hoa_str, bool complete);
+
+            void
+            FromSpotGraph(const spot::twa_graph_ptr &aut, bool complete);
+
             /**
              *
              * @param filename path to the dot file
@@ -126,10 +157,10 @@ namespace erl::env {
         absl::flat_hash_map<uint32_t, std::vector<uint32_t>> m_transition_labels_;
         // given hashing of state p and label `a`, return the next state q
         absl::flat_hash_map<uint32_t, uint32_t> m_transition_next_state_;
-        std::vector<std::vector<uint32_t>> m_levels_;  // states in each level
-        std::vector<std::vector<bool>> m_levels_b_;    // states in each level (boolean version)
-        std::vector<bool> m_sink_states_;              // sink states
-        std::vector<bool> m_accepting_states_;         // accepting states
+        std::vector<std::vector<uint32_t>> m_levels_;   // states in each level
+        std::vector<std::vector<uint8_t>> m_levels_b_;  // states in each level (boolean version)
+        std::vector<uint8_t> m_sink_states_;            // sink states
+        std::vector<uint8_t> m_accepting_states_;       // accepting states
 
     public:
         explicit FiniteStateAutomaton(std::shared_ptr<Setting> setting);
@@ -149,12 +180,12 @@ namespace erl::env {
             return m_levels_;
         }
 
-        [[nodiscard]] const std::vector<std::vector<bool>> &
+        [[nodiscard]] const std::vector<std::vector<uint8_t>> &
         GetLevelsB() const {
             return m_levels_b_;
         }
 
-        [[nodiscard]] const std::vector<bool> &
+        [[nodiscard]] const std::vector<uint8_t> &
         GetSinkStates() const {
             return m_sink_states_;
         }
@@ -213,56 +244,3 @@ namespace erl::env {
     };
 
 }  // namespace erl::env
-
-namespace YAML {
-
-    template<>
-    struct convert<erl::env::FiniteStateAutomaton::Setting::Transition> {
-        static Node
-        encode(const erl::env::FiniteStateAutomaton::Setting::Transition &rhs) {
-            Node node(NodeType::Sequence);
-            node.push_back(Node(std::vector<uint32_t>{rhs.from, rhs.to}));
-            node.push_back(rhs.labels);
-            return node;
-        }
-
-        static bool
-        decode(const Node &node, erl::env::FiniteStateAutomaton::Setting::Transition &rhs) {
-            ERL_ASSERTM(node.IsSequence(), "node is not a sequence");
-            rhs.from = node[0][0].as<uint32_t>();
-            rhs.to = node[0][1].as<uint32_t>();
-            rhs.labels = node[1].as<std::vector<uint32_t>>();
-            return true;
-        }
-    };
-
-    template<>
-    struct convert<erl::env::FiniteStateAutomaton::Setting> {
-        static Node
-        encode(const erl::env::FiniteStateAutomaton::Setting &rhs) {
-            Node node;
-            node["num_states"] = rhs.num_states;
-            node["initial_state"] = rhs.initial_state;
-            node["accepting_states"] = rhs.accepting_states;
-            node["atomic_propositions"] = rhs.atomic_propositions;
-            node["transitions"] = rhs.transitions;
-            return node;
-        }
-
-        static bool
-        decode(const Node &node, erl::env::FiniteStateAutomaton::Setting &rhs) {
-            rhs.num_states = node["num_states"].as<uint32_t>();
-            rhs.initial_state = node["initial_state"].as<uint32_t>();
-            rhs.accepting_states = node["accepting_states"].as<std::vector<uint32_t>>();
-            rhs.atomic_propositions = node["atomic_propositions"].as<std::vector<std::string>>();
-            rhs.transitions =
-                node["transitions"]
-                    .as<std::vector<erl::env::FiniteStateAutomaton::Setting::Transition>>();
-            std::sort(rhs.accepting_states.begin(), rhs.accepting_states.end(), std::greater<>());
-            for (auto &transition: rhs.transitions) {
-                std::sort(transition.labels.begin(), transition.labels.end(), std::greater<>());
-            }
-            return true;
-        }
-    };
-}  // namespace YAML

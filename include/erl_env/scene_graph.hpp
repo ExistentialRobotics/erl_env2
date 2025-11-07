@@ -24,6 +24,15 @@ namespace erl::env::scene_graph {
         Type type = Type::kOcc;  // type of the node
         std::string name = {};   // node name
 
+        ERL_REFLECT_SCHEMA(
+            Node,
+            ERL_REFLECT_MEMBER(Node, uuid),
+            ERL_REFLECT_MEMBER(Node, id),
+            ERL_REFLECT_MEMBER(Node, parent_id),
+            ERL_REFLECT_MEMBER(Node, parent_uuid),
+            ERL_REFLECT_MEMBER(Node, type),
+            ERL_REFLECT_MEMBER(Node, name));
+
         Node()
             : uuid(uuid_counter++) {}
     };
@@ -44,6 +53,23 @@ namespace erl::env::scene_graph {
         Eigen::Vector2i grid_map_max = {};                // grid_map max
         Eigen::Vector3f location = {};                    // object center location
         Eigen::Vector3f size = {};                        // object size
+
+        ERL_REFLECT_SCHEMA(
+            Object,
+            ERL_REFLECT_MEMBER(Object, action_affordance),
+            ERL_REFLECT_MEMBER(Object, grid_map_min),
+            ERL_REFLECT_MEMBER(Object, grid_map_max),
+            ERL_REFLECT_MEMBER(Object, location),
+            ERL_REFLECT_MEMBER(Object, size));
+
+        bool
+        PostDeserialization() override {
+            if (type != Node::Type::kObject) {
+                ERL_WARN("Node type is not kObject");
+                return false;
+            }
+            return true;
+        }
     };
 
     struct Room : public common::Yamlable<Room, Node> {
@@ -56,6 +82,35 @@ namespace erl::env::scene_graph {
         Eigen::Vector2i grid_map_max = {};                              // grid_map max
         Eigen::Vector3f location = {};                                  // room center location
         Eigen::Vector3f size = {};                                      // room size
+
+        ERL_REFLECT_SCHEMA(
+            Room,
+            ERL_REFLECT_MEMBER(Room, objects),
+            ERL_REFLECT_MEMBER(Room, num_objects),
+            ERL_REFLECT_MEMBER(Room, connected_room_ids),
+            ERL_REFLECT_MEMBER(Room, connected_room_uuids),
+            ERL_REFLECT_MEMBER(Room, door_grids),
+            ERL_REFLECT_MEMBER(Room, grid_map_min),
+            ERL_REFLECT_MEMBER(Room, grid_map_max),
+            ERL_REFLECT_MEMBER(Room, location),
+            ERL_REFLECT_MEMBER(Room, size));
+
+        bool
+        PostDeserialization() override {
+            if (type != Node::Type::kRoom) {
+                ERL_WARN("Node type is not kRoom");
+                return false;
+            }
+            ERL_ASSERTM(objects.size() == num_objects, "Number of objects does not match");
+            for (const auto &object_itr: objects) {
+                ERL_ASSERTM(
+                    object_itr.second->id == object_itr.first,
+                    "Object %d has wrong id: %d",
+                    object_itr.first,
+                    object_itr.second->id);
+            }
+            return true;
+        }
     };
 
     struct Floor : public common::Yamlable<Floor, Node> {
@@ -75,6 +130,44 @@ namespace erl::env::scene_graph {
         Eigen::Vector2f grid_map_origin = {};                  // grid_map origin
         Eigen::Vector2f grid_map_resolution = {};              // grid_map resolution
         Eigen::Vector2i grid_map_size = {};                    // grid_map size
+
+        ERL_REFLECT_SCHEMA(
+            Floor,
+            ERL_REFLECT_MEMBER(Floor, down_stairs_id),
+            ERL_REFLECT_MEMBER(Floor, up_stairs_id),
+            ERL_REFLECT_MEMBER(Floor, down_stairs_uuid),
+            ERL_REFLECT_MEMBER(Floor, up_stairs_uuid),
+            ERL_REFLECT_MEMBER(Floor, down_stairs_cost),
+            ERL_REFLECT_MEMBER(Floor, up_stairs_cost),
+            ERL_REFLECT_MEMBER(Floor, up_stairs_portal),
+            ERL_REFLECT_MEMBER(Floor, down_stairs_portal),
+            ERL_REFLECT_MEMBER(Floor, ground_z),
+            ERL_REFLECT_MEMBER(Floor, room_map),
+            ERL_REFLECT_MEMBER(Floor, cat_map),
+            ERL_REFLECT_MEMBER(Floor, rooms),
+            ERL_REFLECT_MEMBER(Floor, num_rooms),
+            ERL_REFLECT_MEMBER(Floor, grid_map_origin),
+            ERL_REFLECT_MEMBER(Floor, grid_map_resolution),
+            ERL_REFLECT_MEMBER(Floor, grid_map_size));
+
+        bool
+        PostDeserialization() override {
+            if (type != Node::Type::kFloor) {
+                ERL_WARN("Node type is not kFloor");
+                return false;
+            }
+            ERL_ASSERTM(
+                rooms.size() == static_cast<std::size_t>(num_rooms),
+                "Number of rooms does not match");
+            for (const auto &room_itr: rooms) {
+                ERL_ASSERTM(
+                    room_itr.second->id == room_itr.first,
+                    "Room %d has wrong id: %d",
+                    room_itr.first,
+                    room_itr.second->id);
+            }
+            return true;
+        }
     };
 
     struct Building : public common::Yamlable<Building, Node> {
@@ -82,6 +175,14 @@ namespace erl::env::scene_graph {
         int num_floors = 0;                                           // number of floors
         Eigen::Vector3f reference_point = {};                         // reference 3d coordinate
         Eigen::Vector3f size = {};                                    // building size
+
+        ERL_REFLECT_SCHEMA(
+            Building,
+            ERL_REFLECT_MEMBER(Building, floors),
+            ERL_REFLECT_MEMBER(Building, num_floors),
+            ERL_REFLECT_MEMBER(Building, reference_point),
+            ERL_REFLECT_MEMBER(Building, size));
+
         std::vector<int> room_ids;
         std::vector<int> room_uuids;
         std::vector<int> object_ids;
@@ -89,6 +190,23 @@ namespace erl::env::scene_graph {
         std::unordered_map<int, std::shared_ptr<Object>> id_to_object = {};
         std::unordered_map<int, std::shared_ptr<Room>> id_to_room = {};
         std::unordered_map<uint32_t, std::shared_ptr<Node>> uuid_to_node = {};
+
+        bool
+        PostDeserialization() override {
+            if (type != Node::Type::kBuilding) {
+                ERL_WARN("Node type is not kBuilding");
+                return false;
+            }
+            ERL_ASSERTM(
+                floors.size() == static_cast<std::size_t>(num_floors),
+                "Number of floors does not match");
+            for (int i = 0; i < num_floors; ++i) {
+                ERL_ASSERTM(floors.find(i) != floors.end(), "Floor %d is missing", i);
+                ERL_ASSERTM(floors[i]->id == i, "Floor %d has wrong id: %d", i, floors[i]->id);
+            }
+            UpdateIdMapping();
+            return true;
+        }
 
         void
         UpdateIdMapping() {
@@ -166,261 +284,14 @@ namespace erl::env::scene_graph {
     };
 }  // namespace erl::env::scene_graph
 
-namespace YAML {
+ERL_REFLECT_ENUM_SCHEMA(
+    erl::env::scene_graph::Node::Type,
+    5,
+    ERL_REFLECT_ENUM_MEMBER("kOcc", erl::env::scene_graph::Node::Type::kOcc),
+    ERL_REFLECT_ENUM_MEMBER("kObject", erl::env::scene_graph::Node::Type::kObject),
+    ERL_REFLECT_ENUM_MEMBER("kRoom", erl::env::scene_graph::Node::Type::kRoom),
+    ERL_REFLECT_ENUM_MEMBER("kFloor", erl::env::scene_graph::Node::Type::kFloor),
+    ERL_REFLECT_ENUM_MEMBER("kBuilding", erl::env::scene_graph::Node::Type::kBuilding));
 
-    template<>
-    struct convert<erl::env::scene_graph::Node::Type> {
-        static Node
-        encode(const erl::env::scene_graph::Node::Type &node_type) {
-            Node node;
-            switch (node_type) {
-                case erl::env::scene_graph::Node::Type::kOcc:
-                    node = "kOcc";
-                    break;
-                case erl::env::scene_graph::Node::Type::kObject:
-                    node = "kObject";
-                    break;
-                case erl::env::scene_graph::Node::Type::kRoom:
-                    node = "kRoom";
-                    break;
-                case erl::env::scene_graph::Node::Type::kFloor:
-                    node = "kFloor";
-                    break;
-                case erl::env::scene_graph::Node::Type::kBuilding:
-                    node = "kBuilding";
-                    break;
-            }
-            return node;
-        }
+ERL_ENUM_YAML_CONVERT(erl::env::scene_graph::Node::Type, 5);
 
-        static bool
-        decode(const Node &node, erl::env::scene_graph::Node::Type &node_type) {
-            if (!node.IsScalar()) { return false; }
-            auto type = node.as<std::string>();
-            if (type == "kOcc") {
-                node_type = erl::env::scene_graph::Node::Type::kOcc;
-            } else if (type == "kObject") {
-                node_type = erl::env::scene_graph::Node::Type::kObject;
-            } else if (type == "kRoom") {
-                node_type = erl::env::scene_graph::Node::Type::kRoom;
-            } else if (type == "kFloor") {
-                node_type = erl::env::scene_graph::Node::Type::kFloor;
-            } else if (type == "kBuilding") {
-                node_type = erl::env::scene_graph::Node::Type::kBuilding;
-            } else {
-                throw std::runtime_error("Unknown scene_graph::Node::Type: " + type);
-            }
-            return true;
-        }
-    };
-
-    template<>
-    struct convert<erl::env::scene_graph::Node> {
-        static Node
-        encode(const erl::env::scene_graph::Node &sg_node) {
-            Node node;
-            ERL_YAML_SAVE_ATTR(node, sg_node, uuid);
-            ERL_YAML_SAVE_ATTR(node, sg_node, id);
-            ERL_YAML_SAVE_ATTR(node, sg_node, parent_id);
-            ERL_YAML_SAVE_ATTR(node, sg_node, parent_uuid);
-            ERL_YAML_SAVE_ATTR(node, sg_node, type);
-            ERL_YAML_SAVE_ATTR(node, sg_node, name);
-            return node;
-        }
-
-        static bool
-        decode(const Node &node, erl::env::scene_graph::Node &sg_node) {
-            if (!node.IsMap()) { return false; }
-            ERL_YAML_LOAD_ATTR(node, sg_node, uuid);
-            ERL_YAML_LOAD_ATTR(node, sg_node, id);
-            ERL_YAML_LOAD_ATTR(node, sg_node, parent_id);
-            ERL_YAML_LOAD_ATTR(node, sg_node, parent_uuid);
-            ERL_YAML_LOAD_ATTR(node, sg_node, type);
-            ERL_YAML_LOAD_ATTR(node, sg_node, name);
-            return true;
-        }
-    };
-
-    template<>
-    struct convert<erl::env::scene_graph::Object> {
-        static Node
-        encode(const erl::env::scene_graph::Object &object) {
-            Node node = convert<erl::env::scene_graph::Node>::encode(object);
-            ERL_YAML_SAVE_ATTR(node, object, action_affordance);
-            ERL_YAML_SAVE_ATTR(node, object, grid_map_min);
-            ERL_YAML_SAVE_ATTR(node, object, grid_map_max);
-            ERL_YAML_SAVE_ATTR(node, object, location);
-            ERL_YAML_SAVE_ATTR(node, object, size);
-            return node;
-        }
-
-        static bool
-        decode(const Node &node, erl::env::scene_graph::Object &object) {
-            if (!node.IsMap()) { return false; }
-            if (!convert<erl::env::scene_graph::Node>::decode(node, object)) { return false; }
-            if (object.type != erl::env::scene_graph::Node::Type::kObject) {
-                ERL_WARN("Node type is not kObject");
-                return false;
-            }
-            ERL_YAML_LOAD_ATTR(node, object, action_affordance);
-            ERL_YAML_LOAD_ATTR(node, object, grid_map_min);
-            ERL_YAML_LOAD_ATTR(node, object, grid_map_max);
-            ERL_YAML_LOAD_ATTR(node, object, location);
-            ERL_YAML_LOAD_ATTR(node, object, size);
-            return true;
-        }
-    };
-
-    template<>
-    struct convert<erl::env::scene_graph::Room> {
-        static Node
-        encode(const erl::env::scene_graph::Room &room) {
-            Node node = convert<erl::env::scene_graph::Node>::encode(room);
-            ERL_YAML_SAVE_ATTR(node, room, objects);
-            ERL_YAML_SAVE_ATTR(node, room, num_objects);
-            ERL_YAML_SAVE_ATTR(node, room, connected_room_ids);
-            ERL_YAML_SAVE_ATTR(node, room, connected_room_uuids);
-            ERL_YAML_SAVE_ATTR(node, room, door_grids);
-            ERL_YAML_SAVE_ATTR(node, room, grid_map_min);
-            ERL_YAML_SAVE_ATTR(node, room, grid_map_max);
-            ERL_YAML_SAVE_ATTR(node, room, location);
-            ERL_YAML_SAVE_ATTR(node, room, size);
-            return node;
-        }
-
-        static bool
-        decode(const Node &node, erl::env::scene_graph::Room &room) {
-            if (!node.IsMap()) { return false; }
-            if (!convert<erl::env::scene_graph::Node>::decode(node, room)) { return false; }
-            if (room.type != erl::env::scene_graph::Node::Type::kRoom) {
-                ERL_WARN("Node type is not kRoom");
-                return false;
-            }
-            ERL_YAML_LOAD_ATTR(node, room, objects);
-            ERL_YAML_LOAD_ATTR(node, room, num_objects);
-            ERL_ASSERTM(
-                room.objects.size() == room.num_objects,
-                "Number of objects does not match");
-            for (const auto &object_itr: room.objects) {
-                ERL_ASSERTM(
-                    object_itr.second->id == object_itr.first,
-                    "Object %d has wrong id: %d",
-                    object_itr.first,
-                    object_itr.second->id);
-            }
-            ERL_YAML_LOAD_ATTR(node, room, connected_room_ids);
-            ERL_YAML_LOAD_ATTR(node, room, connected_room_uuids);
-            ERL_YAML_LOAD_ATTR(node, room, door_grids);
-            ERL_YAML_LOAD_ATTR(node, room, grid_map_min);
-            ERL_YAML_LOAD_ATTR(node, room, grid_map_max);
-            ERL_YAML_LOAD_ATTR(node, room, location);
-            ERL_YAML_LOAD_ATTR(node, room, size);
-            return true;
-        }
-    };
-
-    template<>
-    struct convert<erl::env::scene_graph::Floor> {
-        static Node
-        encode(const erl::env::scene_graph::Floor &floor) {
-            Node node = convert<erl::env::scene_graph::Node>::encode(floor);
-            ERL_YAML_SAVE_ATTR(node, floor, down_stairs_id);
-            ERL_YAML_SAVE_ATTR(node, floor, up_stairs_id);
-            ERL_YAML_SAVE_ATTR(node, floor, down_stairs_uuid);
-            ERL_YAML_SAVE_ATTR(node, floor, up_stairs_uuid);
-            ERL_YAML_SAVE_ATTR(node, floor, down_stairs_cost);
-            ERL_YAML_SAVE_ATTR(node, floor, up_stairs_cost);
-            ERL_YAML_SAVE_ATTR(node, floor, down_stairs_portal);
-            ERL_YAML_SAVE_ATTR(node, floor, up_stairs_portal);
-            ERL_YAML_SAVE_ATTR(node, floor, ground_z);
-            ERL_YAML_SAVE_ATTR(node, floor, room_map);
-            ERL_YAML_SAVE_ATTR(node, floor, cat_map);
-            ERL_YAML_SAVE_ATTR(node, floor, rooms);
-            ERL_YAML_SAVE_ATTR(node, floor, num_rooms);
-            ERL_YAML_SAVE_ATTR(node, floor, grid_map_origin);
-            ERL_YAML_SAVE_ATTR(node, floor, grid_map_resolution);
-            ERL_YAML_SAVE_ATTR(node, floor, grid_map_size);
-            return node;
-        }
-
-        static bool
-        decode(const Node &node, erl::env::scene_graph::Floor &floor) {
-            if (!node.IsMap()) { return false; }
-            if (!convert<erl::env::scene_graph::Node>::decode(node, floor)) { return false; }
-            if (floor.type != erl::env::scene_graph::Node::Type::kFloor) {
-                ERL_WARN("Node type is not kFloor");
-                return false;
-            }
-            ERL_YAML_LOAD_ATTR(node, floor, down_stairs_id);
-            ERL_YAML_LOAD_ATTR(node, floor, up_stairs_id);
-            ERL_YAML_LOAD_ATTR(node, floor, down_stairs_uuid);
-            ERL_YAML_LOAD_ATTR(node, floor, up_stairs_uuid);
-            ERL_YAML_LOAD_ATTR(node, floor, down_stairs_cost);
-            ERL_YAML_LOAD_ATTR(node, floor, up_stairs_cost);
-            ERL_YAML_LOAD_ATTR(node, floor, down_stairs_portal);
-            ERL_YAML_LOAD_ATTR(node, floor, up_stairs_portal);
-            ERL_YAML_LOAD_ATTR(node, floor, ground_z);
-            ERL_YAML_LOAD_ATTR(node, floor, room_map);
-            ERL_YAML_LOAD_ATTR(node, floor, cat_map);
-            ERL_YAML_LOAD_ATTR(node, floor, rooms);
-            ERL_YAML_LOAD_ATTR(node, floor, num_rooms);
-            ERL_ASSERTM(
-                floor.rooms.size() == static_cast<std::size_t>(floor.num_rooms),
-                "Number of rooms does not match");
-            for (const auto &room_itr: floor.rooms) {
-                ERL_ASSERTM(
-                    room_itr.second->id == room_itr.first,
-                    "Room %d has wrong id: %d",
-                    room_itr.first,
-                    room_itr.second->id);
-            }
-            ERL_YAML_LOAD_ATTR(node, floor, grid_map_origin);
-            ERL_YAML_LOAD_ATTR(node, floor, grid_map_resolution);
-            ERL_YAML_LOAD_ATTR(node, floor, grid_map_size);
-            return true;
-        }
-    };
-
-    template<>
-    struct convert<erl::env::scene_graph::Building> {
-        static Node
-        encode(const erl::env::scene_graph::Building &building) {
-            Node node = convert<erl::env::scene_graph::Node>::encode(building);
-            ERL_YAML_SAVE_ATTR(node, building, floors);
-            ERL_YAML_SAVE_ATTR(node, building, num_floors);
-            ERL_YAML_SAVE_ATTR(node, building, reference_point);
-            ERL_YAML_SAVE_ATTR(node, building, size);
-            return node;
-        }
-
-        static bool
-        decode(const Node &node, erl::env::scene_graph::Building &building) {
-            if (!node.IsMap()) { return false; }
-            if (!convert<erl::env::scene_graph::Node>::decode(node, building)) { return false; }
-            if (building.type != erl::env::scene_graph::Node::Type::kBuilding) {
-                ERL_WARN("Node type is not kBuilding");
-                return false;
-            }
-            ERL_YAML_LOAD_ATTR(node, building, floors);
-            ERL_YAML_LOAD_ATTR(node, building, num_floors);
-            ERL_ASSERTM(
-                building.floors.size() == static_cast<std::size_t>(building.num_floors),
-                "Number of floors does not match");
-            for (int i = 0; i < building.num_floors; ++i) {
-                ERL_ASSERTM(
-                    building.floors.find(i) != building.floors.end(),
-                    "Floor %d is missing",
-                    i);
-                ERL_ASSERTM(
-                    building.floors[i]->id == i,
-                    "Floor %d has wrong id: %d",
-                    i,
-                    building.floors[i]->id);
-            }
-            ERL_YAML_LOAD_ATTR(node, building, reference_point);
-            ERL_YAML_LOAD_ATTR(node, building, size);
-            building.UpdateIdMapping();
-            return true;
-        }
-    };
-}  // namespace YAML

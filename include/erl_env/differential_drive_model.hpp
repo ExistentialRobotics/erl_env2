@@ -4,42 +4,29 @@
 #include "erl_common/yaml.hpp"
 
 #include <cmath>
-#include <memory>
 
 namespace erl::env {
 
     template<typename Dtype>
-    struct DifferentialDriveControl {
-        Dtype linear_v = 0.;
-        Dtype angular_v = 0.;
+    struct DifferentialDriveControl : public common::Yamlable<DifferentialDriveControl<Dtype>> {
+        Dtype linear_v = 0.0f;
+        Dtype angular_v = 0.0f;
+
+        ERL_REFLECT_SCHEMA(
+            DifferentialDriveControl,
+            ERL_REFLECT_MEMBER(DifferentialDriveControl, linear_v),
+            ERL_REFLECT_MEMBER(DifferentialDriveControl, angular_v));
 
         DifferentialDriveControl() = default;
 
         DifferentialDriveControl(Dtype linear_v, Dtype angular_v)
-            : linear_v(linear_v), angular_v(angular_v) {}
+            : linear_v(linear_v),
+              angular_v(angular_v) {}
 
         bool
         operator==(const DifferentialDriveControl &other) const {
             return linear_v == other.linear_v && angular_v == other.angular_v;
         }
-
-        struct YamlConvertImpl {
-            static YAML::Node
-            encode(const DifferentialDriveControl &control) {
-                YAML::Node node;
-                ERL_YAML_SAVE_ATTR(node, control, linear_v);
-                ERL_YAML_SAVE_ATTR(node, control, angular_v);
-                return node;
-            }
-
-            static bool
-            decode(const YAML::Node &node, DifferentialDriveControl &control) {
-                if (!node.IsMap()) { return false; }
-                ERL_YAML_LOAD_ATTR(node, control, linear_v);
-                ERL_YAML_LOAD_ATTR(node, control, angular_v);
-                return true;
-            }
-        };
     };
 
     /**
@@ -79,11 +66,3 @@ namespace erl::env {
         }
     }
 }  // namespace erl::env
-
-template<>
-struct YAML::convert<erl::env::DifferentialDriveControl<float>>
-    : public erl::env::DifferentialDriveControl<float>::YamlConvertImpl {};
-
-template<>
-struct YAML::convert<erl::env::DifferentialDriveControl<double>>
-    : public erl::env::DifferentialDriveControl<double>::YamlConvertImpl {};

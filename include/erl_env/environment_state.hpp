@@ -13,8 +13,8 @@ namespace erl::env {
         using MetricState = Eigen::Vector<Dtype, Dim>;
         using GridState = Eigen::Vector<int, Dim>;
 
-        MetricState metric = {};
-        GridState grid = {};  // use signed int to allow for virtual states
+        MetricState metric = MetricState::Zero();
+        GridState grid = GridState::Zero();  // use signed int to allow for virtual states
 
         EnvironmentState() = default;
 

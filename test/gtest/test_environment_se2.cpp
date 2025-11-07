@@ -10,7 +10,7 @@ TEST(ERL_ENV, EnvironmentSe2) {
     using Dtype = float;
     using Env = EnvironmentSe2<Dtype>;
 
-    auto motion_primitives = LoadSequenceFromFile<DdcMotionPrimitive<Dtype>>(
+    auto motion_primitives = LoadYamlSequenceFromFile<DdcMotionPrimitive<Dtype>>(
         gtest_src_dir / "ddc_motion_primitives.yaml",
         true);
     auto grid_map_info = std::make_shared<GridMapInfo2D<Dtype>>(

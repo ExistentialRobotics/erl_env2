@@ -11,60 +11,49 @@
 
 #include <bitset>
 
+namespace Eigen::internal {
+
+    template<>
+    struct cast_impl<std::bitset<32>, uint32_t> {
+        EIGEN_DEVICE_FUNC
+        static uint32_t
+        run(const std::bitset<32> &x) {
+            return static_cast<uint32_t>(x.to_ulong());
+        }
+    };
+
+    template<>
+    struct cast_impl<uint32_t, std::bitset<32>> {
+        EIGEN_DEVICE_FUNC
+        static std::bitset<32>
+        run(const uint32_t &x) {
+            return {x};
+        }
+    };
+}  // namespace Eigen::internal
+
 namespace erl::env {
 
     template<typename Dtype>
     class EnvironmentLTLSceneGraph : public EnvironmentSceneGraph<Dtype, 4> {
     public:
         struct AtomicProposition : public common::Yamlable<AtomicProposition> {
-            enum class Type {
-                kNA = 0,
-                kEnterRoom = 1,
-                kReachObject = 2,
-            };
-
-            Type type = Type::kNA;
+            std::string type = "NA";
             int uuid = -1;
             Dtype reach_distance = -1.0f;
 
+            ERL_REFLECT_SCHEMA(
+                AtomicProposition,
+                ERL_REFLECT_MEMBER(AtomicProposition, type),
+                ERL_REFLECT_MEMBER(AtomicProposition, uuid),
+                ERL_REFLECT_MEMBER(AtomicProposition, reach_distance));
+
             AtomicProposition() = default;
 
-            AtomicProposition(const Type type, const int uuid, const Dtype reach_distance)
-                : type(type),
+            AtomicProposition(std::string type, const int uuid, const Dtype reach_distance)
+                : type(std::move(type)),
                   uuid(uuid),
                   reach_distance(reach_distance) {}
-
-            struct YamlConvertImpl {
-                static YAML::Node
-                encode(const AtomicProposition &ap) {
-                    YAML::Node node;
-                    ERL_YAML_SAVE_ENUM_ATTR(
-                        node,
-                        ap,
-                        type,
-                        {"kNA", Type::kNA},
-                        {"kEnterRoom", Type::kEnterRoom},
-                        {"kReachObject", Type::kReachObject});
-                    ERL_YAML_SAVE_ATTR(node, ap, uuid);
-                    ERL_YAML_SAVE_ATTR(node, ap, reach_distance);
-                    return node;
-                }
-
-                static bool
-                decode(const YAML::Node &node, AtomicProposition &ap) {
-                    if (!node.IsMap()) { return false; }
-                    ERL_YAML_LOAD_ENUM_ATTR(
-                        node,
-                        ap,
-                        type,
-                        {"kNA", Type::kNA},
-                        {"kEnterRoom", Type::kEnterRoom},
-                        {"kReachObject", Type::kReachObject});
-                    ERL_YAML_LOAD_ATTR(node, ap, uuid);
-                    ERL_YAML_LOAD_ATTR(node, ap, reach_distance);
-                    return true;
-                }
-            };
         };
 
         using Super = EnvironmentSceneGraph<Dtype, 4>;
@@ -72,34 +61,21 @@ namespace erl::env {
         using HashMap = absl::flat_hash_map<Key, Value>;
 
         struct Setting : public common::Yamlable<Setting, typename Super::Setting> {
-            HashMap<std::string, std::shared_ptr<AtomicProposition>> atomic_propositions;
+            HashMap<std::string, AtomicProposition> atomic_propositions;
             std::shared_ptr<FiniteStateAutomaton::Setting> fsa;  // finite state automaton
+
+            ERL_REFLECT_SCHEMA(
+                Setting,
+                ERL_REFLECT_MEMBER(Setting, atomic_propositions),
+                ERL_REFLECT_MEMBER(Setting, fsa));
 
             void
             LoadAtomicPropositions(const std::string &yaml_file) {
                 YAML::Node node = YAML::LoadFile(yaml_file);
-                YAML::convert<HashMap<std::string, std::shared_ptr<AtomicProposition>>>::decode(
+                YAML::convert<HashMap<std::string, AtomicProposition>>::decode(
                     node,
                     atomic_propositions);
             }
-
-            struct YamlConvertImpl {
-                static YAML::Node
-                encode(const Setting &setting) {
-                    YAML::Node node = Super::Setting::YamlConvertImpl::encode(setting);
-                    ERL_YAML_SAVE_ATTR(node, setting, atomic_propositions);
-                    ERL_YAML_SAVE_ATTR(node, setting, fsa);
-                    return node;
-                }
-
-                static bool
-                decode(const YAML::Node &node, Setting &setting) {
-                    if (!Super::Setting::YamlConvertImpl::decode(node, setting)) { return false; }
-                    ERL_YAML_LOAD_ATTR(node, setting, atomic_propositions);
-                    if (!ERL_YAML_LOAD_ATTR(node, setting, fsa)) { return false; }
-                    return true;
-                }
-            };
         };
 
         using State = typename Super::State;
@@ -716,18 +692,16 @@ namespace erl::env {
             for (int i = 0; i < this->m_scene_graph_->num_floors; ++i) {  // each floor
                 int rows = this->m_grid_map_info_->Shape(0);
                 int cols = this->m_grid_map_info_->Shape(1);
-                std::size_t num_propositions = m_setting_->fsa->atomic_propositions.size();
                 Eigen::MatrixX<std::bitset<32>> &label_map = label_maps[i];
-#pragma omp parallel for collapse(2) default(none) \
-    shared(rows, cols, num_propositions, label_map, i)
+#pragma omp parallel for collapse(2) default(none) shared(rows, cols, label_map, i)
                 for (int r = 0; r < rows; ++r) {      // each row of the map
                     for (int c = 0; c < cols; ++c) {  // each column of the map
+                        const auto &aps = m_setting_->atomic_propositions;
+                        const auto &fsa_aps = m_setting_->fsa->atomic_propositions;
+                        const std::size_t num_aps = fsa_aps.size();
                         auto &bitset = label_map(r, c);
-                        for (std::size_t j = 0; j < num_propositions;
-                             ++j) {  // each atomic proposition
-                            std::shared_ptr<AtomicProposition> &proposition =
-                                m_setting_
-                                    ->atomic_propositions[m_setting_->fsa->atomic_propositions[j]];
+                        for (std::size_t j = 0; j < num_aps; ++j) {
+                            const AtomicProposition &proposition = aps.at(fsa_aps[j]);
                             bitset.set(j, EvaluateAtomicProposition(r, c, i, proposition));
                         }
                     }
@@ -741,21 +715,19 @@ namespace erl::env {
             int x,
             int y,
             int floor_num,
-            const std::shared_ptr<AtomicProposition> &proposition) {
-            switch (proposition->type) {
-                case AtomicProposition::Type::kNA:
-                    return false;
-                case AtomicProposition::Type::kEnterRoom:
-                    return EvaluateEnterRoom(x, y, floor_num, proposition->uuid);
-                case AtomicProposition::Type::kReachObject: {
-                    double reach_distance = proposition->reach_distance > 0
-                                                ? proposition->reach_distance
-                                                : m_setting_->object_reach_distance;
-                    return EvaluateReachObject(x, y, floor_num, proposition->uuid, reach_distance);
-                }
-                default:
-                    throw std::runtime_error("Unknown atomic proposition type.");
+            const AtomicProposition &proposition) {
+            if (proposition.type == "NA") { return false; }
+            if (proposition.type == "EnterRoom") {
+                return EvaluateEnterRoom(x, y, floor_num, proposition.uuid);
             }
+            if (proposition.type == "ReachObject") {
+                double reach_distance = proposition.reach_distance > 0
+                                            ? proposition.reach_distance
+                                            : m_setting_->object_reach_distance;
+                return EvaluateReachObject(x, y, floor_num, proposition.uuid, reach_distance);
+            }
+            ERL_ERROR("Unknown atomic proposition type: {}", proposition.type);
+            return false;
         }
 
         bool
@@ -854,19 +826,3 @@ namespace erl::env {
     extern template class EnvironmentLTLSceneGraph<float>;
     extern template class EnvironmentLTLSceneGraph<double>;
 }  // namespace erl::env
-
-template<>
-struct YAML::convert<erl::env::EnvironmentLTLSceneGraph<float>::AtomicProposition>
-    : public erl::env::EnvironmentLTLSceneGraph<float>::AtomicProposition::YamlConvertImpl {};
-
-template<>
-struct YAML::convert<erl::env::EnvironmentLTLSceneGraph<double>::AtomicProposition>
-    : public erl::env::EnvironmentLTLSceneGraph<double>::AtomicProposition::YamlConvertImpl {};
-
-template<>
-struct YAML::convert<erl::env::EnvironmentLTLSceneGraph<float>::Setting>
-    : public erl::env::EnvironmentLTLSceneGraph<float>::Setting::YamlConvertImpl {};
-
-template<>
-struct YAML::convert<erl::env::EnvironmentLTLSceneGraph<double>::Setting>
-    : public erl::env::EnvironmentLTLSceneGraph<double>::Setting::YamlConvertImpl {};

@@ -42,31 +42,14 @@ namespace erl::env {
             Eigen::Matrix2X<Dtype> robot_metric_contour = {};  // the shape center is at the origin
             scene_graph::Node::Type max_level = scene_graph::Node::Type::kFloor;
 
-            struct YamlConvertImpl {
-                static YAML::Node
-                encode(const Setting &setting) {
-                    YAML::Node node;
-                    ERL_YAML_SAVE_ATTR(node, setting, data_dir);
-                    ERL_YAML_SAVE_ATTR(node, setting, num_threads);
-                    ERL_YAML_SAVE_ATTR(node, setting, allow_diagonal);
-                    ERL_YAML_SAVE_ATTR(node, setting, object_reach_distance);
-                    ERL_YAML_SAVE_ATTR(node, setting, robot_metric_contour);
-                    ERL_YAML_SAVE_ATTR(node, setting, max_level);
-                    return node;
-                }
-
-                static bool
-                decode(const YAML::Node &node, Setting &setting) {
-                    if (!node.IsMap()) { return false; }
-                    ERL_YAML_LOAD_ATTR(node, setting, data_dir);
-                    ERL_YAML_LOAD_ATTR(node, setting, num_threads);
-                    ERL_YAML_LOAD_ATTR(node, setting, allow_diagonal);
-                    ERL_YAML_LOAD_ATTR(node, setting, object_reach_distance);
-                    ERL_YAML_LOAD_ATTR(node, setting, robot_metric_contour);
-                    ERL_YAML_LOAD_ATTR(node, setting, max_level);
-                    return true;
-                }
-            };
+            ERL_REFLECT_SCHEMA(
+                Setting,
+                ERL_REFLECT_MEMBER(Setting, data_dir),
+                ERL_REFLECT_MEMBER(Setting, num_threads),
+                ERL_REFLECT_MEMBER(Setting, allow_diagonal),
+                ERL_REFLECT_MEMBER(Setting, object_reach_distance),
+                ERL_REFLECT_MEMBER(Setting, robot_metric_contour),
+                ERL_REFLECT_MEMBER(Setting, max_level));
         };
 
         struct AtomicAction {
@@ -329,9 +312,7 @@ namespace erl::env {
                         if (nx < 0 || nx >= m_grid_map_info_->Shape(0)) { continue; }
                         ny = cur_y + atomic_action.state_diff[1];
                         if (ny < 0 || ny >= m_grid_map_info_->Shape(1)) { continue; }
-                        if (m_obstacle_maps_[cur_z].at<uint8_t>(nx, ny) > 0) {
-                            continue;
-                        }  // obstacle
+                        if (m_obstacle_maps_[cur_z].at<uint8_t>(nx, ny) > 0) { continue; }
                         next_env_state.grid[2] = cur_z;
                         next_env_state.metric = GridToMetric(next_env_state.grid);
                         // the room maps may have some small regions marked N/A due to the original
@@ -584,11 +565,6 @@ namespace erl::env {
             metric_state[2] = static_cast<Dtype>(grid_state[2]);
             return metric_state;
         }
-
-        // [[nodiscard]] cv::Mat
-        // ShowPaths(const std::map<int, Eigen::MatrixXd> &, bool) const override {
-        //     throw NotImplemented(__PRETTY_FUNCTION__);
-        // }
 
         [[nodiscard]] std::vector<State>
         SampleValidStates(int /*num_samples*/) const override {
@@ -1268,19 +1244,3 @@ namespace erl::env {
     extern template class EnvironmentSceneGraph<float, 4>;
     extern template class EnvironmentSceneGraph<double, 4>;
 }  // namespace erl::env
-
-template<>
-struct YAML::convert<erl::env::EnvironmentSceneGraph<float>::Setting>
-    : public erl::env::EnvironmentSceneGraph<float>::Setting::YamlConvertImpl {};
-
-template<>
-struct YAML::convert<erl::env::EnvironmentSceneGraph<double>::Setting>
-    : public erl::env::EnvironmentSceneGraph<double>::Setting::YamlConvertImpl {};
-
-template<>
-struct YAML::convert<erl::env::EnvironmentSceneGraph<float, 4>::Setting>
-    : public erl::env::EnvironmentSceneGraph<float, 4>::Setting::YamlConvertImpl {};
-
-template<>
-struct YAML::convert<erl::env::EnvironmentSceneGraph<double, 4>::Setting>
-    : public erl::env::EnvironmentSceneGraph<double, 4>::Setting::YamlConvertImpl {};

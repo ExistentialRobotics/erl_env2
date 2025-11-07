@@ -2,7 +2,10 @@
 
 #include "environment_state.hpp"
 
+#include "erl_common/exception.hpp"
+#include "erl_common/factory_pattern.hpp"
 #include "erl_common/grid_map.hpp"
+#include "erl_common/string_utils.hpp"
 
 #include <vector>
 
@@ -47,21 +50,35 @@ namespace erl::env {
      * @tparam Dim dimension of the metric space, e.g. 2 for 2D space, 3 for SE(2) space.
      */
     template<typename Dtype, int Dim>
-    struct EnvironmentBase {
-
+    class EnvironmentBase {
+    public:
+        using Factory = common::FactoryPattern<EnvironmentBase>;
         using State = EnvironmentState<Dtype, Dim>;
         using Successor_t = Successor<Dtype, Dim>;
         using MetricState = typename State::MetricState;
         using GridState = typename State::GridState;
 
     protected:
-        long m_env_id_;  // unique id of this environment
+        long m_env_id_ = 0;  // unique id of this environment
 
     public:
         explicit EnvironmentBase(const long env_id = 0)
             : m_env_id_(env_id) {}
 
         virtual ~EnvironmentBase() = default;
+
+        [[nodiscard]] std::string
+        GetEnvType() const {
+            return type_name(*this);
+        }
+
+        template<typename Derived>
+        static std::enable_if_t<std::is_base_of_v<EnvironmentBase, Derived>, bool>
+        Register(const std::string &env_type = "") {
+            return Factory::GetInstance().template Register<Derived>(env_type, []() {
+                return std::make_shared<Derived>();
+            });
+        }
 
         [[nodiscard]] long
         GetEnvId() const {
@@ -110,8 +127,23 @@ namespace erl::env {
         [[nodiscard]] virtual MetricState
         GridToMetric(const GridState &grid_state) const = 0;
 
+        [[nodiscard]] virtual bool
+        IsValidState(const State &env_state) const = 0;
+
         [[nodiscard]] virtual std::vector<State>
         SampleValidStates(int num_samples) const = 0;
+
+        [[nodiscard]] virtual bool
+        Write(std::ostream &s) const {
+            (void) s;
+            throw NotImplemented(__PRETTY_FUNCTION__);
+        }
+
+        [[nodiscard]] virtual bool
+        Read(std::istream &s) {
+            (void) s;
+            throw NotImplemented(__PRETTY_FUNCTION__);
+        }
     };
 
     extern template class EnvironmentBase<float, 2>;

@@ -136,7 +136,8 @@ namespace erl::env {
         // construct transitions
         for (auto &[from, to, labels]: loaded_transitions) {
             if (labels.empty()) { continue; }
-            transitions.emplace_back(from, to, labels);
+            std::vector<uint32_t> labels_vec(labels.begin(), labels.end());
+            transitions.emplace_back(from, to, labels_vec);
         }
         std::sort(accepting_states.begin(), accepting_states.end(), std::greater<>());
         for (auto &transition: transitions) {
@@ -192,23 +193,52 @@ namespace erl::env {
         ERL_ASSERTM(!pa->format_errors(std::cerr), "HOA format error");
         ERL_ASSERTM(!pa->aborted, "HOA parsing aborted");
         ERL_ASSERTM(pa->aut != nullptr, "spot error: pa->aut is nullptr");
-        ERL_ASSERTM(pa->aut->num_sets() == 1, "only support single set of accepting states.");
+
+        FromSpotGraph(pa->aut, complete);
+    }
+
+    void
+    FiniteStateAutomaton::Setting::FromSpotGraphHoaString(
+        const std::string &hoa_str,
+        const bool complete) {
+
+        auto parser = std::make_unique<spot::automaton_stream_parser>(hoa_str.data(), "hoa_str");
+        spot::bdd_dict_ptr bdd_dict = spot::make_bdd_dict();
+        spot::parsed_aut_ptr pa = parser->parse(bdd_dict);
+        ERL_ASSERTM(pa != nullptr, "failed to parse the HOA string");
+        ERL_ASSERTM(!pa->format_errors(std::cerr), "HOA format error");
+        ERL_ASSERTM(!pa->aborted, "HOA parsing aborted");
+        ERL_ASSERTM(pa->aut != nullptr, "spot error: pa->aut is nullptr");
+
+        FromSpotGraph(pa->aut, complete);
+    }
+
+    void
+    FiniteStateAutomaton::Setting::FromSpotGraph(
+        const spot::twa_graph_ptr &aut,
+        const bool complete) {
+
+        ERL_ASSERTM(aut->num_sets() == 1, "only support single set of accepting states.");
 
         // complete the automaton
         // WARNING: if the input automaton is not complete, the number of states, the number of
         // atomic propositions, etc. will change!
-        if (complete) { complete_here(pa->aut); }
+        if (complete) { complete_here(aut); }
 
-        const spot::bdd_dict_ptr &bdd_dict = pa->aut->get_dict();
+        // does not work when the automaton is transition-based accepting
+        // if (!aut->prop_state_acc()) { aut->prop_state_acc(true); }
+        const bool is_state_based = aut->prop_state_acc().is_true();
 
-        num_states = pa->aut->num_states();
-        initial_state = pa->aut->get_init_state_number();
-        atomic_propositions.resize(pa->aut->ap().size());
+        spot::bdd_dict_ptr bdd_dict = aut->get_dict();
+
+        num_states = aut->num_states();
+        initial_state = aut->get_init_state_number();
+        atomic_propositions.resize(aut->ap().size());
         // extract atomic propositions
         std::vector<bdd> bdd_aps;
-        bdd_aps.reserve(pa->aut->ap().size());
+        bdd_aps.reserve(aut->ap().size());
         bdd ap_vars = bddtrue;
-        for (const spot::formula &ap: pa->aut->ap()) {
+        for (const spot::formula &ap: aut->ap()) {
             int index = bdd_dict->varnum(ap);
             ERL_ASSERTM(index >= 0, "spot error: index < 0");
             atomic_propositions[index] = ap.ap_name();
@@ -217,18 +247,24 @@ namespace erl::env {
         }
         // get sink states, they should not be added to the accepting states
         std::vector<bool> sink_states(num_states);
-        for (uint32_t s = 0; s < num_states; ++s) {
-            sink_states[s] = spot_helper::IsSink(pa->aut, s);
-        }
+        for (uint32_t s = 0; s < num_states; ++s) { sink_states[s] = spot_helper::IsSink(aut, s); }
         // extract transitions and accepting states
-        std::unordered_set<uint32_t> accepting_set;
-        std::vector<std::tuple<uint32_t, uint32_t, std::set<uint32_t>>> loaded_transitions;
+        using Set = std::unordered_set<uint32_t>;
+        Set accepting_set;
+        std::vector<std::tuple<uint32_t, uint32_t, Set>> loaded_transitions;
         loaded_transitions.resize(num_states * num_states);
         for (uint32_t s = 0; s < num_states; ++s) {
-            auto out_edges = pa->aut->out(s);
+            auto out_edges = aut->out(s);
             for (auto &t: out_edges) {
                 // if (t.acc.count() > 0 && !sink_states[t.dst]) { accepting_set.insert(t.dst); }
-                if (t.src == t.dst && t.acc.count() > 0) { accepting_set.insert(t.dst); }
+
+                if (is_state_based) {
+                    // the following line works only when the automaton is state-based accepting.
+                    if (aut->state_is_accepting(t.dst)) { accepting_set.insert(t.dst); }
+                } else {
+                    // general way, works for transition-based accepting automaton
+                    if (t.src == t.dst && t.acc.count() > 0) { accepting_set.insert(t.dst); }
+                }
                 ERL_ASSERTM(
                     spot::bdd_to_formula(t.cond, bdd_dict).is_ltl_formula(),
                     "Only support LTL formula.");
@@ -241,12 +277,17 @@ namespace erl::env {
         }
         // unregister all variables to please spot library
         bdd_dict->unregister_all_my_variables(this);
+
+        accepting_states.clear();
         accepting_states.insert(accepting_states.end(), accepting_set.begin(), accepting_set.end());
+        std::sort(accepting_states.begin(), accepting_states.end(), std::greater<>());
+
+        transitions.clear();
         for (auto &[from, to, labels]: loaded_transitions) {
             if (labels.empty()) { continue; }
-            transitions.emplace_back(from, to, labels);
+            std::vector<uint32_t> labels_vec(labels.begin(), labels.end());
+            transitions.emplace_back(from, to, labels_vec);
         }
-        std::sort(accepting_states.begin(), accepting_states.end(), std::greater<>());
         for (auto &transition: transitions) {
             std::sort(transition.labels.begin(), transition.labels.end(), std::greater<>());
         }

@@ -20,7 +20,7 @@ namespace erl::env {
     /**
      * 2D Grid Environment with Linear Temporal Logic. The state is (x, y, ltl_state).
      */
-    template<typename Dtype, typename MapDtype = uint8_t>
+    template<typename Dtype, typename MapDtype>
     class EnvironmentLTL2D : public EnvironmentBase<Dtype, 3> {
     public:
         struct Setting
@@ -30,35 +30,22 @@ namespace erl::env {
             std::shared_ptr<FiniteStateAutomaton::Setting> fsa =
                 std::make_shared<FiniteStateAutomaton::Setting>();
 
-            struct YamlConvertImpl {
-                static YAML::Node
-                encode(const Setting &setting) {
-                    YAML::Node node = Super::YamlConvertImpl::encode(setting);
-                    ERL_YAML_SAVE_ATTR(node, setting, fsa);
-                    return node;
-                }
-
-                static bool
-                decode(const YAML::Node &node, Setting &setting) {
-                    if (!Super::YamlConvertImpl::decode(node, setting)) { return false; }
-                    if (!ERL_YAML_LOAD_ATTR(node, setting, fsa)) { return false; }
-                    return true;
-                }
-            };
+            ERL_REFLECT_SCHEMA(Setting, ERL_REFLECT_MEMBER(Setting, fsa));
         };
 
         using Cost = CostBase<Dtype, 2>;
         using GridMap = common::GridMap<MapDtype, Dtype, 2>;
-        using GridMapInfo = common::GridMapInfo3D<Dtype>;
+        using GridMapInfo2D = common::GridMapInfo2D<Dtype>;
+        using GridMapInfo3D = common::GridMapInfo3D<Dtype>;
         using State = EnvironmentState<Dtype, 3>;
         using MetricState = typename State::MetricState;
         using GridState = typename State::GridState;
         using Successor_t = Successor<Dtype, 3>;
 
     private:
-        std::shared_ptr<Setting> m_setting_;            // environment setting
-        std::shared_ptr<GridMap> m_grid_map_ext_;       // grid map
-        std::shared_ptr<GridMapInfo> m_grid_map_info_;  // grid map description
+        std::shared_ptr<Setting> m_setting_ = nullptr;              // environment setting
+        std::shared_ptr<GridMap> m_grid_map_ext_ = nullptr;         // grid map
+        std::shared_ptr<GridMapInfo3D> m_grid_map_info_ = nullptr;  // grid map description
         cv::Mat m_original_grid_map_;  // original grid map, where each cell is a scaled cost value
         cv::Mat m_grid_map_;           // inflated grid map
         std::vector<Eigen::Matrix2Xi> m_rel_trajectories_;  // rel trajectories of motion primitives
@@ -67,9 +54,16 @@ namespace erl::env {
 
         // each element is a |AP|-bit word representing the result of atomic propositions
         Eigen::MatrixX<uint32_t> m_label_map_;
-        std::shared_ptr<FiniteStateAutomaton> m_fsa_;
+        std::shared_ptr<FiniteStateAutomaton> m_fsa_ = nullptr;
 
     public:
+        /**
+         * Default constructor. Does nothing.
+         * You need to call the Read method to load the environment data.
+         * @see Read(std::istream &s)
+         */
+        EnvironmentLTL2D() = default;
+
         EnvironmentLTL2D(
             Eigen::MatrixX<uint32_t> label_map,
             const std::shared_ptr<GridMap> &grid_map,
@@ -84,63 +78,20 @@ namespace erl::env {
                   common::CvMatType<MapDtype, 1>(),
                   m_grid_map_ext_->data.Data().data()),
               m_label_map_(std::move(label_map)) {
+            Init(grid_map->info, std::move(cost_func));
+        }
 
-            ERL_ASSERTM(
-                m_setting_->fsa->atomic_propositions.size() <= 64,
-                "Does not support more than 64 atomic propositions.");
-
-            auto num_states = static_cast<int>(m_setting_->fsa->num_states);
-            if (num_states % 2 == 0) { num_states += 1; }
-            m_grid_map_info_ = std::make_shared<GridMapInfo>(grid_map->info->Extend(
-                static_cast<int>(num_states),
-                -0.5f,
-                static_cast<Dtype>(num_states) - 0.5f,
-                2));
-            m_reachable_motions_.resize(m_grid_map_info_->Rows(), m_grid_map_info_->Cols());
-
-            // generate 2D obstacle/cost map
-            if (m_setting_->robot_metric_contour.cols() > 0) {
-                common::InflateWithShape(
-                    m_original_grid_map_,
-                    grid_map->info,
-                    m_setting_->robot_metric_contour,
-                    m_grid_map_);
-            } else {
-                m_original_grid_map_.copyTo(m_grid_map_);
-            }
-
-            // compute relative trajectories and costs of each control
-            m_rel_trajectories_.reserve(m_setting_->motions.size());
-            m_motion_costs_.reserve(m_setting_->motions.size());
-
-            EnvironmentState<Dtype, 2> ref_start, end;
-            ref_start.metric = grid_map->info->Center();
-            ref_start.grid = grid_map->info->CenterGrid();
-
-            ERL_ASSERTM(cost_func != nullptr, "cost_func is nullptr.");
-            const Cost &cost_func_2d = *cost_func;
-
-            for (const Eigen::Vector2i &control: m_setting_->motions) {
-                end.grid = ref_start.grid + control;
-                end.metric = grid_map->info->GridToMeterForPoints(end.grid);
-
-                Eigen::Matrix2Xi rel_trajectory =
-                    grid_map->info->RayCasting(ref_start.metric, end.metric).colwise() -
-                    ref_start.grid;
-                Dtype control_cost = cost_func_2d(ref_start, end);
-                m_rel_trajectories_.push_back(rel_trajectory);
-                m_motion_costs_.push_back(control_cost);
-            }
-
-            // configure finite state automaton
-            ERL_ASSERTM(m_setting_->fsa != nullptr, "setting->fsa is nullptr.");
-            m_fsa_ = std::make_shared<FiniteStateAutomaton>(m_setting_->fsa);
-            ERL_ASSERTM(
-                m_grid_map_.rows == m_label_map_.rows(),
-                "label_map and grid_map should have the same number of rows.");
-            ERL_ASSERTM(
-                m_grid_map_.cols == m_label_map_.cols(),
-                "label_map and grid_map should have the same number of columns.");
+        EnvironmentLTL2D(
+            Eigen::MatrixX<uint32_t> label_map,
+            std::shared_ptr<GridMapInfo2D> grid_map_info,
+            cv::Mat cost_map,
+            std::shared_ptr<Setting> setting,
+            std::shared_ptr<Cost> cost_func)
+            : EnvironmentBase<Dtype, 3>(),
+              m_setting_(NotNull(std::move(setting), true, "setting is nullptr.")),
+              m_original_grid_map_(std::move(cost_map)),
+              m_label_map_(std::move(label_map)) {
+            Init(std::move(grid_map_info), std::move(cost_func));
         }
 
         [[nodiscard]] std::shared_ptr<Setting>
@@ -153,7 +104,7 @@ namespace erl::env {
             return m_fsa_;
         }
 
-        [[nodiscard]] std::shared_ptr<GridMapInfo>
+        [[nodiscard]] std::shared_ptr<GridMapInfo3D>
         GetGridMapInfo() const {
             return m_grid_map_info_;
         }
@@ -306,12 +257,82 @@ namespace erl::env {
                 static_cast<Dtype>(grid_state[2])};
         }
 
+        [[nodiscard]] bool
+        IsValidState(const State &env_state) const override {
+            if (!InStateSpace(env_state)) { return false; }
+            return m_grid_map_.at<MapDtype>(env_state.grid[0], env_state.grid[1]) <
+                   m_setting_->obstacle_threshold;
+        }
+
         [[nodiscard]] std::vector<State>
         SampleValidStates(int /*num_samples*/) const override {
             throw NotImplemented(__PRETTY_FUNCTION__);
         }
+
+    private:
+        void
+        Init(std::shared_ptr<GridMapInfo2D> grid_map_info, std::shared_ptr<Cost> cost_func) {
+            ERL_ASSERTM(
+                m_setting_->fsa->atomic_propositions.size() <= 64,
+                "Does not support more than 64 atomic propositions.");
+
+            auto num_states = static_cast<int>(m_setting_->fsa->num_states);
+            if (num_states % 2 == 0) { num_states += 1; }
+            m_grid_map_info_ = std::make_shared<GridMapInfo3D>(grid_map_info->Extend(
+                static_cast<int>(num_states),
+                -0.5f,
+                static_cast<Dtype>(num_states) - 0.5f,
+                2));
+            m_reachable_motions_.resize(m_grid_map_info_->Rows(), m_grid_map_info_->Cols());
+
+            // generate 2D obstacle/cost map
+            if (m_setting_->robot_metric_contour.cols() > 0) {
+                common::InflateWithShape(
+                    m_original_grid_map_,
+                    grid_map_info,
+                    m_setting_->robot_metric_contour,
+                    m_grid_map_);
+            } else {
+                m_original_grid_map_.copyTo(m_grid_map_);
+            }
+
+            // compute relative trajectories and costs of each control
+            m_rel_trajectories_.reserve(m_setting_->motions.size());
+            m_motion_costs_.reserve(m_setting_->motions.size());
+
+            EnvironmentState<Dtype, 2> ref_start, end;
+            ref_start.metric = grid_map_info->Center();
+            ref_start.grid = grid_map_info->CenterGrid();
+
+            ERL_ASSERTM(cost_func != nullptr, "cost_func is nullptr.");
+            const Cost &cost_func_2d = *cost_func;
+
+            for (const Eigen::Vector2i &control: m_setting_->motions) {
+                end.grid = ref_start.grid + control;
+                end.metric = grid_map_info->GridToMeterForPoints(end.grid);
+
+                Eigen::Matrix2Xi rel_trajectory =
+                    grid_map_info->RayCasting(ref_start.metric, end.metric).colwise() -
+                    ref_start.grid;
+                Dtype control_cost = cost_func_2d(ref_start, end);
+                m_rel_trajectories_.push_back(rel_trajectory);
+                m_motion_costs_.push_back(control_cost);
+            }
+
+            // configure finite state automaton
+            ERL_ASSERTM(m_setting_->fsa != nullptr, "setting->fsa is nullptr.");
+            m_fsa_ = std::make_shared<FiniteStateAutomaton>(m_setting_->fsa);
+            ERL_ASSERTM(
+                m_grid_map_.rows == m_label_map_.rows(),
+                "label_map and grid_map should have the same number of rows.");
+            ERL_ASSERTM(
+                m_grid_map_.cols == m_label_map_.cols(),
+                "label_map and grid_map should have the same number of columns.");
+        }
     };
 
+    extern template class EnvironmentLTL2D<float, int8_t>;
+    extern template class EnvironmentLTL2D<double, int8_t>;
     extern template class EnvironmentLTL2D<float, uint8_t>;
     extern template class EnvironmentLTL2D<double, uint8_t>;
     extern template class EnvironmentLTL2D<float, float>;
@@ -320,28 +341,3 @@ namespace erl::env {
     extern template class EnvironmentLTL2D<double, double>;
 
 }  // namespace erl::env
-
-template<>
-struct YAML::convert<erl::env::EnvironmentLTL2D<float>::Setting>
-    : public erl::env::EnvironmentLTL2D<float>::Setting::YamlConvertImpl {};
-
-template<>
-struct YAML::convert<erl::env::EnvironmentLTL2D<double>::Setting>
-    : public erl::env::EnvironmentLTL2D<double>::Setting::YamlConvertImpl {};
-
-template<>
-struct YAML::convert<erl::env::EnvironmentLTL2D<float, float>::Setting>
-    : public erl::env::EnvironmentLTL2D<float, float>::Setting::YamlConvertImpl {};
-
-template<>
-struct YAML::convert<erl::env::EnvironmentLTL2D<double /*Dtype*/, float /*MapDtype*/>::Setting>
-    : public erl::env::EnvironmentLTL2D<double, float>::Setting::YamlConvertImpl {};
-
-template<>
-struct YAML::convert<erl::env::EnvironmentLTL2D<float, double>::Setting>
-    // WARNING: map cost will be cast from double to float.
-    : public erl::env::EnvironmentLTL2D<float, double>::Setting::YamlConvertImpl {};
-
-template<>
-struct YAML::convert<erl::env::EnvironmentLTL2D<double, double>::Setting>
-    : public erl::env::EnvironmentLTL2D<double, double>::Setting::YamlConvertImpl {};

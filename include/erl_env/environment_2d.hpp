@@ -6,6 +6,7 @@
 #include "erl_common/grid_map.hpp"
 #include "erl_common/opencv.hpp"
 #include "erl_common/random.hpp"
+#include "erl_common/serialization.hpp"
 #include "erl_common/yaml.hpp"
 
 namespace erl::env {
@@ -15,7 +16,7 @@ namespace erl::env {
      * @tparam Dtype data type of the metric space, float or double.
      * @tparam MapDtype data type of the cost map, e.g. uint8_t, float
      */
-    template<typename Dtype, typename MapDtype = uint8_t>
+    template<typename Dtype, typename MapDtype>
     class Environment2D : public EnvironmentBase<Dtype, 2> {
 
     public:
@@ -27,8 +28,17 @@ namespace erl::env {
             Dtype map_cost_factor = 1.0;  // map cost = map_cost_factor * map_cost
             Eigen::Matrix2X<Dtype> robot_metric_contour;  // robot shape in metric space
 
+            ERL_REFLECT_SCHEMA(
+                Setting,
+                ERL_REFLECT_MEMBER(Setting, motions),
+                ERL_REFLECT_MEMBER(Setting, grid_stride),
+                ERL_REFLECT_MEMBER(Setting, obstacle_threshold),
+                ERL_REFLECT_MEMBER(Setting, add_map_cost),
+                ERL_REFLECT_MEMBER(Setting, map_cost_factor),
+                ERL_REFLECT_MEMBER(Setting, robot_metric_contour));
+
             void
-            SetGridMotionPrimitive(int max_axis_step, bool allow_diagonal) {
+            SetGridMotionPrimitive(const int max_axis_step, const bool allow_diagonal) {
                 motions.clear();
                 ERL_ASSERTM(max_axis_step > 0, "max_axis_step must be positive.");
                 int num_controls = max_axis_step * 2 + 1;
@@ -51,32 +61,6 @@ namespace erl::env {
                     }
                 }
             }
-
-            struct YamlConvertImpl {
-                static YAML::Node
-                encode(const Setting &setting) {
-                    YAML::Node node;
-                    ERL_YAML_SAVE_ATTR(node, setting, motions);
-                    ERL_YAML_SAVE_ATTR(node, setting, grid_stride);
-                    ERL_YAML_SAVE_ATTR(node, setting, obstacle_threshold);
-                    ERL_YAML_SAVE_ATTR(node, setting, add_map_cost);
-                    ERL_YAML_SAVE_ATTR(node, setting, map_cost_factor);
-                    ERL_YAML_SAVE_ATTR(node, setting, robot_metric_contour);
-                    return node;
-                }
-
-                static bool
-                decode(const YAML::Node &node, Setting &setting) {
-                    if (!node.IsMap()) { return false; }
-                    ERL_YAML_LOAD_ATTR(node, setting, motions);
-                    ERL_YAML_LOAD_ATTR(node, setting, grid_stride);
-                    ERL_YAML_LOAD_ATTR(node, setting, obstacle_threshold);
-                    ERL_YAML_LOAD_ATTR(node, setting, add_map_cost);
-                    ERL_YAML_LOAD_ATTR(node, setting, map_cost_factor);
-                    ERL_YAML_LOAD_ATTR(node, setting, robot_metric_contour);
-                    return true;
-                }
-            };
         };
 
         using Super = EnvironmentBase<Dtype, 2>;
@@ -89,18 +73,21 @@ namespace erl::env {
         using Successor_t = Successor<Dtype, 2>;
 
     protected:
-        std::shared_ptr<Setting> m_setting_;            // environment setting
-        std::shared_ptr<GridMap> m_grid_map_ext_;       // grid map
-        std::shared_ptr<GridMapInfo> m_grid_map_info_;  // grid map description
-        cv::Mat m_original_grid_map_;  // original grid map, where each cell is a scaled cost value
+        std::shared_ptr<Setting> m_setting_ = nullptr;            // environment setting
+        std::shared_ptr<GridMap> m_grid_map_ext_ = nullptr;       // keep external map alive
+        std::shared_ptr<GridMapInfo> m_grid_map_info_ = nullptr;  // grid map description
+        cv::Mat m_original_grid_map_;  // original grid map, where each cell is a cost value
         cv::Mat m_grid_map_;           // inflated grid map
         std::vector<Eigen::Matrix2Xi> m_rel_trajectories_;      // relative trajectories
         std::vector<Dtype> m_motion_costs_;                     // cost of each motion
         Eigen::MatrixX<std::vector<int>> m_reachable_motions_;  // reachable controls for each grid
+        std::shared_ptr<Cost> m_cost_func_ = nullptr;           // cost function
 
         // x to the bottom, y to the right, along y first
 
     public:
+        Environment2D() = default;
+
         /**
          *
          * @param grid_map grid map
@@ -121,21 +108,10 @@ namespace erl::env {
                   m_grid_map_info_->Shape(0),
                   m_grid_map_info_->Shape(1),
                   common::CvMatType<MapDtype, 1>(),
-                  m_grid_map_ext_->data.Data().data()) {
+                  m_grid_map_ext_->data.Data().data()),
+              m_cost_func_(NotNull(std::move(cost_func), true, "cost_func is nullptr.")) {
 
-            m_reachable_motions_.resize(m_grid_map_info_->Rows(), m_grid_map_info_->Cols());
-            if (m_setting_->robot_metric_contour.cols() > 0) {
-                common::InflateWithShape(
-                    m_original_grid_map_,
-                    m_grid_map_info_,
-                    m_setting_->robot_metric_contour,
-                    m_grid_map_);
-            } else {
-                m_original_grid_map_.copyTo(m_grid_map_);
-            }
-
-            ERL_ASSERTM(cost_func != nullptr, "distance_cost_func is nullptr.");
-            InitRelTrajectoriesAndCosts(*cost_func);
+            Init();
         }
 
         Environment2D(
@@ -147,7 +123,8 @@ namespace erl::env {
               m_setting_(NotNull(std::move(setting), true, "setting is nullptr.")),
               m_grid_map_info_(
                   NotNull(std::move(grid_map_info), true, "grid_map_info is nullptr.")),
-              m_original_grid_map_(std::move(cost_map)) {
+              m_original_grid_map_(std::move(cost_map)),
+              m_cost_func_(NotNull(std::move(cost_func), true, "cost_func is nullptr.")) {
 
             if (m_original_grid_map_.type() != common::CvMatType<MapDtype, 1>()) {
                 ERL_WARN("cost_map type is not {}, converting.", type_name<MapDtype>());
@@ -156,19 +133,7 @@ namespace erl::env {
                     common::CvMatType<MapDtype, 1>());
             }
 
-            m_reachable_motions_.resize(m_grid_map_info_->Rows(), m_grid_map_info_->Cols());
-            if (m_setting_->robot_metric_contour.cols() > 0) {
-                common::InflateWithShape(
-                    m_original_grid_map_,
-                    m_grid_map_info_,
-                    m_setting_->robot_metric_contour,
-                    m_grid_map_);
-            } else {
-                m_original_grid_map_.copyTo(m_grid_map_);
-            }
-
-            ERL_ASSERTM(cost_func != nullptr, "distance_cost_func is nullptr.");
-            InitRelTrajectoriesAndCosts(*cost_func);
+            Init();
         }
 
         [[nodiscard]] std::shared_ptr<Setting>
@@ -286,6 +251,13 @@ namespace erl::env {
                 m_grid_map_info_->GridToMeterAtDim(grid_state[1], 1)};
         }
 
+        [[nodiscard]] bool
+        IsValidState(const State &env_state) const override {
+            if (!InStateSpace(env_state)) { return false; }
+            return m_grid_map_.at<MapDtype>(env_state.grid[0], env_state.grid[1]) <
+                   m_setting_->obstacle_threshold;
+        }
+
         [[nodiscard]] std::vector<State>
         SampleValidStates(int num_samples) const override {
             ERL_ASSERTM(m_grid_map_.rows * m_grid_map_.cols > 0, "grid map is empty.");
@@ -306,9 +278,142 @@ namespace erl::env {
             return states;
         }
 
+        [[nodiscard]] bool
+        Write(std::ostream &s) const override {
+            using namespace common::serialization;
+            static const TokenWriteFunctionPairs<Environment2D> token_function_pairs = {
+                {
+                    "grid_map_info",
+                    [](const Environment2D *self, std::ostream &stream) {
+                        return self->m_grid_map_info_->Write(stream);
+                    },
+                },
+                {
+                    "cost_map",
+                    [](const Environment2D *self, std::ostream &stream) {
+                        const int meta_info[3] = {
+                            self->m_original_grid_map_.rows,
+                            self->m_original_grid_map_.cols,
+                            common::CvMatType<MapDtype, 1>(),
+                        };
+                        stream.write(reinterpret_cast<const char *>(meta_info), sizeof(meta_info));
+                        const auto data_size = static_cast<std::streamsize>(
+                            meta_info[0] * meta_info[1] * sizeof(MapDtype));
+                        stream.write(
+                            reinterpret_cast<const char *>(self->m_original_grid_map_.data),
+                            data_size);
+                        return stream.good();
+                    },
+                },
+                {
+                    "setting",
+                    [](const Environment2D *self, std::ostream &stream) {
+                        const std::string yaml_str = self->m_setting_->AsYamlString();
+                        const auto len = static_cast<uint32_t>(yaml_str.size());
+                        stream.write(reinterpret_cast<const char *>(&len), sizeof(len));
+                        stream.write(yaml_str.data(), len);
+                        stream << '\n';  // add newline to separate from data
+                        return true;
+                    },
+                },
+                {
+                    "cost",
+                    [](const Environment2D *self, std::ostream &stream) {
+                        const std::string cost_type = self->m_cost_func_->GetCostType();
+                        stream << cost_type << '\n';
+                        return self->m_cost_func_->Write(stream);
+                    },
+                },
+            };
+            return WriteTokens(s, this, token_function_pairs);
+        }
+
+        [[nodiscard]] bool
+        Read(std::istream &s) override {
+            using namespace common::serialization;
+            static const TokenReadFunctionPairs<Environment2D> token_function_pairs = {
+                {
+                    "grid_map_info",
+                    [](Environment2D *self, std::istream &stream) {
+                        if (self->m_grid_map_info_ == nullptr) {
+                            self->m_grid_map_info_ = std::make_shared<GridMapInfo>(
+                                Eigen::Vector2<Dtype>(-1.f, -1.f),
+                                Eigen::Vector2<Dtype>(1.f, 1.f),
+                                Eigen::Vector2<int>(3, 3));
+                        }
+                        return self->m_grid_map_info_->Read(stream);
+                    },
+                },
+                {
+                    "cost_map",
+                    [](Environment2D *self, std::istream &stream) {
+                        int meta_info[3] = {0, 0, 0};
+                        stream.read(reinterpret_cast<char *>(meta_info), sizeof(meta_info));
+                        ERL_ASSERTM(
+                            (meta_info[2] == common::CvMatType<MapDtype, 1>()),
+                            "cost_map type does not match.");
+                        self->m_original_grid_map_ =
+                            cv::Mat(meta_info[0], meta_info[1], meta_info[2]);
+                        const auto data_size = static_cast<std::streamsize>(
+                            meta_info[0] * meta_info[1] * sizeof(MapDtype));
+                        stream.read(
+                            reinterpret_cast<char *>(self->m_original_grid_map_.data),
+                            data_size);
+                        return stream.good();
+                    },
+                },
+                {
+                    "setting",
+                    [](Environment2D *self, std::istream &stream) {
+                        std::streamsize len;
+                        stream.read(reinterpret_cast<char *>(&len), sizeof(len));
+                        std::string yaml_str(len, '\0');
+                        stream.read(yaml_str.data(), len);
+                        stream.get();  // consume the newline
+                        if (self->m_setting_ == nullptr) {
+                            self->m_setting_ = std::make_shared<Setting>();
+                        }
+                        return self->m_setting_->FromYamlString(yaml_str);
+                    },
+                },
+                {
+                    "cost",
+                    [](Environment2D *self, std::istream &stream) {
+                        std::string cost_type;
+                        std::getline(stream, cost_type);
+                        self->m_cost_func_ = Cost::Factory::GetInstance().Create(cost_type);
+                        if (self->m_cost_func_ == nullptr) {
+                            ERL_WARN("Failed to create cost of type {}.", cost_type);
+                            return false;
+                        }
+                        return self->m_cost_func_->Read(stream);
+                    },
+                },
+            };
+            if (!ReadTokens(s, this, token_function_pairs)) { return false; }
+            Init();
+            return s.good();
+        }
+
     private:
         void
-        InitRelTrajectoriesAndCosts(const Cost &cost_func) {
+        Init() {
+            m_reachable_motions_.resize(m_grid_map_info_->Rows(), m_grid_map_info_->Cols());
+            if (m_setting_->robot_metric_contour.cols() > 0) {
+                common::InflateWithShape(
+                    m_original_grid_map_,
+                    m_grid_map_info_,
+                    m_setting_->robot_metric_contour,
+                    m_grid_map_);
+            } else {
+                m_original_grid_map_.copyTo(m_grid_map_);
+            }
+            InitRelTrajectoriesAndCosts();
+        }
+
+        void
+        InitRelTrajectoriesAndCosts() {
+            const Cost &cost_func = *m_cost_func_;
             // compute relative trajectories and costs of each control
             m_rel_trajectories_.reserve(m_setting_->motions.size());
             m_motion_costs_.reserve(m_setting_->motions.size());
@@ -329,6 +434,8 @@ namespace erl::env {
         }
     };
 
+    extern template class Environment2D<float, int8_t>;
+    extern template class Environment2D<double, int8_t>;
     extern template class Environment2D<float, uint8_t>;
     extern template class Environment2D<double, uint8_t>;
     extern template class Environment2D<float, float>;
@@ -337,28 +444,3 @@ namespace erl::env {
     extern template class Environment2D<double, double>;
 
 }  // namespace erl::env
-
-template<>
-struct YAML::convert<erl::env::Environment2D<float>::Setting>
-    : public erl::env::Environment2D<float>::Setting::YamlConvertImpl {};
-
-template<>
-struct YAML::convert<erl::env::Environment2D<double>::Setting>
-    : public erl::env::Environment2D<double>::Setting::YamlConvertImpl {};
-
-template<>
-struct YAML::convert<erl::env::Environment2D<float, float>::Setting>
-    : public erl::env::Environment2D<float, float>::Setting::YamlConvertImpl {};
-
-template<>
-struct YAML::convert<erl::env::Environment2D<double /*Dtype*/, float /*MapDtype*/>::Setting>
-    : public erl::env::Environment2D<double, float>::Setting::YamlConvertImpl {};
-
-template<>
-struct YAML::convert<erl::env::Environment2D<float, double>::Setting>
-    // WARNING: map cost will be cast from double to float.
-    : public erl::env::Environment2D<float, double>::Setting::YamlConvertImpl {};
-
-template<>
-struct YAML::convert<erl::env::Environment2D<double, double>::Setting>
-    : public erl::env::Environment2D<double, double>::Setting::YamlConvertImpl {};

@@ -10,7 +10,7 @@ namespace erl::env {
      * @tparam Control
      */
     template<typename Control, typename Dtype, int Dim>
-    struct MotionPrimitive {
+    struct MotionPrimitive : public common::Yamlable<MotionPrimitive<Control, Dtype, Dim>> {
 
         using MetricState = Eigen::Vector<Dtype, Dim>;
         using MetricTrajectory = Eigen::Matrix<Dtype, Dim, Eigen::Dynamic>;
@@ -20,6 +20,12 @@ namespace erl::env {
         std::vector<Control> controls;  // [u1, u2, ...]
         std::vector<Dtype> durations;   // [t1, t2, ...]: Apply u1 for t1, then u2 for t2, then ...
         std::vector<Dtype> costs;       // [c1, c2, ...]: cumulated cost at each time step
+
+        ERL_REFLECT_SCHEMA(
+            MotionPrimitive,
+            ERL_REFLECT_MEMBER(MotionPrimitive, controls),
+            ERL_REFLECT_MEMBER(MotionPrimitive, durations),
+            ERL_REFLECT_MEMBER(MotionPrimitive, costs));
 
         MotionPrimitive() = default;
 
@@ -110,26 +116,6 @@ namespace erl::env {
                 t += dt;
             }
         }
-
-        struct YamlConvertImpl {
-            static YAML::Node
-            encode(const MotionPrimitive &primitive) {
-                YAML::Node node;
-                ERL_YAML_SAVE_ATTR(node, primitive, controls);
-                ERL_YAML_SAVE_ATTR(node, primitive, durations);
-                ERL_YAML_SAVE_ATTR(node, primitive, costs);
-                return node;
-            }
-
-            static bool
-            decode(const YAML::Node &node, MotionPrimitive &primitive) {
-                if (!node.IsMap()) { return false; }
-                ERL_YAML_LOAD_ATTR(node, primitive, controls);
-                ERL_YAML_LOAD_ATTR(node, primitive, durations);
-                ERL_YAML_LOAD_ATTR(node, primitive, costs);
-                return true;
-            }
-        };
     };
 
 }  // namespace erl::env

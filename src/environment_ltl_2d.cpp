@@ -1,6 +1,8 @@
 #include "erl_env/environment_ltl_2d.hpp"
 
 namespace erl::env {
+    template class EnvironmentLTL2D<float, int8_t>;
+    template class EnvironmentLTL2D<double, int8_t>;
     template class EnvironmentLTL2D<float, uint8_t>;
     template class EnvironmentLTL2D<double, uint8_t>;
     template class EnvironmentLTL2D<float, float>;

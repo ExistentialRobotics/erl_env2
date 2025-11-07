@@ -26,35 +26,16 @@ namespace erl::env {
             Dtype map_cost_factor = 1.0;  // map cost = map_cost_factor * map_cost
             Eigen::Matrix2X<Dtype> robot_metric_contour;  // robot shape in metric space
 
-            struct YamlConvertImpl {
-                static YAML::Node
-                encode(const Setting &setting) {
-                    YAML::Node node;
-                    ERL_YAML_SAVE_ATTR(node, setting, time_step);
-                    ERL_YAML_SAVE_ATTR(node, setting, motion_primitives);
-                    ERL_YAML_SAVE_ATTR(node, setting, num_orientations);
-                    ERL_YAML_SAVE_ATTR(node, setting, cost_theta_weight);
-                    ERL_YAML_SAVE_ATTR(node, setting, obstacle_threshold);
-                    ERL_YAML_SAVE_ATTR(node, setting, add_map_cost);
-                    ERL_YAML_SAVE_ATTR(node, setting, map_cost_factor);
-                    ERL_YAML_SAVE_ATTR(node, setting, robot_metric_contour);
-                    return node;
-                }
-
-                static bool
-                decode(const YAML::Node &node, Setting &setting) {
-                    if (!node.IsMap()) { return false; }
-                    ERL_YAML_LOAD_ATTR(node, setting, time_step);
-                    ERL_YAML_LOAD_ATTR(node, setting, motion_primitives);
-                    ERL_YAML_LOAD_ATTR(node, setting, num_orientations);
-                    ERL_YAML_LOAD_ATTR(node, setting, cost_theta_weight);
-                    ERL_YAML_LOAD_ATTR(node, setting, obstacle_threshold);
-                    ERL_YAML_LOAD_ATTR(node, setting, add_map_cost);
-                    ERL_YAML_LOAD_ATTR(node, setting, map_cost_factor);
-                    ERL_YAML_LOAD_ATTR(node, setting, robot_metric_contour);
-                    return true;
-                }
-            };
+            ERL_REFLECT_SCHEMA(
+                Setting,
+                ERL_REFLECT_MEMBER(Setting, time_step),
+                ERL_REFLECT_MEMBER(Setting, motion_primitives),
+                ERL_REFLECT_MEMBER(Setting, num_orientations),
+                ERL_REFLECT_MEMBER(Setting, cost_theta_weight),
+                ERL_REFLECT_MEMBER(Setting, obstacle_threshold),
+                ERL_REFLECT_MEMBER(Setting, add_map_cost),
+                ERL_REFLECT_MEMBER(Setting, map_cost_factor),
+                ERL_REFLECT_MEMBER(Setting, robot_metric_contour));
         };
 
         using Cost = CostBase<Dtype, 3>;
@@ -88,7 +69,8 @@ namespace erl::env {
             long index;
 
             explicit action_index_t(const int motion_idx_in = -1, const int control_idx_in = -1)
-                : motion_idx(motion_idx_in), control_idx(control_idx_in) {}
+                : motion_idx(motion_idx_in),
+                  control_idx(control_idx_in) {}
         };
 
         /*
@@ -108,19 +90,19 @@ namespace erl::env {
         std::vector<std::vector<RelSuccessorInfo>> m_rel_successors_;
 
     public:
-        EnvironmentSe2(
-            const std::shared_ptr<GridMap2D> &grid_map,
-            std::shared_ptr<Setting> setting): EnvironmentBase<Dtype, 3>(),
-              m_setting_(NotNull(std::move(setting), true,"setting is nullptr.")),
+        EnvironmentSe2(const std::shared_ptr<GridMap2D> &grid_map, std::shared_ptr<Setting> setting)
+            : EnvironmentBase<Dtype, 3>(),
+              m_setting_(NotNull(std::move(setting), true, "setting is nullptr.")),
               m_grid_map_info_(
                   std::make_shared<GridMapInfo>(
                       grid_map->info->Extend(m_setting_->num_orientations, -M_PI, M_PI, 2))),
-                m_grid_map_ext_(NotNull(grid_map, true, "grid_map is nullptr.")),
-            m_original_grid_map_(  // external storage from grid_map
-                m_grid_map_info_->Shape(0),
-                m_grid_map_info_->Shape(1),
-                common::CvMatType<MapDtype, 1>(),
-                m_grid_map_ext_->data.Data().data()){
+              m_grid_map_ext_(NotNull(grid_map, true, "grid_map is nullptr.")),
+              // external storage from grid_map
+              m_original_grid_map_(
+                  m_grid_map_info_->Shape(0),
+                  m_grid_map_info_->Shape(1),
+                  common::CvMatType<MapDtype, 1>(),
+                  m_grid_map_ext_->data.Data().data()) {
 
             m_distance_cost_func_.w_theta = m_setting_->cost_theta_weight;
 
@@ -282,8 +264,8 @@ namespace erl::env {
 
                         MetricTrajectory &metric_segment = motion_rel_trajs[control_idx];
                         long num_metric_states = metric_segment.cols();
-                        GridState grid_state = {};
-                        MetricState metric_state = {};
+                        GridState grid_state(0, 0, 0);
+                        MetricState metric_state(0, 0, 0);
                         for (long i = 0; i < num_metric_states; ++i) {
                             // to hash the grid state correctly, use grid map center as the
                             // reference point, [x_center_g, y_center_g, theta_g]
@@ -576,8 +558,13 @@ namespace erl::env {
                 m_grid_map_info_->GridToMeterAtDim(grid_state[2], 2)};
         }
 
-        // [[nodiscard]] cv::Mat
-        // ShowPaths(const std::map<int, Eigen::MatrixXd> &paths, bool block) const override;
+        [[nodiscard]] bool
+        IsValidState(const State &env_state) const override {
+            if (!InStateSpace(env_state)) { return false; }
+            return m_inflated_grid_maps_[env_state.grid[2]].template at<MapDtype>(
+                       env_state.grid[0],
+                       env_state.grid[1]) < m_setting_->obstacle_threshold;
+        }
 
         [[nodiscard]] std::vector<State>
         SampleValidStates(int /*num_samples*/) const override {
@@ -592,28 +579,3 @@ namespace erl::env {
     extern template class EnvironmentSe2<float, double>;
     extern template class EnvironmentSe2<double, double>;
 }  // namespace erl::env
-
-template<>
-struct YAML::convert<erl::env::EnvironmentSe2<float>::Setting>
-    : public erl::env::EnvironmentSe2<float>::Setting::YamlConvertImpl {};
-
-template<>
-struct YAML::convert<erl::env::EnvironmentSe2<double>::Setting>
-    : public erl::env::EnvironmentSe2<double>::Setting::YamlConvertImpl {};
-
-template<>
-struct YAML::convert<erl::env::EnvironmentSe2<float, float>::Setting>
-    : public erl::env::EnvironmentSe2<float, float>::Setting::YamlConvertImpl {};
-
-template<>
-struct YAML::convert<erl::env::EnvironmentSe2<double /*Dtype*/, float /*MapDtype*/>::Setting>
-    : public erl::env::EnvironmentSe2<double, float>::Setting::YamlConvertImpl {};
-
-template<>
-struct YAML::convert<erl::env::EnvironmentSe2<float, double>::Setting>
-    // WARNING: map cost will be cast from double to float.
-    : public erl::env::EnvironmentSe2<float, double>::Setting::YamlConvertImpl {};
-
-template<>
-struct YAML::convert<erl::env::EnvironmentSe2<double, double>::Setting>
-    : public erl::env::EnvironmentSe2<double, double>::Setting::YamlConvertImpl {};

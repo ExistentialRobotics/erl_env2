@@ -20,6 +20,13 @@ namespace erl::env {
             (void) env_state;
             (void) action_idx;
             ERL_FATAL("Call ForwardActionAtLevel() instead for {}.", type_name(*this));
+            return {};
+        }
+
+        [[nodiscard]] bool
+        IsValidState(const State & /*env_state*/) const override {
+            ERL_FATAL("Not supported.");
+            return true;
         }
 
         [[nodiscard]] virtual std::vector<State>

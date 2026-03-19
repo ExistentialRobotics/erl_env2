@@ -40,7 +40,7 @@ namespace erl::env {
             void
             SetGridMotionPrimitive(const int max_axis_step, const bool allow_diagonal) {
                 motions.clear();
-                ERL_ASSERTM(max_axis_step > 0, "max_axis_step must be positive.");
+                ERL_ASSERT_GT(max_axis_step, 0);
                 int num_controls = max_axis_step * 2 + 1;
                 if (allow_diagonal) {
                     num_controls = num_controls * num_controls - 1;
@@ -78,10 +78,10 @@ namespace erl::env {
         std::shared_ptr<GridMapInfo> m_grid_map_info_ = nullptr;  // grid map description
         cv::Mat m_original_grid_map_;  // original grid map, where each cell is a cost value
         cv::Mat m_grid_map_;           // inflated grid map
-        std::vector<Eigen::Matrix2Xi> m_rel_trajectories_;      // relative trajectories
-        std::vector<Dtype> m_motion_costs_;                     // cost of each motion
-        Eigen::MatrixX<std::vector<int>> m_reachable_motions_;  // reachable controls for each grid
-        std::shared_ptr<Cost> m_cost_func_ = nullptr;           // cost function
+        std::vector<Eigen::Matrix2Xi> m_rel_trajectories_;              // relative trajectories
+        std::vector<Dtype> m_motion_costs_;                             // cost of each motion
+        std::shared_ptr<Cost> m_cost_func_ = nullptr;                   // cost function
+        mutable Eigen::MatrixX<std::vector<int>> m_reachable_motions_;  // cache of valid controls
 
         // x to the bottom, y to the right, along y first
 
@@ -166,8 +166,7 @@ namespace erl::env {
             const int cur_xg = env_state.grid[0];
             const int cur_yg = env_state.grid[1];
             const auto num_motions = static_cast<int>(m_rel_trajectories_.size());
-            auto &reachable_motions =
-                const_cast<std::vector<int> &>(m_reachable_motions_(cur_xg, cur_yg));
+            auto &reachable_motions = m_reachable_motions_(cur_xg, cur_yg);
             if (reachable_motions.empty()) {
                 for (int motion_idx = 0; motion_idx < num_motions; ++motion_idx) {
                     auto &rel_trajectory = m_rel_trajectories_[motion_idx];

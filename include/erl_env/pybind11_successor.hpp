@@ -6,13 +6,13 @@
 
 template<typename Dtype, int Dim>
 void
-BindSuccessor(py::module& m, const char* successor_name) {
+BindSuccessor(py::module &m, const char *successor_name) {
     using namespace erl::env;
     using Successor_t = Successor<Dtype, Dim>;
 
     py::class_<Successor_t>(m, successor_name)
         .def(
-            py::init<const EnvironmentState<Dtype, Dim>&, Dtype, long, long>(),
+            py::init<const EnvironmentState<Dtype, Dim> &, Dtype, long, long>(),
             py::arg("state"),
             py::arg("cost"),
             py::arg("action_idx"),

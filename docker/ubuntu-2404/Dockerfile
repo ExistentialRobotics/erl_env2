@@ -3,8 +3,9 @@ FROM ${BASE_IMAGE}
 
 WORKDIR /root
 
-RUN wget http://www.lrde.epita.fr/dload/spot/spot-2.14.2.tar.gz && \
-    tar -xf spot-2.14.2.tar.gz && \
-    cd spot-2.14.2 && \
+ENV SPOT_VERSION=2.14.5
+RUN wget http://www.lrde.epita.fr/dload/spot/spot-${SPOT_VERSION}.tar.gz && \
+    tar -xf spot-${SPOT_VERSION}.tar.gz && \
+    cd spot-${SPOT_VERSION} && \
     ./configure --prefix=/usr && \
     make -j`nproc` && make install

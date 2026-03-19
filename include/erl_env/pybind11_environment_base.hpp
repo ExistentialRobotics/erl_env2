@@ -6,7 +6,7 @@
 
 template<typename Dtype, int Dim>
 void
-BindEnvironmentBase(py::module& m, const char* env_name) {
+BindEnvironmentBase(py::module &m, const char *env_name) {
     using namespace erl::env;
     using EnvironmentBase_t = EnvironmentBase<Dtype, Dim>;
 

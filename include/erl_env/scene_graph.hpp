@@ -2,27 +2,41 @@
 
 // #include "atomic_proposition.hpp"
 
+#include "erl_common/enum_parse.hpp"
 #include "erl_common/opencv.hpp"
 #include "erl_common/yaml.hpp"
+
+namespace erl::env::scene_graph {
+    enum class NodeType {
+        kOcc = 0,
+        kObject = 1,
+        kRoom = 2,
+        kFloor = 3,
+        kBuilding = 4,
+    };
+}
+
+ERL_REFLECT_ENUM_SCHEMA(
+    erl::env::scene_graph::NodeType,
+    5,
+    ERL_REFLECT_ENUM_MEMBER("kOcc", erl::env::scene_graph::NodeType::kOcc),
+    ERL_REFLECT_ENUM_MEMBER("kObject", erl::env::scene_graph::NodeType::kObject),
+    ERL_REFLECT_ENUM_MEMBER("kRoom", erl::env::scene_graph::NodeType::kRoom),
+    ERL_REFLECT_ENUM_MEMBER("kFloor", erl::env::scene_graph::NodeType::kFloor),
+    ERL_REFLECT_ENUM_MEMBER("kBuilding", erl::env::scene_graph::NodeType::kBuilding));
+
+ERL_PARSE_ENUM(erl::env::scene_graph::NodeType, 5);
 
 namespace erl::env::scene_graph {
     struct Node : public common::Yamlable<Node> {
         inline static int uuid_counter = 0;
 
-        enum class Type {
-            kOcc = 0,
-            kObject = 1,
-            kRoom = 2,
-            kFloor = 3,
-            kBuilding = 4,
-        };
-
-        int uuid = -1;           // unique scene graph element id
-        int id = -1;             // unique id of the same type
-        int parent_id = -1;      // parent node id (not uuid)
-        int parent_uuid = -1;    // parent node uuid
-        Type type = Type::kOcc;  // type of the node
-        std::string name = {};   // node name
+        int uuid = -1;                   // unique scene graph element id
+        int id = -1;                     // unique id of the same type
+        int parent_id = -1;              // parent node id (not uuid)
+        int parent_uuid = -1;            // parent node uuid
+        NodeType type = NodeType::kOcc;  // type of the node
+        std::string name = {};           // node name
 
         ERL_REFLECT_SCHEMA(
             Node,
@@ -64,7 +78,7 @@ namespace erl::env::scene_graph {
 
         bool
         PostDeserialization() override {
-            if (type != Node::Type::kObject) {
+            if (type != NodeType::kObject) {
                 ERL_WARN("Node type is not kObject");
                 return false;
             }
@@ -97,7 +111,7 @@ namespace erl::env::scene_graph {
 
         bool
         PostDeserialization() override {
-            if (type != Node::Type::kRoom) {
+            if (type != NodeType::kRoom) {
                 ERL_WARN("Node type is not kRoom");
                 return false;
             }
@@ -152,7 +166,7 @@ namespace erl::env::scene_graph {
 
         bool
         PostDeserialization() override {
-            if (type != Node::Type::kFloor) {
+            if (type != NodeType::kFloor) {
                 ERL_WARN("Node type is not kFloor");
                 return false;
             }
@@ -193,7 +207,7 @@ namespace erl::env::scene_graph {
 
         bool
         PostDeserialization() override {
-            if (type != Node::Type::kBuilding) {
+            if (type != NodeType::kBuilding) {
                 ERL_WARN("Node type is not kBuilding");
                 return false;
             }
@@ -283,15 +297,3 @@ namespace erl::env::scene_graph {
         }
     };
 }  // namespace erl::env::scene_graph
-
-ERL_REFLECT_ENUM_SCHEMA(
-    erl::env::scene_graph::Node::Type,
-    5,
-    ERL_REFLECT_ENUM_MEMBER("kOcc", erl::env::scene_graph::Node::Type::kOcc),
-    ERL_REFLECT_ENUM_MEMBER("kObject", erl::env::scene_graph::Node::Type::kObject),
-    ERL_REFLECT_ENUM_MEMBER("kRoom", erl::env::scene_graph::Node::Type::kRoom),
-    ERL_REFLECT_ENUM_MEMBER("kFloor", erl::env::scene_graph::Node::Type::kFloor),
-    ERL_REFLECT_ENUM_MEMBER("kBuilding", erl::env::scene_graph::Node::Type::kBuilding));
-
-ERL_ENUM_YAML_CONVERT(erl::env::scene_graph::Node::Type, 5);
-

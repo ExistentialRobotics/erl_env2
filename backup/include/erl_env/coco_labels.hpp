@@ -9,7 +9,7 @@ namespace erl::env {
     struct CocoObjectLabels2017 {
         // copied from instances_val2017.json in COCO 2017 dataset:
         // https://cocodataset.org/#download format: https://cocodataset.org/#format-data
-        inline static const char* json =
+        inline static const char *json =
             "{\"categories\": [{\"supercategory\": \"person\",\"id\": 1,\"name\": "
             "\"person\"},{\"supercategory\": \"vehicle\",\"id\": 2,\"name\": "
             "\"bicycle\"},{\"supercategory\": \"vehicle\",\"id\": 3,\"name\": "
@@ -97,7 +97,7 @@ namespace erl::env {
             []() -> std::map<int, std::string> {
             auto json = nlohmann::json::parse(CocoObjectLabels2017::json);
             std::map<int, std::string> obj_id_to_supercategory;
-            for (auto& cat: json["categories"]) {
+            for (auto &cat: json["categories"]) {
                 CocoObjectLabels2017::obj_id_to_label[cat["id"].get<int>()] =
                     cat["name"].get<std::string>();
                 CocoObjectLabels2017::obj_label_to_id[cat["name"].get<std::string>()] =
@@ -110,7 +110,7 @@ namespace erl::env {
     };
 
     struct CocoStuffLabels {
-        inline static const char* json =
+        inline static const char *json =
             "{\"categories\": [{\"supercategory\": \"textile\", \"id\": 92, \"name\": \"banner\"}, "
             "{\"supercategory\": \"textile\", \"id\": 93, \"name\": "
             "\"blanket\"}, {\"supercategory\": \"plant\", \"id\": 94, \"name\": \"branch\"}, "
@@ -464,7 +464,7 @@ namespace erl::env {
             stuff_label_to_id["hair brush"] = 91;
             std::map<int, std::string> stuff_id_to_supercategory =
                 CocoObjectLabels2017::obj_id_to_supercategory;
-            for (auto& cat: json["categories"]) {
+            for (auto &cat: json["categories"]) {
                 ERL_ASSERT(
                     CocoStuffLabels::stuff_id_to_label[cat["id"].get<int>()] ==
                     cat["name"].get<std::string>());

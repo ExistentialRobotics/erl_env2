@@ -50,7 +50,7 @@ namespace erl::env {
         cv::Mat m_grid_map_;           // inflated grid map
         std::vector<Eigen::Matrix2Xi> m_rel_trajectories_;  // rel trajectories of motion primitives
         std::vector<Dtype> m_motion_costs_;                 // cost of each control
-        Eigen::MatrixX<std::vector<int>> m_reachable_motions_;  // reachable controls for each grid
+        mutable Eigen::MatrixX<std::vector<int>> m_reachable_motions_;  // cache of valid controls
 
         // each element is a |AP|-bit word representing the result of atomic propositions
         Eigen::MatrixX<uint32_t> m_label_map_;
@@ -145,8 +145,7 @@ namespace erl::env {
             const int cur_xg = env_state.grid[0];
             const int cur_yg = env_state.grid[1];
             const auto num_motions = static_cast<int>(m_rel_trajectories_.size());
-            auto &reachable_motions =
-                const_cast<std::vector<int> &>(m_reachable_motions_(cur_xg, cur_yg));
+            auto &reachable_motions = m_reachable_motions_(cur_xg, cur_yg);
             if (reachable_motions.empty()) {
                 for (int motion_idx = 0; motion_idx < num_motions; ++motion_idx) {
                     auto &rel_trajectory = m_rel_trajectories_[motion_idx];
@@ -272,9 +271,7 @@ namespace erl::env {
     private:
         void
         Init(std::shared_ptr<GridMapInfo2D> grid_map_info, std::shared_ptr<Cost> cost_func) {
-            ERL_ASSERTM(
-                m_setting_->fsa->atomic_propositions.size() <= 64,
-                "Does not support more than 64 atomic propositions.");
+            ERL_ASSERT_LE(m_setting_->fsa->atomic_propositions.size(), 64);
 
             auto num_states = static_cast<int>(m_setting_->fsa->num_states);
             if (num_states % 2 == 0) { num_states += 1; }

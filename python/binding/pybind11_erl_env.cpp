@@ -133,13 +133,13 @@
 // static void
 // BindSceneGraph(py::module &m) {
 //     py::class_<scene_graph::Node, std::shared_ptr<scene_graph::Node>> node(m, "Node");
-//     py::enum_<scene_graph::Node::Type>(node, "Type", py::arithmetic(), "Type of scene graph
+//     py::enum_<scene_graph::NodeType>(node, "Type", py::arithmetic(), "Type of scene graph
 //     node.")
-//         .value("kOcc", scene_graph::Node::Type::kOcc)
-//         .value("kObject", scene_graph::Node::Type::kObject)
-//         .value("kRoom", scene_graph::Node::Type::kRoom)
-//         .value("kFloor", scene_graph::Node::Type::kFloor)
-//         .value("kBuilding", scene_graph::Node::Type::kBuilding)
+//         .value("kOcc", scene_graph::NodeType::kOcc)
+//         .value("kObject", scene_graph::NodeType::kObject)
+//         .value("kRoom", scene_graph::NodeType::kRoom)
+//         .value("kFloor", scene_graph::NodeType::kFloor)
+//         .value("kBuilding", scene_graph::NodeType::kBuilding)
 //         .export_values();
 //     node.def_readwrite("uuid", &scene_graph::Object::uuid)
 //         .def_readwrite("id", &scene_graph::Object::id)

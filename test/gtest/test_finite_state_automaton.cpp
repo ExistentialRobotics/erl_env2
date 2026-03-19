@@ -88,7 +88,7 @@ TEST(ERL_ENV, FiniteStateAutomaton) {
         {0, 1, 3, 4, 5, 6},
         {2},
     };
-    const auto& fsa_levels = fsa.GetLevels();
+    const auto &fsa_levels = fsa.GetLevels();
     EXPECT_EQ(fsa_levels.size(), expected_levels.size());
     for (std::size_t i = 0; i < expected_levels.size(); ++i) {
         EXPECT_EQ(fsa_levels[i].size(), expected_levels[i].size());
@@ -173,13 +173,13 @@ using namespace boost;
 
 template<class Graph>
 struct exercise_vertex {
-    explicit exercise_vertex(Graph& g_)
+    explicit exercise_vertex(Graph &g_)
         : g(g_) {}
 
     typedef typename graph_traits<Graph>::vertex_descriptor Vertex;
 
     void
-    operator()(const Vertex& v) const {
+    operator()(const Vertex &v) const {
         using namespace boost;
         typename property_map<Graph, vertex_index_t>::type vertex_id = get(vertex_index, g);
         std::cout << "vertex: " << get(vertex_id, v) << std::endl;
@@ -213,7 +213,7 @@ struct exercise_vertex {
         std::cout << std::endl;
     }
 
-    Graph& g;
+    Graph &g;
 };
 
 TEST(BoostGraph, QuickTour) {
@@ -225,7 +225,7 @@ TEST(BoostGraph, QuickTour) {
     enum { A, B, C, D, E, N };
 
     const int num_vertices = N;
-    const char* name = "ABCDE";
+    const char *name = "ABCDE";
 
     // writing out the edges in the graph
     typedef std::pair<int, int> Edge;
@@ -315,7 +315,7 @@ TEST(BoostGraph, ReadGraphViz) {
     dp.property("weight", weight);
 
     // Use ref_property_map to turn a graph property into a property map
-    boost::ref_property_map<graph_t*, std::string> gname(get_property(graph, graph_name));
+    boost::ref_property_map<graph_t *, std::string> gname(get_property(graph, graph_name));
     dp.property("name", gname);
 
     // Sample graph as an std::istream;

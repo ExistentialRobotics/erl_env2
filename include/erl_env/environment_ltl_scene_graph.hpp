@@ -86,11 +86,11 @@ namespace erl::env {
     protected:
         std::shared_ptr<Setting> m_setting_ = nullptr;
         std::shared_ptr<FiniteStateAutomaton> m_fsa_ = nullptr;
-        HashMap<int, Eigen::MatrixX<uint32_t>> m_label_maps_ = {};
-        HashMap<int, Eigen::MatrixX<std::vector<int>>> m_up_stairs_path_q_maps_ = {};
-        HashMap<int, Eigen::MatrixX<std::vector<int>>> m_down_stairs_path_q_maps_ = {};
-        HashMap<int, Eigen::MatrixX<std::vector<int>>> m_object_path_q_maps_ = {};
-        HashMap<int, HashMap<int, Eigen::MatrixX<std::vector<int>>>> m_room_path_q_maps_ = {};
+        HashMap<int, Eigen::MatrixX<uint32_t>> m_label_maps_;
+        mutable HashMap<int, Eigen::MatrixX<std::vector<int>>> m_up_stairs_path_q_maps_;
+        mutable HashMap<int, Eigen::MatrixX<std::vector<int>>> m_down_stairs_path_q_maps_;
+        mutable HashMap<int, Eigen::MatrixX<std::vector<int>>> m_object_path_q_maps_;
+        mutable HashMap<int, HashMap<int, Eigen::MatrixX<std::vector<int>>>> m_room_path_q_maps_;
 
     public:
         EnvironmentLTLSceneGraph(
@@ -153,8 +153,8 @@ namespace erl::env {
             const int &cur_z = env_state.grid[2];
             const int &cur_q = env_state.grid[3];
 
-            switch (static_cast<scene_graph::Node::Type>(level - 1)) {
-                case scene_graph::Node::Type::kOcc: {  // atomic action
+            switch (static_cast<scene_graph::NodeType>(level - 1)) {
+                case scene_graph::NodeType::kOcc: {  // atomic action
                     ERL_DEBUG("kOcc action id: {}", action_idx);
                     ERL_DEBUG_ASSERT(
                         action_idx >= 0 &&
@@ -208,7 +208,7 @@ namespace erl::env {
                     next_env_state.metric = GridToMetric(next_env_state.grid);
                     return {next_env_state};
                 }
-                case scene_graph::Node::Type::kObject: {  // reach object
+                case scene_graph::NodeType::kObject: {  // reach object
                     const auto &goal_object_id = action_idx;
 
                     ERL_DEBUG("kObject action id: {}", goal_object_id);
@@ -218,7 +218,7 @@ namespace erl::env {
                         cur_y - local_cost_map.grid_min_y);
                     return ConvertPath(path, cur_z, cur_q);
                 }
-                case scene_graph::Node::Type::kRoom: {  // reach room
+                case scene_graph::NodeType::kRoom: {  // reach room
                     const auto &goal_room_id = action_idx;
 
                     const int &at_room_id =
@@ -230,12 +230,12 @@ namespace erl::env {
                         cur_y - local_cost_map.grid_min_y);
                     return ConvertPath(path, cur_z, cur_q);
                 }
-                case scene_graph::Node::Type::kFloor: {  // floor up or down
+                case scene_graph::NodeType::kFloor: {  // floor up or down
                     const auto &goal_floor_num = action_idx;
                     ERL_DEBUG("kFloor action id: {}", goal_floor_num);
                     return GetPathToFloor(cur_x, cur_y, cur_z, cur_q, goal_floor_num);
                 }
-                case scene_graph::Node::Type::kBuilding:
+                case scene_graph::NodeType::kBuilding:
                     throw std::runtime_error("No action for building.");
                 default:
                     throw std::runtime_error("Invalid action: unknown level.");
@@ -251,8 +251,8 @@ namespace erl::env {
             const int &cur_y = env_state.grid[1];
             const int &cur_z = env_state.grid[2];
             const int &cur_q = env_state.grid[3];
-            switch (static_cast<scene_graph::Node::Type>(level - 1)) {
-                case scene_graph::Node::Type::kOcc: {
+            switch (static_cast<scene_graph::NodeType>(level - 1)) {
+                case scene_graph::NodeType::kOcc: {
                     int num_actions = static_cast<int>(this->m_atomic_actions_.size()) - 2;
                     for (int atomic_action_id = 0; atomic_action_id < num_actions;
                          ++atomic_action_id) {
@@ -282,7 +282,7 @@ namespace erl::env {
                             next_env_state,
                             atomic_action.cost,
                             atomic_action_id,
-                            static_cast<long>(scene_graph::Node::Type::kOcc) + 1);
+                            static_cast<long>(scene_graph::NodeType::kOcc) + 1);
                     }
                     // going up/down-stairs only happens when the robot arrives at the stairs portal
                     auto &floor = this->m_scene_graph_->floors.at(cur_z);
@@ -298,12 +298,9 @@ namespace erl::env {
                         const Dtype &cost = floor->up_stairs_cost;
                         if (!std::isinf(cost)) {
                             State next_env_state;
-                            int &nx = next_env_state.grid[0];
-                            int &ny = next_env_state.grid[1];
-                            int &nz = next_env_state.grid[2];
                             int &nq = next_env_state.grid[3];
-                            auto &dst_q = const_cast<std::vector<int> &>(
-                                m_up_stairs_path_q_maps_.at(cur_z)(cur_x, cur_y));
+                            std::vector<int> &dst_q =
+                                m_up_stairs_path_q_maps_.at(cur_z)(cur_x, cur_y);
                             // initialize
                             if (dst_q.empty()) { dst_q.resize(m_setting_->fsa->num_states, -1); }
                             nq = dst_q[cur_q];  // read from the cache
@@ -331,6 +328,9 @@ namespace erl::env {
                                 dst_q[cur_q] = nq;  // write to the cache
                             }
                             if (!m_fsa_->IsSinkState(nq)) {
+                                int &nx = next_env_state.grid[0];
+                                int &ny = next_env_state.grid[1];
+                                int &nz = next_env_state.grid[2];
                                 nx = floor_up->down_stairs_portal.value()[0];
                                 ny = floor_up->down_stairs_portal.value()[1];
                                 nz = floor_num_up;
@@ -340,7 +340,7 @@ namespace erl::env {
                                     next_env_state,
                                     cost,
                                     this->m_floor_up_action_id_,
-                                    static_cast<long>(scene_graph::Node::Type::kOcc) + 1);
+                                    static_cast<long>(scene_graph::NodeType::kOcc) + 1);
                             }
                         }
                     }
@@ -360,8 +360,8 @@ namespace erl::env {
                         int &ny = next_env_state.grid[1];
                         int &nz = next_env_state.grid[2];
                         int &nq = next_env_state.grid[3];
-                        auto &dst_q = const_cast<std::vector<int> &>(
-                            m_down_stairs_path_q_maps_.at(cur_z)(cur_x, cur_y));
+                        std::vector<int> &dst_q =
+                            m_down_stairs_path_q_maps_.at(cur_z)(cur_x, cur_y);
                         if (dst_q.empty()) { dst_q.resize(m_setting_->fsa->num_states, -1); }
                         nq = dst_q[cur_q];  // read from the cache
                         // path to the downstairs portal
@@ -397,12 +397,12 @@ namespace erl::env {
                                 next_env_state,
                                 cost,
                                 this->m_floor_down_action_id_,
-                                static_cast<long>(scene_graph::Node::Type::kOcc) + 1);
+                                static_cast<long>(scene_graph::NodeType::kOcc) + 1);
                         }
                     }
                     return successors;
                 }
-                case scene_graph::Node::Type::kObject: {
+                case scene_graph::NodeType::kObject: {
                     int at_room_id = this->m_room_maps_.at(cur_z).template at<int>(cur_x, cur_y);
                     auto &room = this->m_scene_graph_->id_to_room.at(at_room_id);
                     auto &reached_object_ids = this->m_object_reached_maps_.at(cur_z)(cur_x, cur_y);
@@ -436,8 +436,7 @@ namespace erl::env {
                         int &ny = next_env_state.grid[1];
                         int &nz = next_env_state.grid[2];
                         int &nq = next_env_state.grid[3];
-                        auto &dst_q = const_cast<std::vector<int> &>(
-                            m_object_path_q_maps_.at(object_id)(r, c));
+                        std::vector<int> &dst_q = m_object_path_q_maps_.at(object_id)(r, c);
                         if (dst_q.empty()) { dst_q.resize(m_setting_->fsa->num_states, -1); }
                         nq = dst_q[cur_q];             // read from the cache
                         if (nq < 0) {                  // not computed yet
@@ -459,11 +458,11 @@ namespace erl::env {
                             next_env_state,
                             cost,
                             object_id,
-                            static_cast<long>(scene_graph::Node::Type::kObject) + 1);
+                            static_cast<long>(scene_graph::NodeType::kObject) + 1);
                     }
                     return successors;
                 }
-                case scene_graph::Node::Type::kRoom: {
+                case scene_graph::NodeType::kRoom: {
                     int at_room_id = this->m_room_maps_.at(cur_z).template at<int>(cur_x, cur_y);
                     auto connected_room_cost_maps_itr = this->m_room_cost_maps_.find(at_room_id);
                     if (connected_room_cost_maps_itr == this->m_room_cost_maps_.end()) {
@@ -506,8 +505,8 @@ namespace erl::env {
                         int &ny = next_env_state.grid[1];
                         int &nz = next_env_state.grid[2];
                         int &nq = next_env_state.grid[3];
-                        auto &dst_q = const_cast<std::vector<int> &>(
-                            m_room_path_q_maps_.at(at_room_id).at(connected_room_id)(r, c));
+                        std::vector<int> &dst_q =
+                            m_room_path_q_maps_.at(at_room_id).at(connected_room_id)(r, c);
                         if (dst_q.empty()) { dst_q.resize(m_setting_->fsa->num_states, -1); }
                         nq = dst_q[cur_q];             // read from the cache
                         if (nq < 0) {                  // not computed yet
@@ -529,7 +528,7 @@ namespace erl::env {
                             next_env_state,
                             cost,
                             connected_room_id,
-                            static_cast<long>(scene_graph::Node::Type::kRoom) + 1);
+                            static_cast<long>(scene_graph::NodeType::kRoom) + 1);
                         ERL_DEBUG_ASSERT(
                             this->m_room_maps_.at(cur_z).template at<int>(nx, ny) ==
                                 connected_room_id,
@@ -537,7 +536,7 @@ namespace erl::env {
                     }
                     return successors;
                 }
-                case scene_graph::Node::Type::kFloor: {
+                case scene_graph::NodeType::kFloor: {
                     int floor_num_up = cur_z + 1;
                     int floor_num_down = cur_z - 1;
                     successors.reserve(2);
@@ -550,8 +549,8 @@ namespace erl::env {
                             int &ny = next_env_state.grid[1];
                             int &nz = next_env_state.grid[2];
                             int &nq = next_env_state.grid[3];
-                            auto &dst_q = const_cast<std::vector<int> &>(
-                                m_up_stairs_path_q_maps_.at(cur_z)(cur_x, cur_y));
+                            std::vector<int> &dst_q =
+                                m_up_stairs_path_q_maps_.at(cur_z)(cur_x, cur_y);
                             if (dst_q.empty()) { dst_q.resize(m_setting_->fsa->num_states, -1); }
                             nq = dst_q[cur_q];  // read from the cache
                             auto &path = this->m_up_stairs_path_maps_.at(
@@ -587,7 +586,7 @@ namespace erl::env {
                                     next_env_state,
                                     cost,
                                     this->m_floor_up_action_id_,
-                                    static_cast<long>(scene_graph::Node::Type::kOcc) + 1);
+                                    static_cast<long>(scene_graph::NodeType::kOcc) + 1);
                             }
                         }
                     }
@@ -600,9 +599,8 @@ namespace erl::env {
                         int &ny = next_env_state.grid[1];
                         int &nz = next_env_state.grid[2];
                         int &nq = next_env_state.grid[3];
-
-                        auto &dst_q = const_cast<std::vector<int> &>(
-                            m_down_stairs_path_q_maps_.at(cur_z)(cur_x, cur_y));
+                        std::vector<int> &dst_q =
+                            m_down_stairs_path_q_maps_.at(cur_z)(cur_x, cur_y);
                         if (dst_q.empty()) { dst_q.resize(m_setting_->fsa->num_states, -1); }
                         nq = dst_q[cur_q];  // read from the cache
                         auto &path = this->m_down_stairs_path_maps_.at(cur_z)(cur_x, cur_y);
@@ -637,12 +635,12 @@ namespace erl::env {
                                 next_env_state,
                                 cost,
                                 this->m_floor_down_action_id_,
-                                static_cast<long>(scene_graph::Node::Type::kOcc) + 1);
+                                static_cast<long>(scene_graph::NodeType::kOcc) + 1);
                         }
                     }
                     return successors;
                 }
-                case scene_graph::Node::Type::kBuilding:
+                case scene_graph::NodeType::kBuilding:
                     throw std::runtime_error("No action for building.");
                 default:
                     throw std::runtime_error("Invalid action: unknown level.");
@@ -680,7 +678,6 @@ namespace erl::env {
     protected:
         void
         GenerateLabelMaps() {
-            ERL_BLOCK_TIMER();
             // initialize the label maps
             std::unordered_map<int, Eigen::MatrixX<std::bitset<32>>> label_maps = {};
             for (int i = 0; i < this->m_scene_graph_->num_floors; ++i) {

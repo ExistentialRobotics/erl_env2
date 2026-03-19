@@ -14,7 +14,7 @@ TEST(ERL_ENV, SceneGraph) {
     EXPECT_EQ(building.id, 4);
     EXPECT_EQ(building.parent_id, -1);
     EXPECT_EQ(building.parent_uuid, -1);
-    EXPECT_EQ(building.type, erl::env::scene_graph::Node::Type::kBuilding);
+    EXPECT_EQ(building.type, erl::env::scene_graph::NodeType::kBuilding);
     EXPECT_EQ(building.name, "Benevolence");
     EXPECT_EQ(building.floors.size(), 3);
     EXPECT_EQ(building.num_floors, 3);
@@ -33,7 +33,7 @@ TEST(ERL_ENV, SceneGraph) {
     EXPECT_EQ(floor->id, 0);
     EXPECT_EQ(floor->parent_id, 4);
     EXPECT_EQ(floor->parent_uuid, 1);
-    EXPECT_EQ(floor->type, erl::env::scene_graph::Node::Type::kFloor);
+    EXPECT_EQ(floor->type, erl::env::scene_graph::NodeType::kFloor);
     EXPECT_EQ(floor->name, "A");
     EXPECT_EQ(floor->rooms.size(), 5);
     EXPECT_EQ(floor->num_rooms, 5);
@@ -66,7 +66,7 @@ TEST(ERL_ENV, SceneGraph) {
     EXPECT_EQ(room->uuid, 2);
     EXPECT_EQ(room->parent_id, 0);    // floor->id
     EXPECT_EQ(room->parent_uuid, 3);  // floor->uuid
-    EXPECT_EQ(room->type, erl::env::scene_graph::Node::Type::kRoom);
+    EXPECT_EQ(room->type, erl::env::scene_graph::NodeType::kRoom);
     EXPECT_EQ(room->name, "bathroom");
     EXPECT_EQ(room->objects.size(), 3);
     EXPECT_EQ(room->num_objects, 3);
@@ -94,7 +94,7 @@ TEST(ERL_ENV, SceneGraph) {
     EXPECT_EQ(object->uuid, 27);
     EXPECT_EQ(object->parent_id, 1);    // room->id
     EXPECT_EQ(object->parent_uuid, 2);  // room->uuid
-    EXPECT_EQ(object->type, erl::env::scene_graph::Node::Type::kObject);
+    EXPECT_EQ(object->type, erl::env::scene_graph::NodeType::kObject);
     EXPECT_EQ(object->name, "sink");
     ASSERT_EIGEN_VECTOR_EQUAL("grid_map_min", object->grid_map_min, Eigen::Vector2i(473, 102));
     ASSERT_EIGEN_VECTOR_EQUAL("grid_map_max", object->grid_map_max, Eigen::Vector2i(529, 162));

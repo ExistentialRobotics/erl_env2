@@ -29,6 +29,9 @@ namespace erl::env {
         }
     };
 
+    using DifferentialDriveControlf = DifferentialDriveControl<float>;
+    using DifferentialDriveControld = DifferentialDriveControl<double>;
+
     /**
      * Kinematic model of differential drive robot.
      * @tparam Dtype data type, float or double.

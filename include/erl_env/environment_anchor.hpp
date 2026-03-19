@@ -24,7 +24,8 @@ namespace erl::env {
 
     public:
         explicit EnvironmentAnchor(std::vector<std::shared_ptr<EnvBase>> environments)
-            : EnvironmentMultiResolution<Dtype, Dim>(0), m_envs_(std::move(environments)) {
+            : EnvironmentMultiResolution<Dtype, Dim>(0),
+              m_envs_(std::move(environments)) {
             for (int i = 0; i < static_cast<int>(m_envs_.size()); ++i) {
                 std::shared_ptr<EnvBase> &env = m_envs_[i];
                 env->SetEnvId(i + 1);

@@ -12,7 +12,7 @@ RestrictAngle(double phi, double minrange = -M_PI, double maxrange = M_PI) {
 }
 
 inline std::array<double, 3>
-DdMotionModel(const std::array<double, 3>& x, const std::array<double, 2>& u, double t) {
+DdMotionModel(const std::array<double, 3> &x, const std::array<double, 2> &u, double t) {
     std::array<double, 3> nx{};
     double tw = t * u[1];
     nx[2] = erl::common::WrapAnglePi(x[2] + tw);

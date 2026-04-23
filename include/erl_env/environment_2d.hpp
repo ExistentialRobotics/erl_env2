@@ -364,7 +364,7 @@ namespace erl::env {
                 {
                     "setting",
                     [](Environment2D *self, std::istream &stream) {
-                        std::streamsize len;
+                        uint32_t len;
                         stream.read(reinterpret_cast<char *>(&len), sizeof(len));
                         std::string yaml_str(len, '\0');
                         stream.read(yaml_str.data(), len);

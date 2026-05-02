@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 
 project(erl_env
     LANGUAGES CXX
-    VERSION 0.1.0
+    VERSION 0.2.0
     DESCRIPTION "erl_env is a C++ library of environment abstraction for planning algorithms.")
 message(STATUS "Configuring ${PROJECT_NAME} ${PROJECT_VERSION}")
 
